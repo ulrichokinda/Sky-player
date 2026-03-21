@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required, email) - User email
+    //   - username: string (optional) - User display name
+    //   - role: string (required, enum: ['admin', 'reseller', 'client']) - User role
+    //   - credits: number (optional) - Available credits
+    //   - phone: string (optional) - User phone number
+    //   - country: string (optional) - User country
+    //   - createdAt: timestamp (required) - Creation time
+    //
+    // Collection: activations
+    // Document ID: {activationId}
+    // Fields:
+    //   - resellerId: string (required) - UID of the reseller
+    //   - target_mac: string (required) - Device MAC address
+    //   - credits_used: number (required) - Credits spent
+    //   - note: string (optional) - Optional note
+    //   - system: string (optional) - Device system
+    //   - version: string (optional) - Device version
+    //   - last_connection: timestamp (optional) - Last seen
+    //   - country_code: string (optional) - Country code
+    //   - createdAt: timestamp (required) - Creation time
+    //
+    // Collection: payments
+    // Document ID: {paymentId}
+    // Fields:
+    //   - userId: string (required) - UID of the user
+    //   - amount: number (required) - Payment amount
+    //   - credits_purchased: number (required) - Credits bought
+    //   - payment_method: string (required) - Method used
+    //   - provider: string (required) - Payment provider
+    //   - status: string (required, enum: ['pending', 'completed', 'failed']) - Transaction status
+    //   - external_id: string (required) - External transaction ID
+    //   - createdAt: timestamp (required) - Creation time
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "inestaulrichokinda@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
+             hasOnlyAllowedFields(['uid', 'email', 'username', 'role', 'credits', 'phone', 'country', 'createdAt']) &&
+             data.uid is string &&
+             data.email is string && isValidEmail(data.email) &&
+             data.role in ['admin', 'reseller', 'client'] &&
+             (data.credits == null || data.credits is number) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidActivation(data) {
+      return hasRequiredFields(['resellerId', 'target_mac', 'credits_used', 'createdAt']) &&
+             hasOnlyAllowedFields(['resellerId', 'target_mac', 'credits_used', 'note', 'system', 'version', 'last_connection', 'country_code', 'createdAt']) &&
+             data.resellerId is string &&
+             data.target_mac is string && data.target_mac.size() >= 12 && data.target_mac.size() <= 20 &&
+             data.credits_used is number && data.credits_used >= 0 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidPayment(data) {
+      return hasRequiredFields(['userId', 'amount', 'credits_purchased', 'payment_method', 'provider', 'status', 'external_id', 'createdAt']) &&
+             hasOnlyAllowedFields(['userId', 'amount', 'credits_purchased', 'payment_method', 'provider', 'status', 'external_id', 'createdAt']) &&
+             data.userId is string &&
+             data.amount is number && data.amount >= 0 &&
+             data.credits_purchased is number && data.credits_purchased >= 0 &&
+             data.status in ['pending', 'completed', 'failed'] &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) && request.resource.data.role != 'admin' || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) && request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /activations/{activationId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.resellerId || isAdmin());
+      allow create: if isAuthenticated() && isValidActivation(request.resource.data) && (request.auth.uid == request.resource.data.resellerId || isAdmin());
+      allow update: if isAuthenticated() && isValidActivation(request.resource.data) && (request.auth.uid == resource.data.resellerId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && isValidPayment(request.resource.data) && (request.auth.uid == request.resource.data.userId || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

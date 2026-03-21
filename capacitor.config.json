@@ -1,0 +1,9 @@
+{
+  "appId": "com.ewotech.woplayer",
+  "appName": "WO PLAYER",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user account details and role.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "reseller", "client"] },
+        "credits": { "type": "number", "description": "Available credits for resellers" },
+        "phone": { "type": "string" },
+        "country": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Activation": {
+      "title": "Activation",
+      "description": "Stores device activations.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "resellerId": { "type": "string" },
+        "target_mac": { "type": "string" },
+        "credits_used": { "type": "number" },
+        "note": { "type": "string" },
+        "system": { "type": "string" },
+        "version": { "type": "string" },
+        "last_connection": { "type": "string", "format": "date-time" },
+        "country_code": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["resellerId", "target_mac", "credits_used"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Stores credit purchase transactions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "credits_purchased": { "type": "number" },
+        "payment_method": { "type": "string" },
+        "provider": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "external_id": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "credits_purchased", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/activations/{activationId}": {
+      "schema": "Activation",
+      "description": "Device activations"
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payment transactions"
+    }
+  }
+}

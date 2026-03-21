@@ -1,0 +1,5 @@
+{
+  "name": "WO Player",
+  "description": "Lecteur IPTV premium avec pannel revendeur et paiements locaux africains.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+}

@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "A850 Roman", "A850 Roman Medium", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-primary: #00AEEF;
+  --color-primary-dark: #0056B3;
+  --color-accent: #F27D26;
+}
+
+@layer base {
+  :root {
+    --tv-safe-area-x: 5%;
+    --tv-safe-area-y: 5%;
+  }
+
+  body {
+    @apply bg-black text-zinc-100 antialiased selection:bg-primary/30 selection:text-primary;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+    font-family: "A850 Roman Medium", var(--font-sans);
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-primary/30 rounded-full transition-colors;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary/50;
+  }
+
+  .custom-scrollbar {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .glass-panel {
+    @apply bg-zinc-900/40 border border-white/5 backdrop-blur-2xl;
+  }
+
+  @keyframes swipe-hint {
+    0%, 100% { transform: translateX(0); opacity: 0.5; }
+    50% { transform: translateX(-10px); opacity: 1; }
+  }
+
+  .animate-swipe {
+    animation: swipe-hint 2s ease-in-out infinite;
+  }
+
+  /* Smart TV Focus Management */
+  .tv-focus:focus {
+    @apply outline-none ring-4 ring-primary scale-105 z-10;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Ensure focus is visible even without mouse */
+  :focus-visible {
+    @apply outline-none ring-4 ring-primary;
+  }
+
+  /* TV Safe Area */
+  .tv-container {
+    padding-left: var(--tv-safe-area-x);
+    padding-right: var(--tv-safe-area-x);
+    padding-top: var(--tv-safe-area-y);
+    padding-bottom: var(--tv-safe-area-y);
+  }
+
+  /* Hide scrollbars for TV */
+  @media (pointer: coarse) {
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  }
+}
