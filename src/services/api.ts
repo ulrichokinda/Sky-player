@@ -152,16 +152,16 @@ export const api = {
     return newPayment;
   },
 
-  async initiatePawaPay(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number }) {
-    // Simulate PawaPay initiation
+  async initiateMoneyFusion(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number }) {
+    // Simulate MoneyFusion initiation
     const depositId = Math.random().toString(36).substr(2, 9);
     
     await this.createPayment({
       userId: data.userId,
       amount: data.amount,
       credits_purchased: data.credits_purchased,
-      payment_method: 'pawapay',
-      provider: 'pawapay',
+      payment_method: 'moneyfusion',
+      provider: 'moneyfusion',
       status: 'pending',
       external_id: depositId
     });
@@ -169,7 +169,7 @@ export const api = {
     return {
       success: true,
       depositId,
-      message: "Paiement PawaPay initié. Veuillez valider sur votre téléphone."
+      message: "Paiement MoneyFusion initié. Veuillez valider sur votre téléphone."
     };
   },
 

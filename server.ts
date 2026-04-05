@@ -160,45 +160,20 @@ async function startServer() {
     }
   });
 
-  app.post('/api/payments/pawapay/initiate', async (req, res) => {
+  app.post('/api/payments/moneyfusion/initiate', async (req, res) => {
     const { userId, amount, phoneNumber, credits_purchased } = req.body;
-    const apiKey = process.env.PAWAPAY_API_KEY || "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjE3NTU1IiwibWF2IjoiMSIsImV4cCI6MjA4ODYxMTE2MCwiaWF0IjoxNzcyOTkxOTYwLCJwbSI6IkRBRixQQUYiLCJqdGkiOiI4MjBmZDE4MC0wNmRiLTQ2MTQtYTJlOC0yODk4OWJjODBjNzYifQ.Gpe4rB9MovmO5F0eBrRukDlWPzk0Jl9NUIjddq-DKSa6O7JR-4YOqBBBaHnBHU9dB20kT6w6c7dKir9X29xn_g";
+    const apiKey = process.env.MONEYFUSION_API_KEY || "dummy_key";
     const depositId = Math.random().toString(36).substr(2, 9);
 
     try {
-      // In a real scenario, we would call PawaPay API here
-      // For sandbox demo, we'll simulate the call and return a success
-      console.log(`Initiating PawaPay deposit for ${phoneNumber} with amount ${amount}`);
+      // In a real scenario, we would call MoneyFusion API here
+      console.log(`Initiating MoneyFusion deposit for ${phoneNumber} with amount ${amount}`);
       
-      /* 
-      const response = await fetch('https://api.sandbox.pawapay.cloud/deposits', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          depositId,
-          amount: amount.toString(),
-          currency: 'XOF', // Should be dynamic
-          country: 'SN', // Should be dynamic
-          correspondent: 'ORANGE', // Should be dynamic
-          payer: {
-            type: 'MSISDN',
-            address: { value: phoneNumber }
-          },
-          customerTimestamp: new Date().toISOString(),
-          statementDescription: 'Achat de crédits IPTV'
-        })
-      });
-      const result = await response.json();
-      */
-
       // Record the pending payment
       const id = Math.random().toString(36).substr(2, 9);
       const transaction = db.transaction(() => {
         db.prepare('INSERT INTO payments (id, userId, amount, credits_purchased, payment_method, provider, status, external_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
-          id, userId, amount, credits_purchased, 'pawapay', 'pawapay', 'pending', depositId
+          id, userId, amount, credits_purchased, 'moneyfusion', 'moneyfusion', 'pending', depositId
         );
       });
       transaction();
@@ -206,11 +181,40 @@ async function startServer() {
       res.json({ 
         success: true, 
         depositId,
-        message: "Paiement PawaPay initié. Veuillez valider sur votre téléphone." 
+        message: "Paiement MoneyFusion initié. Veuillez valider sur votre téléphone." 
       });
     } catch (error: any) {
-      console.error('PawaPay Error:', error);
-      res.status(500).json({ error: 'Erreur lors de l\'initiation du paiement PawaPay' });
+      console.error('MoneyFusion Error:', error);
+      res.status(500).json({ error: 'Erreur lors de l\'initiation du paiement MoneyFusion' });
+    }
+  });
+
+  app.post('/api/payments/yabetoopay/initiate', async (req, res) => {
+    const { userId, amount, phoneNumber, credits_purchased, methodId } = req.body;
+    const apiKey = process.env.YABETOO_API_KEY || "dummy_key";
+    const depositId = Math.random().toString(36).substr(2, 9);
+
+    try {
+      // In a real scenario, we would call YabetooPay API here
+      console.log(`Initiating YabetooPay deposit for ${phoneNumber} with amount ${amount} using ${methodId}`);
+      
+      // Record the pending payment
+      const id = Math.random().toString(36).substr(2, 9);
+      const transaction = db.transaction(() => {
+        db.prepare('INSERT INTO payments (id, userId, amount, credits_purchased, payment_method, provider, status, external_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+          id, userId, amount, credits_purchased, methodId, 'yabetoopay', 'pending', depositId
+        );
+      });
+      transaction();
+
+      res.json({ 
+        success: true, 
+        depositId,
+        message: `Paiement ${methodId} via YabetooPay initié. Veuillez valider sur votre téléphone.` 
+      });
+    } catch (error: any) {
+      console.error('YabetooPay Error:', error);
+      res.status(500).json({ error: 'Erreur lors de l\'initiation du paiement YabetooPay' });
     }
   });
 

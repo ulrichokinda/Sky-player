@@ -128,7 +128,7 @@ export const ResellerPanel: React.FC<ResellerPanelProps> = ({ activeTab, setActi
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [selectedPack, setSelectedPack] = useState<{ qty: number; price: number } | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'momo' | 'direct_momo' | 'pawapay'>('direct_momo');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'momo' | 'direct_momo' | 'moneyfusion'>('direct_momo');
   const [phoneNumber, setPhoneNumber] = useState(user.phone || '');
   const [momoProvider, setMomoProvider] = useState<'orange' | 'mtn' | 'moov' | 'wave' | 'airtel' | 'mtn_cg' | 'airtel_cg'>('orange');
   const [aiValidationMode, setAiValidationMode] = useState(false);
@@ -282,10 +282,10 @@ export const ResellerPanel: React.FC<ResellerPanelProps> = ({ activeTab, setActi
     try {
       const userId = auth.currentUser.uid;
       const id = Math.random().toString(36).substr(2, 9);
-      const externalId = (paymentMethod === 'direct_momo' ? "DIR-" : paymentMethod === 'pawapay' ? "PAWA-" : "FLW-") + Math.random().toString(36).substr(2, 9);
+      const externalId = (paymentMethod === 'direct_momo' ? "DIR-" : paymentMethod === 'moneyfusion' ? "MF-" : "FLW-") + Math.random().toString(36).substr(2, 9);
       
-      if (paymentMethod === 'pawapay') {
-        await api.initiatePawaPay({
+      if (paymentMethod === 'moneyfusion') {
+        await api.initiateMoneyFusion({
           userId,
           amount: selectedPack.price,
           phoneNumber,
@@ -788,12 +788,11 @@ export const ResellerPanel: React.FC<ResellerPanelProps> = ({ activeTab, setActi
               </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
-                { qty: 10, basePrice: 10000, popular: false, desc: 'Idéal pour débuter votre activité' },
-                { qty: 25, basePrice: 22500, popular: false, desc: 'Pack intermédiaire pour revendeurs' },
-                { qty: 50, basePrice: 40000, popular: true, desc: 'Le meilleur rapport qualité/prix' },
-                { qty: 100, basePrice: 75000, popular: false, desc: 'Pack Premium pour gros volume' },
+                { qty: 10, basePrice: 15000, popular: false, desc: '1 crédit = 1 an de validité' },
+                { qty: 20, basePrice: 25750, popular: false, desc: '1 crédit = 1 an de validité' },
+                { qty: 50, basePrice: 45000, popular: true, desc: '1 crédit = 1 an de validité' },
               ].map((pack) => {
                 const convertedPrice = getConvertedPrice(pack.basePrice);
                 const pricePerCredit = (convertedPrice / pack.qty).toFixed(0);
@@ -1901,13 +1900,13 @@ export const ResellerPanel: React.FC<ResellerPanelProps> = ({ activeTab, setActi
                           )}
 
                           <button 
-                            onClick={() => setPaymentMethod('pawapay')}
-                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all relative overflow-hidden group ${paymentMethod === 'pawapay' ? 'border-primary bg-primary/5 text-primary' : 'border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+                            onClick={() => setPaymentMethod('moneyfusion')}
+                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all relative overflow-hidden group ${paymentMethod === 'moneyfusion' ? 'border-primary bg-primary/5 text-primary' : 'border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
                           >
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-primary flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
                               <Globe size={20} />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest">PawaPay</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">MoneyFusion</span>
                             <span className="text-[7px] font-black uppercase tracking-[0.2em] opacity-40">Afrique Francophone</span>
                           </button>
                           <button 
@@ -2078,7 +2077,7 @@ export const ResellerPanel: React.FC<ResellerPanelProps> = ({ activeTab, setActi
                         </div>
                       )}
 
-                      {paymentMethod === 'pawapay' && (
+                      {paymentMethod === 'moneyfusion' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
                           <div className="p-6 bg-primary/5 border border-primary/10 rounded-3xl space-y-4">
                             <div className="flex items-center gap-3 text-primary">
@@ -2118,7 +2117,7 @@ export const ResellerPanel: React.FC<ResellerPanelProps> = ({ activeTab, setActi
                 {!paymentSuccess && (
                   <div className="p-6 border-t border-zinc-900 bg-zinc-900/30 space-y-4">
                     <button 
-                      disabled={loading || (paymentMethod === 'direct_momo' && (!phoneNumber || phoneNumber.length < 5)) || (paymentMethod === 'pawapay' && (!phoneNumber || phoneNumber.length < 5)) || paymentMethod === 'card'}
+                      disabled={loading || (paymentMethod === 'direct_momo' && (!phoneNumber || phoneNumber.length < 5)) || (paymentMethod === 'moneyfusion' && (!phoneNumber || phoneNumber.length < 5)) || paymentMethod === 'card'}
                       onClick={handleConfirmPayment}
                       className="w-full bg-primary text-black py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-20 disabled:grayscale shadow-xl shadow-primary/10 flex items-center justify-center gap-3"
                     >
