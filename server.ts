@@ -36,6 +36,8 @@ db.exec(`
     version TEXT,
     last_connection DATETIME,
     country_code TEXT,
+    playlist_url TEXT,
+    xtream_data TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(resellerId) REFERENCES users(uid)
   );
@@ -149,7 +151,7 @@ async function startServer() {
   });
 
   app.post('/api/activations', (req, res) => {
-    const { id, resellerId, target_mac, credits_used, note } = req.body;
+    const { id, resellerId, target_mac, credits_used, note, playlist_url, xtream_data } = req.body;
     try {
       const user = db.prepare('SELECT credits FROM users WHERE uid = ?').get(resellerId) as any;
       if (!user || user.credits < credits_used) {
@@ -157,7 +159,7 @@ async function startServer() {
       }
 
       const transaction = db.transaction(() => {
-        db.prepare('INSERT INTO activations (id, resellerId, target_mac, credits_used, note) VALUES (?, ?, ?, ?, ?)').run(id, resellerId, target_mac, credits_used, note);
+        db.prepare('INSERT INTO activations (id, resellerId, target_mac, credits_used, note, playlist_url, xtream_data) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, resellerId, target_mac, credits_used, note, playlist_url, JSON.stringify(xtream_data || null));
         db.prepare('UPDATE users SET credits = credits - ? WHERE uid = ?').run(credits_used, resellerId);
       });
       transaction();
@@ -182,7 +184,9 @@ async function startServer() {
         active: true,
         expiry: expiryDate.toLocaleDateString('fr-FR'),
         last_seen: activation.last_connection || '2024-03-09 14:22',
-        version: activation.version || 'v3.2.1'
+        version: activation.version || 'v3.2.1',
+        playlist_url: activation.playlist_url,
+        xtream_data: activation.xtream_data ? JSON.parse(activation.xtream_data) : null
       });
     } else {
       res.json({

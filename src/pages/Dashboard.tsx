@@ -46,6 +46,9 @@ export const Dashboard = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [macCheckResult, setMacCheckResult] = useState<any>(null);
   const [macToCheck, setMacToCheck] = useState('');
+  const [newPlaylistUrl, setNewPlaylistUrl] = useState('');
+  const [newMac, setNewMac] = useState('');
+  const [newNote, setNewNote] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -686,7 +689,18 @@ export const Dashboard = () => {
               <>
                 <h2 className="text-2xl font-black italic">Activer l'appareil</h2>
                 <div className="space-y-4">
-                  <Input label="Adresse MAC" placeholder="00:00:00:00:00:00" />
+                  <Input 
+                    label="Adresse MAC" 
+                    placeholder="00:00:00:00:00:00" 
+                    value={newMac}
+                    onChange={(e: any) => setNewMac(e.target.value)}
+                  />
+                  <Input 
+                    label="Lien M3U (Playlist)" 
+                    placeholder="http://exemple.com/playlist.m3u" 
+                    value={newPlaylistUrl}
+                    onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
+                  />
                   <Select label="Forfait d'abonnement">
                     <option>1 An (1 Crédit)</option>
                     <option>À vie (2 Crédits)</option>
@@ -697,7 +711,27 @@ export const Dashboard = () => {
                   <Button 
                     fullWidth 
                     loading={loading}
-                    onClick={() => handleAction("Activation de l'appareil", async () => {})}
+                    onClick={() => handleAction("Activation de l'appareil", async () => {
+                      const response = await fetch('/api/activations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          id: Math.random().toString(36).substr(2, 9),
+                          resellerId: user.uid,
+                          target_mac: newMac,
+                          credits_used: 1,
+                          note: newNote || 'Activation manuelle',
+                          playlist_url: newPlaylistUrl
+                        })
+                      });
+                      if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || "Erreur d'activation");
+                      }
+                      fetchActivations(user.uid);
+                      setNewMac('');
+                      setNewPlaylistUrl('');
+                    })}
                   >
                     Confirmer l'activation
                   </Button>
@@ -707,13 +741,51 @@ export const Dashboard = () => {
               <>
                 <h2 className="text-2xl font-black italic">Nouveau Client</h2>
                 <div className="space-y-4">
-                  <Input label="Nom du Client" placeholder="Jean Dupont" />
-                  <Input label="Adresse MAC" placeholder="00:00:00:00:00:00" />
-                  <Input label="Notes (Optionnel)" placeholder="Télé de la chambre" />
+                  <Input 
+                    label="Nom du Client" 
+                    placeholder="Jean Dupont" 
+                    value={newNote}
+                    onChange={(e: any) => setNewNote(e.target.value)}
+                  />
+                  <Input 
+                    label="Adresse MAC" 
+                    placeholder="00:00:00:00:00:00" 
+                    value={newMac}
+                    onChange={(e: any) => setNewMac(e.target.value)}
+                  />
+                  <Input 
+                    label="Lien M3U (Playlist)" 
+                    placeholder="http://exemple.com/playlist.m3u" 
+                    value={newPlaylistUrl}
+                    onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
+                  />
                   <Button 
                     fullWidth 
                     loading={loading}
-                    onClick={() => handleAction("Ajout d'un nouveau client", async () => {})}
+                    onClick={() => handleAction("Ajout d'un nouveau client", async () => {
+                      // This is similar to activation but maybe without credit deduction for now
+                      // Or it could just be a placeholder for the reseller's list
+                      const response = await fetch('/api/activations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          id: Math.random().toString(36).substr(2, 9),
+                          resellerId: user.uid,
+                          target_mac: newMac,
+                          credits_used: 0, // Just adding to list
+                          note: newNote,
+                          playlist_url: newPlaylistUrl
+                        })
+                      });
+                      if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || "Erreur d'ajout");
+                      }
+                      fetchActivations(user.uid);
+                      setNewMac('');
+                      setNewNote('');
+                      setNewPlaylistUrl('');
+                    })}
                   >
                     Ajouter le client
                   </Button>
