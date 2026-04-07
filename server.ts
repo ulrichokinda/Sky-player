@@ -319,7 +319,18 @@ async function startServer() {
   });
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`
+🚀 Sky Player Pro est prêt !
+--------------------------------------------------
+💻 Accès Web (Local) : http://localhost:${PORT}
+📱 Accès Réseau (Mobile/TV) : http://<VOTRE_IP_LOCALE>:${PORT}
+--------------------------------------------------
+🛠️ Pour compiler sur Android/TV :
+1. npm run build
+2. npx cap sync
+3. npx cap open android
+--------------------------------------------------
+    `);
   });
 }
 
