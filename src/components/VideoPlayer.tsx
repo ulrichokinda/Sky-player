@@ -39,7 +39,7 @@ export const VideoPlayer: React.FC<PlayerProps> = ({ url, title }) => {
 
   const updateStats = useCallback((hlsInstance: Hls, videoElement: HTMLVideoElement, data: any) => {
     const level = hlsInstance.levels[hlsInstance.currentLevel];
-    setStats(prev => ({
+    setStats((prev: any) => ({
       ...prev,
       bitrate: level?.bitrate || 0,
       resolution: level ? `${level.width}x${level.height}` : '0x0',
@@ -135,7 +135,7 @@ export const VideoPlayer: React.FC<PlayerProps> = ({ url, title }) => {
         else setConnectionHealth('good');
 
         // Update stats
-        if (hls) {
+        if (hls && video) {
           updateStats(hls, video, data);
         }
       });
@@ -273,7 +273,7 @@ export const VideoPlayer: React.FC<PlayerProps> = ({ url, title }) => {
           break;
         case 's':
           e.preventDefault();
-          setShowStats(prev => !prev);
+          setShowStats((prev: boolean) => !prev);
           break;
       }
     };
@@ -439,7 +439,7 @@ export const VideoPlayer: React.FC<PlayerProps> = ({ url, title }) => {
                           min="50" 
                           max="150" 
                           value={(imageFilters as any)[filter]}
-                          onChange={(e) => setImageFilters(prev => ({ ...prev, [filter]: parseInt(e.target.value) }))}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageFilters((prev: any) => ({ ...prev, [filter]: parseInt(e.target.value) }))}
                           className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-primary"
                         />
                       </div>
