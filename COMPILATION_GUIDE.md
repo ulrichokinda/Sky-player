@@ -13,6 +13,22 @@ npm run build
 
 ---
 
+## 🎨 0. CONFIGURATION DE L'ICÔNE (À faire AVANT de compiler)
+Pour que votre logo apparaisse comme icône de l'application :
+
+1. **Préparez votre logo :** Enregistrez votre logo au format PNG carré (1024x1024px) et nommez-le `icon.png`.
+2. **Placez-le :** Mettez ce fichier dans un dossier nommé `assets/` à la racine de votre projet.
+3. **Générez les icônes Android :**
+   ```bash
+   npm install @capacitor/assets -D
+   npx capacitor-assets generate --android
+   ```
+   *Cela va créer automatiquement toutes les tailles d'icônes pour votre APK.*
+
+4. **Pour Samsung & LG :** Copiez votre `icon.png` dans le dossier `dist/` avant de packager.
+
+---
+
 ## 🤖 1. ANDROID & ANDROID TV (Capacitor)
 
 ### Pré-requis :
