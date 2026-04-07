@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 import { Button, Badge } from '../components/ui';
 import { Footer } from '../components/Footer';
-import { CheckCircle2, Menu, X, LayoutDashboard, UserPlus, Download, LogIn } from 'lucide-react';
+import { CheckCircle2, Menu, X, LayoutDashboard, UserPlus, Download, LogIn, Zap, Shield, Cpu, Monitor, Activity, Sliders } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, onAuthStateChanged } from '../firebase';
 
@@ -134,17 +134,58 @@ export const Home = () => {
 
         {/* Avantages */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8 py-8 md:py-12">
-          <div className="space-y-2 p-4 bg-zinc-900/20 rounded-2xl border border-zinc-800/50">
-            <h3 className="text-primary font-bold text-lg">Compatibilité Totale</h3>
-            <p className="text-zinc-500 text-sm">Utilisez vos propres abonnements M3U/Xtream sur tous vos appareils.</p>
+          <div className="space-y-2 p-6 bg-zinc-900/20 rounded-3xl border border-zinc-800/50 hover:border-primary/20 transition-colors">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 mx-auto">
+              <Shield size={24} />
+            </div>
+            <h3 className="text-primary font-bold text-lg">Sécurité & Stabilité</h3>
+            <p className="text-zinc-500 text-sm">Une infrastructure robuste garantissant un streaming sans coupure, même en heure de pointe.</p>
           </div>
-          <div className="space-y-2 p-4 bg-zinc-900/20 rounded-2xl border border-zinc-800/50">
-            <h3 className="text-primary font-bold text-lg">Interface Épurée</h3>
-            <p className="text-zinc-500 text-sm">Un design moderne, rapide et sans publicité pour une navigation intuitive.</p>
+          <div className="space-y-2 p-6 bg-zinc-900/20 rounded-3xl border border-zinc-800/50 hover:border-primary/20 transition-colors">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 mx-auto">
+              <Zap size={24} />
+            </div>
+            <h3 className="text-primary font-bold text-lg">Zapping Ultra-Rapide</h3>
+            <p className="text-zinc-500 text-sm">Technologie Turbo-Start pour un changement de chaîne instantané en moins de 1.5s.</p>
           </div>
-          <div className="space-y-2 p-4 bg-zinc-900/20 rounded-2xl border border-zinc-800/50">
-            <h3 className="text-primary font-bold text-lg">Optimisé pour l'Afrique</h3>
-            <p className="text-zinc-500 text-sm">Une technologie légère, conçue pour être performante même sur les connexions variables.</p>
+          <div className="space-y-2 p-6 bg-zinc-900/20 rounded-3xl border border-zinc-800/50 hover:border-primary/20 transition-colors">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 mx-auto">
+              <Cpu size={24} />
+            </div>
+            <h3 className="text-primary font-bold text-lg">Moteur IPTV Pro</h3>
+            <p className="text-zinc-500 text-sm">Optimisé pour les connexions africaines avec une gestion intelligente du tampon.</p>
+          </div>
+        </div>
+
+        {/* Pourquoi nous choisir ? */}
+        <div className="py-16 md:py-24 space-y-16">
+          <div className="space-y-4">
+            <Badge variant="primary">L'Excellence Technologique</Badge>
+            <h2 className="text-3xl md:text-6xl font-black tracking-tighter">Pourquoi choisir <span className="text-primary">Sky Player</span> ?</h2>
+            <p className="text-zinc-500 max-w-2xl mx-auto">Nous ne sommes pas juste un autre lecteur. Nous sommes la référence du streaming premium.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4">
+              <Monitor className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Qualité HDR+</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Ajustez la luminosité, le contraste et la saturation directement dans le lecteur pour une image parfaite.</p>
+            </div>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4">
+              <Activity className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Stats Temps Réel</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Surveillez votre débit, votre résolution et la santé de votre connexion avec nos outils de diagnostic intégrés.</p>
+            </div>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4">
+              <Sliders className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Contrôle Total</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Vitesse de lecture ajustable, mode Picture-in-Picture et sélection manuelle de la qualité vidéo.</p>
+            </div>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4">
+              <Download className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Mode Éco-Data</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Réduisez votre consommation de données mobiles tout en gardant une fluidité exceptionnelle.</p>
+            </div>
           </div>
         </div>
 
