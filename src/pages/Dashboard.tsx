@@ -554,13 +554,19 @@ export const Dashboard = () => {
           <Card className="max-w-3xl space-y-6">
             <h2 className="text-xl font-bold">Conditions d'utilisation</h2>
             <div className="prose prose-invert text-sm text-zinc-400 space-y-4">
-              <p>En utilisant le panneau de revendeur Sky Player, vous acceptez les conditions suivantes :</p>
+              <p className="font-bold text-primary">Sky Player Pro est un lecteur multimédia neutre.</p>
+              <p>En utilisant notre service, vous acceptez les points clés suivants :</p>
               <ul className="list-disc pl-5 space-y-2">
-                <li>Les crédits ne sont pas remboursables une fois achetés.</li>
-                <li>Le partage de compte est strictement interdit.</li>
-                <li>Vous êtes responsable du contenu fourni à vos utilisateurs finaux.</li>
-                <li>Nous nous réservons le droit de suspendre les comptes en cas de violation de ces conditions.</li>
+                <li><strong>Absence de contenu :</strong> Nous ne fournissons aucun lien, fichier ou flux média.</li>
+                <li><strong>Responsabilité :</strong> Vous êtes responsable du contenu que vous ajoutez.</li>
+                <li><strong>Propriété :</strong> L'utilisation de l'app ne vous donne aucun droit sur les contenus tiers.</li>
+                <li><strong>Remboursements :</strong> Les activations numériques sont définitives et non remboursables.</li>
               </ul>
+              <div className="pt-4">
+                <Button variant="outline" onClick={() => navigate('/terms')} icon={ExternalLink}>
+                  Consulter les termes complets (RGPD/DMCA)
+                </Button>
+              </div>
             </div>
           </Card>
         );

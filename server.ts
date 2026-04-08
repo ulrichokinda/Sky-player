@@ -213,24 +213,28 @@ async function startServer() {
   });
 
   app.post("/api/payments/initiate", (req, res) => {
-    const { userId, amount, phoneNumber, credits_purchased, paymentMethod } = req.body;
+    const { userId, amount, phoneNumber, credits_purchased, provider, methodId } = req.body;
     const depositId = Math.random().toString(36).substr(2, 9);
 
     try {
-      console.log(`Initiating ${paymentMethod} deposit for ${phoneNumber} with amount ${amount}`);
+      console.log(`Initiating ${provider} (${methodId}) deposit for ${phoneNumber} with amount ${amount}`);
       
       const id = Math.random().toString(36).substr(2, 9);
       const transaction = db.transaction(() => {
         db.prepare('INSERT INTO payments (id, userId, amount, credits_purchased, payment_method, provider, status, external_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
-          id, userId, amount, credits_purchased, paymentMethod, paymentMethod, 'pending', depositId
+          id, userId, amount, credits_purchased, methodId, provider, 'pending', depositId
         );
       });
       transaction();
 
+      const message = provider === 'moneyfusion' 
+        ? "Paiement MoneyFusion initié. Veuillez valider sur votre téléphone." 
+        : `Paiement via Yabetoo Pay (${methodId}) initié. Veuillez valider sur votre téléphone.`;
+
       res.json({ 
         success: true, 
         depositId,
-        message: `Paiement ${paymentMethod} initié. Veuillez valider sur votre téléphone.` 
+        message 
       });
     } catch (error: any) {
       console.error('Payment Error:', error);

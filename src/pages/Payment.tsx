@@ -56,19 +56,65 @@ export const Payment = () => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const provider = PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId);
+      const providerInfo = PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId);
 
-      await api.initiateMoneyFusion({
-        userId: user.uid || 'guest',
-        amount: selectedPlan.price,
-        phoneNumber,
-        credits_purchased: selectedPlan.credits,
-        provider: provider?.id || 'unknown'
-      });
+      if (!providerInfo) throw new Error('Opérateur non trouvé');
+
+      const primaryProvider = providerInfo.provider;
+      const fallbackProvider = primaryProvider === 'moneyfusion' ? 'yabetoo' : 'moneyfusion';
+
+      let result;
+      try {
+        // Tentative avec le fournisseur principal
+        if (primaryProvider === 'moneyfusion') {
+          result = await api.initiateMoneyFusion({
+            userId: user.uid || 'guest',
+            amount: selectedPlan.price,
+            phoneNumber,
+            credits_purchased: selectedPlan.credits,
+            provider: providerInfo.id
+          });
+        } else {
+          result = await api.initiateYabetooPay({
+            userId: user.uid || 'guest',
+            amount: selectedPlan.price,
+            phoneNumber,
+            credits_purchased: selectedPlan.credits,
+            methodId: providerInfo.id
+          });
+        }
+
+        if (!result.success) throw new Error(result.error || 'Échec du fournisseur principal');
+      } catch (primaryError) {
+        console.warn(`Échec de ${primaryProvider}, tentative avec le secours (${fallbackProvider})...`);
+        
+        // Tentative avec le fournisseur de secours
+        if (fallbackProvider === 'moneyfusion') {
+          result = await api.initiateMoneyFusion({
+            userId: user.uid || 'guest',
+            amount: selectedPlan.price,
+            phoneNumber,
+            credits_purchased: selectedPlan.credits,
+            provider: providerInfo.id
+          });
+        } else {
+          result = await api.initiateYabetooPay({
+            userId: user.uid || 'guest',
+            amount: selectedPlan.price,
+            phoneNumber,
+            credits_purchased: selectedPlan.credits,
+            methodId: providerInfo.id
+          });
+        }
+      }
       
-      alert('Paiement initié. Veuillez valider sur votre téléphone.');
-    } catch (error) {
-      alert('Erreur lors du paiement');
+      if (result && result.success) {
+        alert(result.message);
+      } else {
+        throw new Error(result?.error || 'Erreur lors du paiement après tentative de secours');
+      }
+    } catch (error: any) {
+      alert(error.message || 'Erreur lors du paiement');
     } finally {
       setLoading(false);
     }

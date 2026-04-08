@@ -10,6 +10,7 @@ import { Contact } from './pages/Contact';
 import { Privacy } from './pages/Privacy';
 import { FAQ } from './pages/FAQ';
 import { Assets } from './pages/Assets';
+import { Terms } from './pages/Terms';
 import { SimpleUserView } from './components/SimpleUserView';
 import { Capacitor } from '@capacitor/core';
 
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/assets" element={<Assets />} />
+        <Route path="/terms" element={<Terms />} />
         
         {/* The specialized view for the APK/TV app */}
         <Route path="/app" element={<SimpleUserView channels={[]} onNotify={() => {}} />} />

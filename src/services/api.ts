@@ -124,93 +124,38 @@ export const api = {
   },
 
   async getPayments(userId: string): Promise<Payment[]> {
-    const payments = getStorage(STORAGE_KEYS.PAYMENTS);
-    return payments.filter((p: any) => p.userId === userId);
+    const response = await fetch(`/api/payments/${userId}`);
+    return response.json();
   },
 
   async createPayment(payment: Partial<Payment>) {
-    const payments = getStorage(STORAGE_KEYS.PAYMENTS);
-    const users = getStorage(STORAGE_KEYS.USERS);
-    
-    const newPayment = {
-      ...payment,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date().toISOString()
-    };
-    
-    payments.push(newPayment);
-    setStorage(STORAGE_KEYS.PAYMENTS, payments);
-    
-    if (newPayment.status === 'completed') {
-      const userIndex = users.findIndex((u: any) => u.uid === payment.userId);
-      if (userIndex > -1) {
-        users[userIndex].credits += (payment.credits_purchased || 0);
-        setStorage(STORAGE_KEYS.USERS, users);
-      }
-    }
-    
-    return newPayment;
+    const response = await fetch('/api/payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payment)
+    });
+    return response.json();
+  },
+
+  async initiatePayment(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number; provider: string; methodId: string }) {
+    const response = await fetch('/api/payments/initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
   },
 
   async initiateMoneyFusion(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number; provider: string }) {
-    // Simulate MoneyFusion initiation
-    const depositId = Math.random().toString(36).substr(2, 9);
-    
-    await this.createPayment({
-      userId: data.userId,
-      amount: data.amount,
-      credits_purchased: data.credits_purchased,
-      payment_method: 'moneyfusion',
-      provider: data.provider,
-      status: 'pending',
-      external_id: depositId
-    });
-    
-    return {
-      success: true,
-      depositId,
-      message: "Paiement MoneyFusion initié. Veuillez valider sur votre téléphone."
-    };
+    return this.initiatePayment({ ...data, methodId: data.provider, provider: 'moneyfusion' });
   },
 
   async initiateYabetooPay(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number; methodId: string }) {
-    // Simulate YabetooPay initiation
-    const depositId = Math.random().toString(36).substr(2, 9);
-    
-    await this.createPayment({
-      userId: data.userId,
-      amount: data.amount,
-      credits_purchased: data.credits_purchased,
-      payment_method: data.methodId,
-      provider: 'yabetoopay',
-      status: 'pending',
-      external_id: depositId
-    });
-    
-    return {
-      success: true,
-      depositId,
-      message: `Paiement ${data.methodId} via YabetooPay initié. Veuillez valider sur votre téléphone.`
-    };
+    return this.initiatePayment({ ...data, provider: 'yabetoo' });
   },
 
   async checkMacStatus(mac: string) {
-    const activations = getStorage(STORAGE_KEYS.ACTIVATIONS);
-    const activation = activations.find((a: any) => a.target_mac === mac);
-    
-    if (activation) {
-      const expiryDate = new Date(new Date(activation.createdAt).getTime() + 365 * 24 * 60 * 60 * 1000);
-      return {
-        active: true,
-        expiry: expiryDate.toLocaleDateString('fr-FR'),
-        last_seen: activation.last_connection || '2024-03-09 14:22',
-        version: activation.version || 'v3.2.1'
-      };
-    } else {
-      return {
-        active: false,
-        error: "Adresse MAC non trouvée dans notre base d'activations."
-      };
-    }
+    const response = await fetch(`/api/check-mac/${mac}`);
+    return response.json();
   }
 };
