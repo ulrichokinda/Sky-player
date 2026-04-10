@@ -27,7 +27,7 @@ export const Terms = () => {
             <div className="text-sm leading-relaxed">
               <p className="font-bold text-primary mb-2 uppercase tracking-widest text-[10px]">Avertissement Important (DMCA / Copyright)</p>
               <p className="text-zinc-300">
-                Sky Player Pro est exclusivement un <strong>lecteur multimédia</strong>. Nous ne fournissons, n'hébergeons, ne vendons et ne diffusons <strong>aucun contenu</strong> (chaînes TV, films, séries). Les utilisateurs sont seuls responsables du contenu qu'ils ajoutent via leurs propres listes de lecture M3U ou codes Xtream.
+                Sky Player Pro est exclusivement un <strong>lecteur multimédia</strong>. Nous ne fournissons, n'hébergeons, ne vendons et ne diffusons <strong>aucun contenu</strong> (chaînes TV, films, séries). Les utilisateurs sont seuls responsables du contenu qu'ils ajoutent via leurs propres listes de lecture M3U, JSON ou codes Xtream.
               </p>
             </div>
           </div>

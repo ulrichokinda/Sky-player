@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Tv, Copy, ArrowRight, ShieldAlert, Gift, Wifi, WifiOff, RotateCcw, Loader2 } from 'lucide-react';
+import { Tv, Copy, ArrowRight, ShieldAlert, Gift, Wifi, WifiOff, RotateCcw, Loader2, Star, Activity } from 'lucide-react';
 import { Card, Badge, cn } from './ui';
 import { Logo } from './Logo';
 import { motion } from 'motion/react';
 import { Player } from './Player';
+import { fetchAndParsePlaylist, Channel } from '../lib/playlistParser';
+import { runSpeedTest } from '../lib/speedTest';
 
 interface SimpleUserViewProps {
   channels: any[];
@@ -15,11 +17,14 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   const [lowDataMode, setLowDataMode] = useState(false);
   const [macAddress, setMacAddress] = useState('00:00:00:00:00:00');
   const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [currentChannelIndex, setCurrentChannelIndex] = useState(0);
   const [isChecking, setIsChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [speed, setSpeed] = useState<number | null>(null);
+  const [isTestingSpeed, setIsTestingSpeed] = useState(false);
 
   useEffect(() => {
-    // Generate or retrieve a persistent device ID formatted as MAC
     let deviceId = localStorage.getItem('sky_player_device_id');
     if (!deviceId) {
       const chars = '0123456789ABCDEF';
@@ -35,7 +40,12 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
         const response = await fetch(`/api/check-mac/${deviceId}`);
         const data = await response.json();
         if (data.active && data.playlist_url) {
-          setPlaylistUrl(data.playlist_url);
+          if (data.playlist_url !== playlistUrl) {
+            setPlaylistUrl(data.playlist_url);
+            const parsedChannels = await fetchAndParsePlaylist(data.playlist_url);
+            setChannels(parsedChannels);
+            setCurrentChannelIndex(0);
+          }
           setError(null);
         } else if (data.error) {
           setError(data.error);
@@ -48,7 +58,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
     };
 
     checkActivation();
-    const interval = setInterval(checkActivation, 10000); // Poll every 10 seconds
+    const interval = setInterval(checkActivation, 10000);
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -59,17 +69,33 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [playlistUrl]);
 
-  if (playlistUrl) {
-    return <Player url={playlistUrl} onBack={() => setPlaylistUrl(null)} />;
+  const startSpeedTest = async () => {
+    setIsTestingSpeed(true);
+    await runSpeedTest((s) => setSpeed(s));
+    setIsTestingSpeed(false);
+  };
+
+  if (channels.length > 0) {
+    const currentChannel = channels[currentChannelIndex];
+    return (
+      <Player 
+        url={currentChannel.url} 
+        onBack={() => setChannels([])} 
+        channelName={currentChannel.name}
+        channels={channels}
+        onChannelSelect={(index) => setCurrentChannelIndex(index)}
+        onNext={() => setCurrentChannelIndex((prev) => (prev + 1) % channels.length)}
+        onPrev={() => setCurrentChannelIndex((prev) => (prev - 1 + channels.length) % channels.length)}
+      />
+    );
   }
 
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-8 flex flex-col overflow-hidden tv-container">
       <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 md:gap-8 flex-1">
         
-        {/* Header/Logo Section */}
         <div className="flex flex-col items-center justify-center gap-4 md:gap-6 py-4 relative">
           <div className="absolute top-0 right-0 flex items-center gap-2">
             <button 
@@ -109,7 +135,6 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
           </div>
         </div>
 
-        {/* Info Section */}
         <div className="flex flex-col gap-4 max-w-2xl mx-auto w-full">
           {isChecking ? (
             <div className="flex flex-col items-center gap-4 py-8">
@@ -144,20 +169,43 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
                 <div>
                   <h4 className="font-bold text-sm text-white">Lecteur Multimédia Uniquement</h4>
                   <p className="text-xs text-zinc-500 leading-relaxed">
-                    Sky Player ne fournit aucun contenu. Vous devez ajouter votre propre liste de lecture M3U ou vos codes Xtream pour regarder vos chaînes.
+                    Sky Player ne fournit aucun contenu. Vous devez ajouter votre propre liste de lecture M3U, JSON ou vos codes Xtream pour regarder vos chaînes.
                   </p>
                 </div>
               </motion.div>
+
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <button 
+                  onClick={startSpeedTest}
+                  className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex flex-col items-center gap-2 hover:bg-primary/10 hover:border-primary/30 transition-all group"
+                >
+                  <div className={`p-3 rounded-xl ${isTestingSpeed ? 'bg-primary text-black animate-spin' : 'bg-zinc-800 text-zinc-400 group-hover:text-primary'}`}>
+                    <Activity size={20} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Test de Débit</span>
+                  {speed !== null && <span className="text-primary font-bold">{speed.toFixed(1)} Mbps</span>}
+                </button>
+
+                <button 
+                  onClick={() => {
+                    const favs = JSON.parse(localStorage.getItem('sky_player_favorites') || '[]');
+                    onNotify(`Vous avez ${favs.length} favoris`, 'info');
+                  }}
+                  className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex flex-col items-center gap-2 hover:bg-yellow-500/10 hover:border-yellow-500/30 transition-all group"
+                >
+                  <div className="p-3 bg-zinc-800 text-zinc-400 group-hover:text-yellow-500 rounded-xl">
+                    <Star size={20} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Mes Favoris</span>
+                </button>
+              </div>
             </>
           )}
         </div>
 
-        {/* Footer Section */}
         <div className="mt-auto pt-4 border-t border-zinc-900 flex justify-center">
           <a 
-            href="https://ais-dev-lfwiazz5uklpv2b4uunzg7-511075437969.europe-west2.run.app/dashboard"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/dashboard"
             className="flex items-center gap-2 bg-primary hover:bg-primary-dark px-8 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all tv-focus"
           >
             Devenir Revendeur <ArrowRight size={14} />

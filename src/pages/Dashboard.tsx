@@ -558,6 +558,7 @@ export const Dashboard = () => {
               <p>En utilisant notre service, vous acceptez les points clés suivants :</p>
               <ul className="list-disc pl-5 space-y-2">
                 <li><strong>Absence de contenu :</strong> Nous ne fournissons aucun lien, fichier ou flux média.</li>
+                <li><strong>Compatibilité :</strong> Support des listes M3U, JSON et codes Xtream.</li>
                 <li><strong>Responsabilité :</strong> Vous êtes responsable du contenu que vous ajoutez.</li>
                 <li><strong>Propriété :</strong> L'utilisation de l'app ne vous donne aucun droit sur les contenus tiers.</li>
                 <li><strong>Remboursements :</strong> Les activations numériques sont définitives et non remboursables.</li>
@@ -702,8 +703,8 @@ export const Dashboard = () => {
                     onChange={(e: any) => setNewMac(e.target.value)}
                   />
                   <Input 
-                    label="Lien M3U (Playlist)" 
-                    placeholder="http://exemple.com/playlist.m3u" 
+                    label="Lien Playlist (M3U ou JSON)" 
+                    placeholder="http://exemple.com/playlist.m3u ou .json" 
                     value={newPlaylistUrl}
                     onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
                   />
@@ -760,8 +761,8 @@ export const Dashboard = () => {
                     onChange={(e: any) => setNewMac(e.target.value)}
                   />
                   <Input 
-                    label="Lien M3U (Playlist)" 
-                    placeholder="http://exemple.com/playlist.m3u" 
+                    label="Lien Playlist (M3U ou JSON)" 
+                    placeholder="http://exemple.com/playlist.m3u ou .json" 
                     value={newPlaylistUrl}
                     onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
                   />
