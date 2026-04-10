@@ -1,0 +1,16 @@
+{
+    "id": "com.skyplayer.pro",
+    "version": "1.0.0",
+    "vendor": "SkyPlayer",
+    "type": "web",
+    "main": "index.html",
+    "title": "Sky Player Pro",
+    "icon": "icon.png",
+    "largeIcon": "largeIcon.png",
+    "backgroundImage": "backgroundImage.png",
+    "resolution": "1920x1080",
+    "category": "video",
+    "accessibility": {
+        "supportsAudioGuidance": false
+    }
+}
