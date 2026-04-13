@@ -4,7 +4,7 @@ import { Footer } from '../components/Footer';
 import { PAYMENT_METHODS } from '../constants';
 import { validatePhone } from '../lib/validation';
 import { api } from '../services/api';
-import { Globe, Smartphone, Zap, ArrowLeft } from 'lucide-react';
+import { Globe, Smartphone, Zap, ArrowLeft, CreditCard } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 
@@ -17,13 +17,13 @@ export const Payment = () => {
   const [loading, setLoading] = useState(false);
 
   const resellerPlans = [
-    { id: '10cr', name: '10 Crédits', price: 15000, credits: 10, desc: 'Idéal pour débuter' },
+    { id: '10cr', name: '10 Crédits', price: 12750, credits: 10, desc: 'Idéal pour débuter' },
     { id: '20cr', name: '20 Crédits', price: 25750, credits: 20, desc: 'Le choix populaire' },
     { id: '50cr', name: '50 Crédits', price: 45000, credits: 50, desc: 'Meilleure valeur' }
   ];
 
   const activationPlans = [
-    { id: '1an', name: 'Activation 1 An', price: 2000, credits: 0, desc: 'Usage personnel' },
+    { id: '1an', name: 'Activation 1 An', price: 2285, credits: 0, desc: 'Usage personnel' },
     { id: 'vie', name: 'Activation à Vie', price: 4675, credits: 0, desc: 'Usage personnel illimité' }
   ];
 
@@ -43,12 +43,22 @@ export const Payment = () => {
   }, [searchParams]);
 
   const handlePayment = async () => {
-    if (!selectedPlan || !phoneNumber || !selectedProviderId) {
-      alert('Veuillez choisir un pack, un pays, un opérateur et entrer votre numéro');
+    if (!selectedPlan || !selectedProviderId) {
+      alert('Veuillez choisir un pack et un opérateur');
       return;
     }
 
-    if (!validatePhone(phoneNumber)) {
+    const providerInfo = PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId);
+    if (!providerInfo) throw new Error('Opérateur non trouvé');
+
+    const isCard = providerInfo.provider === 'stripe';
+
+    if (!isCard && !phoneNumber) {
+      alert('Veuillez entrer votre numéro de téléphone');
+      return;
+    }
+
+    if (!isCard && !validatePhone(phoneNumber)) {
       alert('Numéro de téléphone invalide');
       return;
     }
@@ -56,12 +66,8 @@ export const Payment = () => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const providerInfo = PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId);
-
-      if (!providerInfo) throw new Error('Opérateur non trouvé');
-
       const primaryProvider = providerInfo.provider;
-      const fallbackProvider = primaryProvider === 'moneyfusion' ? 'yabetoo' : 'moneyfusion';
+      const fallbackProvider = primaryProvider === 'moneyfusion' ? 'yabetoo' : (primaryProvider === 'stripe' ? 'stripe' : 'moneyfusion');
 
       let result;
       try {
@@ -73,6 +79,12 @@ export const Payment = () => {
             phoneNumber,
             credits_purchased: selectedPlan.credits,
             provider: providerInfo.id
+          });
+        } else if (primaryProvider === 'stripe') {
+          result = await api.initiateStripePayment({
+            userId: user.uid || 'guest',
+            amount: selectedPlan.price,
+            credits_purchased: selectedPlan.credits
           });
         } else {
           result = await api.initiateYabetooPay({
@@ -86,6 +98,8 @@ export const Payment = () => {
 
         if (!result.success) throw new Error(result.error || 'Échec du fournisseur principal');
       } catch (primaryError) {
+        if (primaryProvider === 'stripe') throw primaryError; // No fallback for stripe card yet
+
         console.warn(`Échec de ${primaryProvider}, tentative avec le secours (${fallbackProvider})...`);
         
         // Tentative avec le fournisseur de secours
@@ -205,13 +219,22 @@ export const Payment = () => {
                   </div>
                 </div>
 
-                <Input 
-                  label="Numéro de téléphone Mobile Money" 
-                  value={phoneNumber} 
-                  onChange={(e: any) => setPhoneNumber(e.target.value)} 
-                  placeholder="Ex: +242..." 
-                  error={phoneNumber && !validatePhone(phoneNumber) ? "Numéro invalide" : null}
-                />
+                {!selectedProviderId || PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId)?.provider !== 'stripe' ? (
+                  <Input 
+                    label="Numéro de téléphone Mobile Money" 
+                    value={phoneNumber} 
+                    onChange={(e: any) => setPhoneNumber(e.target.value)} 
+                    placeholder="Ex: +242..." 
+                    error={phoneNumber && !validatePhone(phoneNumber) ? "Numéro invalide" : null}
+                  />
+                ) : (
+                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                      <CreditCard size={20} />
+                    </div>
+                    <p className="text-xs text-zinc-400">Paiement sécurisé par Carte Bancaire (Visa/MasterCard). Vous serez redirigé vers la page de paiement.</p>
+                  </div>
+                )}
 
                 <Button 
                   fullWidth 

@@ -154,6 +154,10 @@ export const api = {
     return this.initiatePayment({ ...data, provider: 'yabetoo' });
   },
 
+  async initiateStripePayment(data: { userId: string; amount: number; credits_purchased: number }) {
+    return this.initiatePayment({ ...data, phoneNumber: 'N/A', provider: 'stripe', methodId: 'card' });
+  },
+
   async checkMacStatus(mac: string) {
     const response = await fetch(`/api/check-mac/${mac}`);
     return response.json();

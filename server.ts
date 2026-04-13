@@ -242,7 +242,7 @@ async function startServer() {
 
       const message = provider === 'moneyfusion' 
         ? "Paiement MoneyFusion initié. Veuillez valider sur votre téléphone." 
-        : `Paiement via Yabetoo Pay (${methodId}) initié. Veuillez valider sur votre téléphone.`;
+        : (provider === 'stripe' ? "Redirection vers la passerelle de paiement par carte (Stripe)..." : `Paiement via Yabetoo Pay (${methodId}) initié. Veuillez valider sur votre téléphone.`);
 
       res.json({ 
         success: true, 

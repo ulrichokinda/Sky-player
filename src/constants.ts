@@ -1,4 +1,9 @@
 export const PAYMENT_METHODS = {
+  // --- INTERNATIONAL (Cartes Bancaires) ---
+  'International': [
+    { id: 'visa_mastercard', name: 'Visa / MasterCard', provider: 'stripe' }
+  ],
+
   // --- AFRIQUE CENTRALE (Yabetoo Pay) ---
   'Congo (Brazzaville)': [
     { id: 'mtn_cg', name: 'MTN Mobile Money', provider: 'yabetoo' },

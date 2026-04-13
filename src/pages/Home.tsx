@@ -226,7 +226,7 @@ export const Home = () => {
                 <p className="text-zinc-500 text-sm">Idéal pour tester la puissance de Sky Player sur la durée.</p>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-primary">2000F</span>
+                <span className="text-4xl font-black text-primary">2285F</span>
                 <span className="text-zinc-500 text-sm">/ an</span>
               </div>
               <ul className="space-y-3 text-sm text-zinc-400">
