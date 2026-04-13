@@ -19,7 +19,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 } else {
   // Fallback for local development or if running on GCP with default credentials
   admin.initializeApp({
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'sky-player-pro'
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634'
   });
 }
 

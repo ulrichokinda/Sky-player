@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 import { 
   getAuth, 
   onAuthStateChanged as firebaseOnAuthStateChanged, 
@@ -31,9 +32,13 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
+// @ts-ignore - firestoreDatabaseId might be missing in manual config
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Initialize Analytics
+export const analytics = isSupported().then(yes => yes ? getAnalytics(app) : null);
 
 // Auth Helpers
 export const onAuthStateChanged = (authObj: any, callback: (user: any) => void) => {
