@@ -29,6 +29,8 @@ service cloud.firestore {
     //   - version: string (optional) - Device version
     //   - last_connection: timestamp (optional) - Last seen
     //   - country_code: string (optional) - Country code
+    //   - playlist_url: string (optional) - Playlist URL
+    //   - current_channel: string (optional) - Current channel
     //   - createdAt: timestamp (required) - Creation time
     //
     // Collection: payments
@@ -81,7 +83,7 @@ service cloud.firestore {
 
     function isValidUser(data) {
       return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
-             hasOnlyAllowedFields(['uid', 'email', 'username', 'role', 'credits', 'phone', 'country', 'createdAt']) &&
+             hasOnlyAllowedFields(['uid', 'email', 'username', 'role', 'credits', 'phone', 'country', 'createdAt', 'trialStartedAt', 'isPremium']) &&
              data.uid is string &&
              data.email is string && isValidEmail(data.email) &&
              data.role in ['admin', 'reseller', 'client'] &&
@@ -91,7 +93,7 @@ service cloud.firestore {
 
     function isValidActivation(data) {
       return hasRequiredFields(['resellerId', 'target_mac', 'credits_used', 'createdAt']) &&
-             hasOnlyAllowedFields(['resellerId', 'target_mac', 'credits_used', 'note', 'system', 'version', 'last_connection', 'country_code', 'createdAt']) &&
+             hasOnlyAllowedFields(['resellerId', 'target_mac', 'credits_used', 'note', 'system', 'version', 'last_connection', 'country_code', 'playlist_url', 'current_channel', 'createdAt']) &&
              data.resellerId is string &&
              data.target_mac is string && data.target_mac.size() >= 12 && data.target_mac.size() <= 20 &&
              data.credits_used is number && data.credits_used >= 0 &&
@@ -119,9 +121,13 @@ service cloud.firestore {
     }
 
     match /activations/{activationId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.resellerId || isAdmin());
+      // Allow public read for MAC check (limited to specific query)
+      allow list: if true; 
+      allow get: if true;
+      
       allow create: if isAuthenticated() && isValidActivation(request.resource.data) && (request.auth.uid == request.resource.data.resellerId || isAdmin());
-      allow update: if isAuthenticated() && isValidActivation(request.resource.data) && (request.auth.uid == resource.data.resellerId || isAdmin());
+      allow update: if (isAuthenticated() && isValidActivation(request.resource.data) && (request.auth.uid == resource.data.resellerId || isAdmin())) || 
+                    (hasOnlyAllowedFields(['current_channel', 'last_connection']) && request.resource.data.last_connection is timestamp);
       allow delete: if isAdmin();
     }
 

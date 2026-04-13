@@ -12,7 +12,9 @@
         "credits": { "type": "number", "description": "Available credits for resellers" },
         "phone": { "type": "string" },
         "country": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "trialStartedAt": { "type": "string", "format": "date-time" },
+        "isPremium": { "type": "boolean" }
       },
       "required": ["uid", "email", "role"]
     },
@@ -30,6 +32,8 @@
         "version": { "type": "string" },
         "last_connection": { "type": "string", "format": "date-time" },
         "country_code": { "type": "string" },
+        "playlist_url": { "type": "string" },
+        "current_channel": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["resellerId", "target_mac", "credits_used"]

@@ -1,3 +1,20 @@
+import { 
+  db, 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  setDoc, 
+  addDoc, 
+  updateDoc, 
+  query, 
+  where, 
+  onSnapshot,
+  OperationType,
+  handleFirestoreError
+} from '../firebase';
+import { serverTimestamp, Timestamp } from 'firebase/firestore';
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -6,8 +23,8 @@ export interface UserProfile {
   credits: number;
   phone?: string;
   country?: string;
-  createdAt: string;
-  trialStartedAt?: string;
+  createdAt: any;
+  trialStartedAt?: any;
   isPremium?: boolean;
 }
 
@@ -19,9 +36,11 @@ export interface Activation {
   note?: string;
   system?: string;
   version?: string;
-  last_connection?: string;
+  last_connection?: any;
   country_code?: string;
-  createdAt: string;
+  playlist_url?: string;
+  createdAt: any;
+  current_channel?: string;
 }
 
 export interface Payment {
@@ -33,108 +52,127 @@ export interface Payment {
   provider: string;
   status: 'pending' | 'completed' | 'failed';
   external_id: string;
-  createdAt: string;
+  createdAt: any;
 }
 
-const STORAGE_KEYS = {
-  USERS: 'ewo_users',
-  ACTIVATIONS: 'ewo_activations',
-  PAYMENTS: 'ewo_payments'
-};
-
-const getStorage = (key: string) => JSON.parse(localStorage.getItem(key) || '[]');
-const setStorage = (key: string, data: any) => localStorage.setItem(key, JSON.stringify(data));
-
-export const isTrialExpired = (trialStartedAt?: string) => {
+export const isTrialExpired = (trialStartedAt?: any) => {
   if (!trialStartedAt) return true;
+  const trialDate = trialStartedAt instanceof Timestamp ? trialStartedAt.toDate() : new Date(trialStartedAt);
   const trialDuration = 21 * 24 * 60 * 60 * 1000;
-  return new Date().getTime() - new Date(trialStartedAt).getTime() > trialDuration;
+  return new Date().getTime() - trialDate.getTime() > trialDuration;
 };
 
 export const api = {
   async registerUser(userData: Partial<UserProfile>) {
-    const users = getStorage(STORAGE_KEYS.USERS);
-    const existingIndex = users.findIndex((u: any) => u.uid === userData.uid);
-    const newUser = {
-      ...userData,
-      credits: userData.credits || 0,
-      createdAt: new Date().toISOString(),
-      trialStartedAt: userData.trialStartedAt || new Date().toISOString(),
-      isPremium: userData.isPremium || false,
-      role: userData.role || 'client'
-    };
-    
-    if (existingIndex > -1) {
-      users[existingIndex] = { ...users[existingIndex], ...newUser };
-    } else {
-      users.push(newUser);
+    if (!userData.uid) throw new Error('UID is required');
+    try {
+      const userDoc = doc(db, 'users', userData.uid);
+      const existingUser = await getDoc(userDoc);
+      
+      const newUser = {
+        ...userData,
+        credits: userData.credits || 0,
+        createdAt: existingUser.exists() ? existingUser.data().createdAt : serverTimestamp(),
+        trialStartedAt: existingUser.exists() ? existingUser.data().trialStartedAt : serverTimestamp(),
+        isPremium: userData.isPremium || false,
+        role: userData.role || 'client'
+      };
+      
+      await setDoc(userDoc, newUser, { merge: true });
+      return newUser;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${userData.uid}`);
     }
-    
-    setStorage(STORAGE_KEYS.USERS, users);
-    return newUser;
   },
 
   async getUser(uid: string): Promise<UserProfile> {
-    const users = getStorage(STORAGE_KEYS.USERS);
-    const user = users.find((u: any) => u.uid === uid);
-    if (!user) throw new Error('User not found');
-    return user;
+    try {
+      const userDoc = doc(db, 'users', uid);
+      const snapshot = await getDoc(userDoc);
+      if (!snapshot.exists()) throw new Error('User not found');
+      return snapshot.data() as UserProfile;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+      throw error;
+    }
   },
 
   async updateUser(uid: string, data: Partial<UserProfile>) {
-    const users = getStorage(STORAGE_KEYS.USERS);
-    const index = users.findIndex((u: any) => u.uid === uid);
-    if (index === -1) throw new Error('User not found');
-    
-    users[index] = { ...users[index], ...data };
-    setStorage(STORAGE_KEYS.USERS, users);
-    return users[index];
+    try {
+      const userDoc = doc(db, 'users', uid);
+      await updateDoc(userDoc, data);
+      const updated = await getDoc(userDoc);
+      return updated.data() as UserProfile;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+    }
   },
 
   async getActivations(resellerId: string): Promise<Activation[]> {
-    const activations = getStorage(STORAGE_KEYS.ACTIVATIONS);
-    return activations.filter((a: any) => a.resellerId === resellerId);
+    try {
+      const q = query(collection(db, 'activations'), where('resellerId', '==', resellerId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Activation));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'activations');
+      return [];
+    }
   },
 
   async createActivation(activation: Partial<Activation>) {
-    const activations = getStorage(STORAGE_KEYS.ACTIVATIONS);
-    const users = getStorage(STORAGE_KEYS.USERS);
-    
-    const resellerIndex = users.findIndex((u: any) => u.uid === activation.resellerId);
-    if (resellerIndex === -1) throw new Error('Reseller not found');
-    
-    const creditsUsed = activation.credits_used || 0;
-    if (users[resellerIndex].credits < creditsUsed) {
-      throw new Error('Crédits insuffisants');
+    try {
+      if (!activation.resellerId) throw new Error('Reseller ID is required');
+      
+      const resellerDoc = doc(db, 'users', activation.resellerId);
+      const resellerSnap = await getDoc(resellerDoc);
+      if (!resellerSnap.exists()) throw new Error('Reseller not found');
+      
+      const resellerData = resellerSnap.data();
+      const creditsUsed = activation.credits_used || 0;
+      
+      if (resellerData.credits < creditsUsed) {
+        throw new Error('Crédits insuffisants');
+      }
+      
+      // Atomic-ish update (should be a transaction in real app)
+      await updateDoc(resellerDoc, {
+        credits: resellerData.credits - creditsUsed
+      });
+      
+      const newActivation = {
+        ...activation,
+        createdAt: serverTimestamp(),
+        last_connection: serverTimestamp()
+      };
+      
+      const docRef = await addDoc(collection(db, 'activations'), newActivation);
+      return { id: docRef.id, ...newActivation };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'activations');
     }
-    
-    // Deduct credits
-    users[resellerIndex].credits -= creditsUsed;
-    setStorage(STORAGE_KEYS.USERS, users);
-    
-    const newActivation = {
-      ...activation,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date().toISOString()
-    };
-    
-    activations.push(newActivation);
-    setStorage(STORAGE_KEYS.ACTIVATIONS, activations);
-    return newActivation;
   },
 
   async getPayments(userId: string): Promise<Payment[]> {
-    const response = await fetch(`/api/payments/${userId}`);
-    return response.json();
+    try {
+      const q = query(collection(db, 'payments'), where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'payments');
+      return [];
+    }
   },
 
   async createPayment(payment: Partial<Payment>) {
-    const response = await fetch('/api/payments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payment)
-    });
-    return response.json();
+    try {
+      const docRef = await addDoc(collection(db, 'payments'), {
+        ...payment,
+        createdAt: serverTimestamp()
+      });
+      return { id: docRef.id, ...payment };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'payments');
+    }
   },
 
   async initiatePayment(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number; provider: string; methodId: string }) {
@@ -158,8 +196,36 @@ export const api = {
     return this.initiatePayment({ ...data, phoneNumber: 'N/A', provider: 'stripe', methodId: 'card' });
   },
 
-  async checkMacStatus(mac: string) {
-    const response = await fetch(`/api/check-mac/${mac}`);
-    return response.json();
+  async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
+    try {
+      const q = query(collection(db, 'activations'), where('target_mac', '==', mac));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return { active: false, error: "MAC non trouvée" };
+      
+      const data = snapshot.docs[0].data();
+      return { 
+        active: true, 
+        activation: { id: snapshot.docs[0].id, ...data } 
+      };
+    } catch (error: any) {
+      console.error('Check MAC error:', error);
+      return { active: false, error: error.message };
+    }
+  },
+
+  async updateCurrentChannel(mac: string, channelName: string) {
+    try {
+      const q = query(collection(db, 'activations'), where('target_mac', '==', mac));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const docRef = doc(db, 'activations', snapshot.docs[0].id);
+        await updateDoc(docRef, {
+          current_channel: channelName,
+          last_connection: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error('Update channel error:', error);
+    }
   }
 };

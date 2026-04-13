@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { Player } from './Player';
 import { fetchAndParsePlaylist, Channel } from '../lib/playlistParser';
 import { runSpeedTest } from '../lib/speedTest';
+import { api } from '../services/api';
 
 interface SimpleUserViewProps {
   channels: any[];
@@ -37,12 +38,11 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
 
     const checkActivation = async () => {
       try {
-        const response = await fetch(`/api/check-mac/${deviceId}`);
-        const data = await response.json();
-        if (data.active && data.playlist_url) {
-          if (data.playlist_url !== playlistUrl) {
-            setPlaylistUrl(data.playlist_url);
-            const parsedChannels = await fetchAndParsePlaylist(data.playlist_url);
+        const data = await api.checkMacStatus(deviceId);
+        if (data.active && data.activation?.playlist_url) {
+          if (data.activation.playlist_url !== playlistUrl) {
+            setPlaylistUrl(data.activation.playlist_url);
+            const parsedChannels = await fetchAndParsePlaylist(data.activation.playlist_url);
             setChannels(parsedChannels);
             setCurrentChannelIndex(0);
           }

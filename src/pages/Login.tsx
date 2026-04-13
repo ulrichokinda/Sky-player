@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { auth, signInWithEmailAndPassword } from '../firebase';
+import { auth, signInWithEmailAndPassword, signInWithPopup, googleProvider, sendPasswordResetEmail } from '../firebase';
+import { api } from '../services/api';
 import { Card, Button, Input, Badge } from '../components/ui';
 import { LogIn, Mail, Lock, Chrome, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -34,12 +35,49 @@ export const Login = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    alert("La connexion Google nécessite Firebase. Veuillez utiliser la connexion par email.");
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Ensure user profile exists in Firestore
+      await api.registerUser({
+        uid: user.uid,
+        email: user.email || '',
+        username: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
+        role: 'client'
+      });
+
+      const redirect = searchParams.get('redirect');
+      const plan = searchParams.get('plan');
+      
+      if (redirect) {
+        navigate(`${redirect}${plan ? `?plan=${plan}` : ''}`);
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (error: any) {
+      alert("Erreur Google Login: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleForgotPassword = () => {
-    alert("La réinitialisation du mot de passe n'est pas disponible sans Firebase. Veuillez contacter le support.");
+  const handleForgotPassword = async () => {
+    if (!email) {
+      alert("Veuillez entrer votre email pour réinitialiser votre mot de passe.");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("Un email de réinitialisation a été envoyé à " + email);
+    } catch (error: any) {
+      alert("Erreur: " + error.message);
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   return (

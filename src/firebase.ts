@@ -1,82 +1,63 @@
-// Mock Firebase to use local backend since Firebase was declined
-export const auth = {
-  get currentUser() {
-    return JSON.parse(localStorage.getItem('user') || 'null');
-  },
-  signOut: async () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    window.location.href = '/login';
-  }
-};
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  onAuthStateChanged as firebaseOnAuthStateChanged, 
+  signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword,
+  createUserWithEmailAndPassword as firebaseCreateUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  GoogleAuthProvider,
+  signInWithPopup as firebaseSignInWithPopup,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection as firestoreCollection, 
+  doc as firestoreDoc, 
+  getDoc as firestoreGetDoc,
+  getDocs as firestoreGetDocs,
+  setDoc as firestoreSetDoc,
+  addDoc as firestoreAddDoc,
+  updateDoc as firestoreUpdateDoc,
+  deleteDoc as firestoreDeleteDoc,
+  query as firestoreQuery,
+  where as firestoreWhere,
+  onSnapshot as firestoreOnSnapshot,
+  getDocFromServer,
+  Timestamp
+} from 'firebase/firestore';
 
+// Import the Firebase configuration
+import firebaseConfig from '../firebase-applet-config.json';
+
+// Initialize Firebase SDK
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+
+// Auth Helpers
 export const onAuthStateChanged = (authObj: any, callback: (user: any) => void) => {
-  // Call immediately with current state
-  callback(auth.currentUser);
-  
-  // Listen for storage changes to sync across tabs
-  const handleStorage = (e: StorageEvent) => {
-    if (e.key === 'user') {
-      callback(auth.currentUser);
-    }
-  };
-  window.addEventListener('storage', handleStorage);
-  
-  // Also listen for a custom event for same-tab updates
-  const handleUserUpdate = () => {
-    callback(auth.currentUser);
-  };
-  window.addEventListener('user-auth-changed', handleUserUpdate);
-
-  return () => {
-    window.removeEventListener('storage', handleStorage);
-    window.removeEventListener('user-auth-changed', handleUserUpdate);
-  };
+  return firebaseOnAuthStateChanged(authObj, callback);
 };
 
-export const signOut = async (authObj: any) => {
-  localStorage.removeItem('user');
-  localStorage.removeItem('token');
-  window.dispatchEvent(new Event('user-auth-changed'));
-};
+export const signInWithEmailAndPassword = firebaseSignInWithEmailAndPassword;
+export const createUserWithEmailAndPassword = firebaseCreateUserWithEmailAndPassword;
+export const signOut = firebaseSignOut;
+export const signInWithPopup = firebaseSignInWithPopup;
+export const sendPasswordResetEmail = firebaseSendPasswordResetEmail;
 
-export const googleProvider = {};
-
-// Mock Firestore functions to point to our API
-export const db = {};
-export const collection = (db: any, path: string) => path;
-export const doc = (db: any, path: string, id: string) => `${path}/${id}`;
-export const getDoc = async (path: string) => {
-  const response = await fetch(`/api/${path}`);
-  return { exists: () => response.ok, data: () => response.json() };
-};
-
-export const signInWithEmailAndPassword = async (authObj: any, email: string, pass: string) => {
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password: pass }),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Login failed');
-  localStorage.setItem('user', JSON.stringify(data.user));
-  localStorage.setItem('token', data.token);
-  window.dispatchEvent(new Event('user-auth-changed'));
-  return { user: data.user };
-};
-
-export const createUserWithEmailAndPassword = async (authObj: any, email: string, pass: string) => {
-  // This is handled by our register endpoint
-  return { user: { email, uid: Math.random().toString(36).substr(2, 9) } };
-};
-
-export const signInWithPopup = async (authObj: any, provider: any) => {
-  throw new Error("Google Login requires Firebase. Please use email/password.");
-};
-
-export const sendPasswordResetEmail = async (authObj: any, email: string) => {
-  alert("La réinitialisation du mot de passe n'est pas disponible sans Firebase. Veuillez contacter le support.");
-};
+// Firestore Helpers
+export const collection = firestoreCollection;
+export const doc = firestoreDoc;
+export const getDoc = firestoreGetDoc;
+export const getDocs = firestoreGetDocs;
+export const setDoc = firestoreSetDoc;
+export const addDoc = firestoreAddDoc;
+export const updateDoc = firestoreUpdateDoc;
+export const deleteDoc = firestoreDeleteDoc;
+export const query = firestoreQuery;
+export const where = firestoreWhere;
+export const onSnapshot = firestoreOnSnapshot;
 
 export enum OperationType {
   CREATE = 'create',
@@ -86,3 +67,58 @@ export enum OperationType {
   GET = 'get',
   WRITE = 'write',
 }
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string;
+    email?: string | null;
+    emailVerified?: boolean;
+    isAnonymous?: boolean;
+    tenantId?: string | null;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+// Validate Connection to Firestore
+async function testConnection() {
+  try {
+    await getDocFromServer(firestoreDoc(db, 'test', 'connection'));
+    console.log("Firebase connection successful");
+  } catch (error) {
+    if(error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration. The client is offline.");
+    }
+  }
+}
+testConnection();

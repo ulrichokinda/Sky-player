@@ -28,6 +28,7 @@ const TRANSACTIONS = [
 ];
 
 import { auth, onAuthStateChanged, signOut } from '../firebase';
+import { api } from '../services/api';
 
 export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('Clients');
@@ -69,30 +70,19 @@ export const Dashboard = () => {
 
   const fetchUserData = async (uid: string, fbUser: any) => {
     try {
-      const response = await fetch(`/api/users/${uid}`);
-      if (response.ok) {
-        const data = await response.json();
-        setDbUser(data);
-        fetchActivations(uid);
-        fetchTransactions(uid);
-      } else {
+      let data = await api.getUser(uid).catch(() => null);
+      if (!data) {
         // Register user if not found (Google login case)
-        await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            uid: fbUser.uid,
-            email: fbUser.email,
-            username: fbUser.displayName || fbUser.email?.split('@')[0],
-            role: 'client'
-          }),
+        data = await api.registerUser({
+          uid: fbUser.uid,
+          email: fbUser.email,
+          username: fbUser.displayName || fbUser.email?.split('@')[0],
+          role: 'client'
         });
-        const retryResponse = await fetch(`/api/users/${uid}`);
-        const retryData = await retryResponse.json();
-        setDbUser(retryData);
-        fetchActivations(uid);
-        fetchTransactions(uid);
       }
+      setDbUser(data);
+      fetchActivations(uid);
+      fetchTransactions(uid);
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
@@ -100,11 +90,8 @@ export const Dashboard = () => {
 
   const fetchActivations = async (uid: string) => {
     try {
-      const response = await fetch(`/api/activations/${uid}`);
-      if (response.ok) {
-        const data = await response.json();
-        setActivations(data);
-      }
+      const data = await api.getActivations(uid);
+      setActivations(data);
     } catch (error) {
       console.error("Error fetching activations:", error);
     }
@@ -112,11 +99,8 @@ export const Dashboard = () => {
 
   const fetchTransactions = async (uid: string) => {
     try {
-      const response = await fetch(`/api/payments/${uid}`);
-      if (response.ok) {
-        const data = await response.json();
-        setTransactions(data);
-      }
+      const data = await api.getPayments(uid);
+      setTransactions(data);
     } catch (error) {
       console.error("Error fetching transactions:", error);
     }
@@ -126,8 +110,7 @@ export const Dashboard = () => {
     if (!macToCheck) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/check-mac/${macToCheck}`);
-      const data = await response.json();
+      const data = await api.checkMacStatus(macToCheck);
       setMacCheckResult(data);
     } catch (error) {
       showToast("Erreur lors de la vérification", "error");
@@ -734,22 +717,13 @@ export const Dashboard = () => {
                     fullWidth 
                     loading={loading}
                     onClick={() => handleAction("Activation de l'appareil", async () => {
-                      const response = await fetch('/api/activations', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          id: Math.random().toString(36).substr(2, 9),
-                          resellerId: user.uid,
-                          target_mac: newMac,
-                          credits_used: 1,
-                          note: newNote || 'Activation manuelle',
-                          playlist_url: newPlaylistUrl
-                        })
+                      await api.createActivation({
+                        resellerId: user.uid,
+                        target_mac: newMac,
+                        credits_used: 1,
+                        note: newNote || 'Activation manuelle',
+                        playlist_url: newPlaylistUrl
                       });
-                      if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.error || "Erreur d'activation");
-                      }
                       fetchActivations(user.uid);
                       setNewMac('');
                       setNewPlaylistUrl('');
@@ -785,24 +759,13 @@ export const Dashboard = () => {
                     fullWidth 
                     loading={loading}
                     onClick={() => handleAction("Ajout d'un nouveau client", async () => {
-                      // This is similar to activation but maybe without credit deduction for now
-                      // Or it could just be a placeholder for the reseller's list
-                      const response = await fetch('/api/activations', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          id: Math.random().toString(36).substr(2, 9),
-                          resellerId: user.uid,
-                          target_mac: newMac,
-                          credits_used: 0, // Just adding to list
-                          note: newNote,
-                          playlist_url: newPlaylistUrl
-                        })
+                      await api.createActivation({
+                        resellerId: user.uid,
+                        target_mac: newMac,
+                        credits_used: 0, // Just adding to list
+                        note: newNote || 'Client manuel',
+                        playlist_url: newPlaylistUrl
                       });
-                      if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.error || "Erreur d'ajout");
-                      }
                       fetchActivations(user.uid);
                       setNewMac('');
                       setNewNote('');

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 import { Button, Input, Card, Badge } from '../components/ui';
-import { auth } from '../firebase';
+import { auth, createUserWithEmailAndPassword, signInWithPopup, googleProvider } from '../firebase';
+import { api } from '../services/api';
 import { Footer } from '../components/Footer';
 import { Mail, Lock, User, Phone, Globe, Chrome, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -28,25 +29,19 @@ export const Register = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Save user details to our backend directly
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          username,
-          password,
-          phone,
-          country,
-          role: 'client'
-        }),
-      });
-      
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Registration failed');
+      // 1. Create user in Firebase Auth
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      const user = result.user;
 
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
+      // 2. Create user profile in Firestore
+      await api.registerUser({
+        uid: user.uid,
+        email,
+        username,
+        phone,
+        country,
+        role: 'client'
+      });
 
       alert('Inscription réussie !');
       
@@ -65,8 +60,32 @@ export const Register = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    alert("La connexion Google nécessite Firebase. Veuillez utiliser l'inscription par email.");
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      await api.registerUser({
+        uid: user.uid,
+        email: user.email || '',
+        username: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
+        role: 'client'
+      });
+
+      const redirect = searchParams.get('redirect');
+      const plan = searchParams.get('plan');
+      
+      if (redirect) {
+        navigate(`${redirect}${plan ? `?plan=${plan}` : ''}`);
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (error: any) {
+      alert("Erreur Google Login: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

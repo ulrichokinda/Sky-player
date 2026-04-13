@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Channel } from '../lib/playlistParser';
 import { MultiScreenPlayer } from './MultiScreenPlayer';
 import { Badge } from './ui';
+import { api } from '../services/api';
 
 interface PlayerProps {
   url: string;
@@ -50,11 +51,7 @@ export const Player: React.FC<PlayerProps> = ({
   useEffect(() => {
     // Notify server about current channel
     if (macAddress && channelName) {
-      fetch('/api/activations/update-channel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mac: macAddress, channelName })
-      }).catch(err => console.error('Failed to update current channel:', err));
+      api.updateCurrentChannel(macAddress, channelName);
     }
 
     // Fetch EPG if available (mocking for now, would use xtreamService in real scenario)

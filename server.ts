@@ -5,9 +5,25 @@ import Database from 'better-sqlite3';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import admin from 'firebase-admin';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Firebase Admin
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+} else {
+  // Fallback for local development or if running on GCP with default credentials
+  admin.initializeApp({
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'sky-player-pro'
+  });
+}
+
+const firestore = admin.firestore();
 
 const db = new Database('database.db');
 console.log('Database initialized successfully');
@@ -175,26 +191,31 @@ async function startServer() {
     res.json(payments);
   });
 
-  app.get('/api/check-mac/:mac', (req, res) => {
+  app.get('/api/check-mac/:mac', async (req, res) => {
     const { mac } = req.params;
-    const activation = db.prepare('SELECT * FROM activations WHERE target_mac = ?').get(mac) as any;
-    
-    if (activation) {
-      const expiryDate = new Date(new Date(activation.createdAt).getTime() + 365 * 24 * 60 * 60 * 1000);
-      res.json({
-        active: true,
-        expiry: expiryDate.toLocaleDateString('fr-FR'),
-        last_seen: activation.last_connection || '2024-03-09 14:22',
-        version: activation.version || 'v3.2.1',
-        playlist_url: activation.playlist_url,
-        xtream_data: activation.xtream_data ? JSON.parse(activation.xtream_data) : null,
-        current_channel: activation.current_channel
-      });
-    } else {
-      res.json({
-        active: false,
-        error: "Adresse MAC non trouvée dans notre base d'activations."
-      });
+    try {
+      const snapshot = await firestore.collection('activations').where('target_mac', '==', mac).get();
+      if (!snapshot.empty) {
+        const data = snapshot.docs[0].data();
+        const createdAt = data.createdAt?.toDate() || new Date();
+        const expiryDate = new Date(createdAt.getTime() + 365 * 24 * 60 * 60 * 1000);
+        res.json({
+          active: true,
+          expiry: expiryDate.toLocaleDateString('fr-FR'),
+          last_seen: data.last_connection?.toDate()?.toLocaleString('fr-FR') || 'N/A',
+          version: data.version || 'v3.2.1',
+          playlist_url: data.playlist_url,
+          xtream_data: data.xtream_data ? JSON.parse(data.xtream_data) : null,
+          current_channel: data.current_channel
+        });
+      } else {
+        res.json({
+          active: false,
+          error: "Adresse MAC non trouvée dans notre base d'activations."
+        });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -225,20 +246,40 @@ async function startServer() {
     }
   });
 
-  app.post("/api/payments/initiate", (req, res) => {
+  app.post("/api/payments/initiate", async (req, res) => {
     const { userId, amount, phoneNumber, credits_purchased, provider, methodId } = req.body;
     const depositId = Math.random().toString(36).substr(2, 9);
 
     try {
       console.log(`Initiating ${provider} (${methodId}) deposit for ${phoneNumber} with amount ${amount}`);
       
-      const id = Math.random().toString(36).substr(2, 9);
-      const transaction = db.transaction(() => {
-        db.prepare('INSERT INTO payments (id, userId, amount, credits_purchased, payment_method, provider, status, external_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
-          id, userId, amount, credits_purchased, methodId, provider, 'pending', depositId
-        );
-      });
-      transaction();
+      const externalId = Math.random().toString(36).substr(2, 9);
+      
+      // Record payment in Firestore
+      const paymentData = {
+        userId,
+        amount,
+        credits_purchased,
+        payment_method: methodId,
+        provider,
+        status: provider === 'stripe' ? 'completed' : 'pending',
+        external_id: externalId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      await firestore.collection('payments').add(paymentData);
+
+      // If Stripe, update credits immediately (for demo/test)
+      if (provider === 'stripe') {
+        const userRef = firestore.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        if (userDoc.exists) {
+          const currentCredits = userDoc.data()?.credits || 0;
+          await userRef.update({
+            credits: currentCredits + credits_purchased
+          });
+        }
+      }
 
       const message = provider === 'moneyfusion' 
         ? "Paiement MoneyFusion initié. Veuillez valider sur votre téléphone." 
