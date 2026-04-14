@@ -155,6 +155,7 @@ export const Register = () => {
                 onChange={(e: any) => setConfirmPassword(e.target.value)} 
                 icon={Lock} 
                 required 
+                error={confirmPassword && password !== confirmPassword ? "Les mots de passe ne correspondent pas" : ""}
                 rightElement={
                   <button 
                     type="button" 

@@ -99,7 +99,7 @@ export const Input = ({ label, error, rightElement, ...props }: any) => (
         className={cn(
           "w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all focus-visible:ring-primary focus-visible:border-primary",
           error && "border-red-500/50 focus:border-red-500",
-          rightElement && "pr-32",
+          rightElement && "pr-12",
           props.className
         )}
       />
