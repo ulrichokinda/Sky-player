@@ -372,7 +372,7 @@ async function startServer() {
     });
   }
 
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
   
   // Error handling middleware
   app.use((err: any, req: any, res: any, next: any) => {
