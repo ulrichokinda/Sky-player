@@ -19,6 +19,8 @@ export interface UserProfile {
   uid: string;
   email: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
   role: 'admin' | 'reseller' | 'client';
   credits: number;
   phone?: string;

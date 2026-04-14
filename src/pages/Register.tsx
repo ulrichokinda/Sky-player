@@ -5,7 +5,7 @@ import { Button, Input, Card, Badge } from '../components/ui';
 import { auth, createUserWithEmailAndPassword, signInWithPopup, googleProvider } from '../firebase';
 import { api } from '../services/api';
 import { Footer } from '../components/Footer';
-import { Mail, Lock, User, Phone, Globe, Chrome, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, Phone, Globe, Chrome, ArrowRight, ShieldCheck, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const COUNTRIES = [
@@ -16,9 +16,14 @@ const COUNTRIES = [
 ];
 
 export const Register = () => {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState(COUNTRIES[0]);
   const [loading, setLoading] = useState(false);
@@ -27,6 +32,12 @@ export const Register = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      alert('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
     setLoading(true);
     try {
       // 1. Create user in Firebase Auth
@@ -38,6 +49,8 @@ export const Register = () => {
         uid: user.uid,
         email,
         username,
+        firstName,
+        lastName,
         phone,
         country,
         role: 'client'
@@ -114,9 +127,44 @@ export const Register = () => {
 
           <form onSubmit={handleRegister} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Prénom" value={firstName} onChange={(e: any) => setFirstName(e.target.value)} icon={User} required />
+              <Input label="Nom" value={lastName} onChange={(e: any) => setLastName(e.target.value)} icon={User} required />
               <Input label="Nom d'utilisateur" value={username} onChange={(e: any) => setUsername(e.target.value)} icon={User} required />
               <Input label="Email" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} icon={Mail} required />
-              <Input label="Mot de passe" type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} icon={Lock} required />
+              <Input 
+                label="Mot de passe" 
+                type={showPassword ? "text" : "password"} 
+                value={password} 
+                onChange={(e: any) => setPassword(e.target.value)} 
+                icon={Lock} 
+                required 
+                rightElement={
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="p-2 text-zinc-500 hover:text-white transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+              />
+              <Input 
+                label="Confirmer le mot de passe" 
+                type={showConfirmPassword ? "text" : "password"} 
+                value={confirmPassword} 
+                onChange={(e: any) => setConfirmPassword(e.target.value)} 
+                icon={Lock} 
+                required 
+                rightElement={
+                  <button 
+                    type="button" 
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="p-2 text-zinc-500 hover:text-white transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+              />
               <Input label="Téléphone" value={phone} onChange={(e: any) => setPhone(e.target.value)} icon={Phone} required />
               
               <div className="space-y-2 md:col-span-2">
