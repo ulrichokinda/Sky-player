@@ -7,25 +7,14 @@ import {
   FileText, HelpCircle, AlertCircle, LogOut, Plus, 
   CheckCircle2, Copy, ExternalLink, MessageSquare, FileSpreadsheet,
   RotateCcw, Filter, Edit2, Trash2, CalendarPlus, MoreVertical, RefreshCw,
-  Menu, X, List, Tv, Settings
+  Menu, X, List, Tv, Settings, ChevronLeft, ChevronRight, ShieldCheck, Zap, Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
-const CUSTOMERS = [
-  { id: 'cg', mac: 'VZ:19:C8:68:9C:27', name: 'Mr TSATY JUSTE', system: 'ANDROID_TV', version: '2.2.4', status: 'ACTIF', expiry: '24/03/2027', country: 'Congo' },
-  { id: 'cg', mac: 'RI:19:C6:C7:65:71', name: 'Olynda', system: 'IOS', version: '1.2.1', status: 'ACTIF', expiry: '08/09/2026', country: 'France' },
-  { id: 'cg', mac: 'KJ:19:C1:49:F3:80', name: 'PAPA FLORENT', system: 'ANDROID', version: '2.2.4', status: 'ACTIF', expiry: '21/09/2026', country: 'Congo' },
-  { id: 'cg', mac: 'OG:19:BE:02:6B:0F', name: 'NGAKONO', system: 'ANDROID_TV', version: '2.2.4', status: 'EXPIRÉ', expiry: '20/02/2024', country: 'Gabon' },
-  { id: 'cg', mac: 'B0:37:95:48:8B:35', name: 'Essaie', system: 'WEBOS', version: '2.1.0', status: 'ACTIF', expiry: '27/09/2026', country: 'Congo' },
-  { id: 'cg', mac: 'NJ:19:86:74:36:E7', name: 'Famille Gaziet', system: 'ANDROID_TV', version: '2.2.4', status: 'ACTIF', expiry: '16/09/2026', country: 'Congo' },
-];
+const CUSTOMERS: any[] = [];
 
-const TRANSACTIONS = [
-  { date: '05/04/2026', type: 'Achat', amount: '+10 Crédits', status: 'TERMINÉ' },
-  { date: '01/04/2026', type: 'Activation', amount: '-1 Crédit', status: 'TERMINÉ' },
-  { date: '28/03/2026', type: 'Activation', amount: '-1 Crédit', status: 'TERMINÉ' },
-];
+const TRANSACTIONS: any[] = [];
 
 import { auth, onAuthStateChanged, signOut } from '../firebase';
 import { api } from '../services/api';
@@ -39,12 +28,16 @@ export const Dashboard = () => {
   const [showModal, setShowModal] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [user, setUser] = useState<any>(null);
   const [dbUser, setDbUser] = useState<any>(null);
   const [activations, setActivations] = useState<any[]>([]);
+  const [allActivations, setAllActivations] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [macCheckResult, setMacCheckResult] = useState<any>(null);
   const [macToCheck, setMacToCheck] = useState('');
   const [newPlaylistUrl, setNewPlaylistUrl] = useState('');
@@ -83,6 +76,10 @@ export const Dashboard = () => {
       setDbUser(data);
       fetchActivations(uid);
       fetchTransactions(uid);
+      
+      if (fbUser.email === 'koutoudivine@gmail.com' || fbUser.email === 'inestaulrichokinda@gmail.com') {
+        fetchAllAdminData();
+      }
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
@@ -103,6 +100,35 @@ export const Dashboard = () => {
       setTransactions(data);
     } catch (error) {
       console.error("Error fetching transactions:", error);
+    }
+  };
+
+  const fetchAllAdminData = async () => {
+    try {
+      const [acts, pays, users] = await Promise.all([
+        api.getAllActivations(),
+        api.getAllPayments(),
+        api.getAllUsers()
+      ]);
+      setAllActivations(acts);
+      setAllTransactions(pays);
+      setAllUsers(users);
+    } catch (error) {
+      console.error("Error fetching admin data:", error);
+    }
+  };
+
+  const handleGenerateCredits = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const newTotal = await api.generateCredits(user.uid, 10);
+      setDbUser((prev: any) => ({ ...prev, credits: newTotal }));
+      showToast("10 Crédits générés avec succès !", "success");
+    } catch (error) {
+      showToast("Erreur lors de la génération des crédits", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -128,8 +154,11 @@ export const Dashboard = () => {
     }
   };
 
+  const isAdminUser = user?.email === 'koutoudivine@gmail.com' || user?.email === 'inestaulrichokinda@gmail.com';
+
   const menuItems = [
     { name: 'Clients', icon: Users },
+    ...(isAdminUser ? [{ name: 'Activités Globales', icon: Activity }] : []),
     { name: 'Profil', icon: User },
     { name: 'Infos Boutique', icon: Store },
     { name: 'Vérifier MAC', icon: Search },
@@ -439,7 +468,21 @@ export const Dashboard = () => {
         const displayTransactions = transactions.length > 0 ? transactions : TRANSACTIONS;
         return (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold">Historique des transactions</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Historique des transactions</h2>
+              {isAdminUser && (
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  icon={Zap} 
+                  loading={loading}
+                  onClick={handleGenerateCredits}
+                  className="bg-amber-500 text-black hover:bg-amber-400"
+                >
+                  Générer 10 Crédits
+                </Button>
+              )}
+            </div>
             <Card className="overflow-hidden p-0 border-zinc-800">
               <table className="w-full text-sm">
                 <thead className="text-zinc-500 bg-zinc-900/50 border-b border-zinc-800">
@@ -570,6 +613,90 @@ export const Dashboard = () => {
           </Card>
         );
 
+      case 'Activités Globales':
+        return (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="p-6 border-zinc-800 bg-zinc-900/20">
+                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Utilisateurs</p>
+                <p className="text-3xl font-black">{allUsers.length}</p>
+              </Card>
+              <Card className="p-6 border-zinc-800 bg-zinc-900/20">
+                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Activations</p>
+                <p className="text-3xl font-black text-primary">{allActivations.length}</p>
+              </Card>
+              <Card className="p-6 border-zinc-800 bg-zinc-900/20">
+                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Transactions</p>
+                <p className="text-3xl font-black text-emerald-500">{allTransactions.length}</p>
+              </Card>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Activity size={18} className="text-primary" />
+                Dernières Activations (Tous les Revendeurs)
+              </h3>
+              <Card className="overflow-hidden p-0 border-zinc-800">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-zinc-500 bg-zinc-900/50 border-b border-zinc-800">
+                      <tr>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">MAC</th>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Revendeur (ID)</th>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Date</th>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Note</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allActivations.slice(0, 20).map((act, i) => (
+                        <tr key={i} className="border-b border-zinc-900 hover:bg-zinc-950 transition-colors">
+                          <td className="p-4 font-mono text-primary">{act.target_mac}</td>
+                          <td className="p-4 text-zinc-400">{act.resellerId}</td>
+                          <td className="p-4 text-zinc-500">{new Date(act.createdAt?.seconds * 1000).toLocaleDateString('fr-FR')}</td>
+                          <td className="p-4 italic text-zinc-500">{act.note || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <CreditCard size={18} className="text-emerald-500" />
+                Derniers Paiements (Global)
+              </h3>
+              <Card className="overflow-hidden p-0 border-zinc-800">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-zinc-500 bg-zinc-900/50 border-b border-zinc-800">
+                      <tr>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Utilisateur</th>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Montant</th>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Crédits</th>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Méthode</th>
+                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allTransactions.slice(0, 20).map((t, i) => (
+                        <tr key={i} className="border-b border-zinc-900 hover:bg-zinc-950 transition-colors">
+                          <td className="p-4 text-zinc-400">{t.userId}</td>
+                          <td className="p-4 font-bold">{t.amount}</td>
+                          <td className="p-4 text-emerald-500 font-bold">+{t.credits_purchased}</td>
+                          <td className="p-4 text-zinc-500">{t.payment_method}</td>
+                          <td className="p-4"><Badge variant={t.status === 'completed' ? 'success' : 'info'}>{t.status}</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -616,14 +743,23 @@ export const Dashboard = () => {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-[60] w-72 bg-zinc-950 border-r border-zinc-800 p-6 flex flex-col transition-transform duration-300 md:translate-x-0 md:static md:h-screen md:sticky md:top-0",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-[60] bg-zinc-950 border-r border-zinc-800 p-6 flex flex-col transition-all duration-300 md:translate-x-0 md:static md:h-screen md:sticky md:top-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full",
+        isSidebarCollapsed ? "w-24 px-4" : "w-72"
       )}>
-        <div className="flex items-center justify-between mb-8 md:block">
-          <div className="space-y-1">
-            <h2 className="font-bold text-lg">{dbUser?.username || user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}</h2>
+        <div className={cn(
+          "flex items-center justify-between mb-8 md:block",
+          isSidebarCollapsed && "md:flex md:justify-center"
+        )}>
+          <div className={cn("space-y-1", isSidebarCollapsed && "hidden")}>
+            <h2 className="font-bold text-lg truncate">{dbUser?.username || user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}</h2>
             <p className="text-zinc-500 text-sm truncate">{user?.email}</p>
           </div>
+          {isSidebarCollapsed && (
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-black font-black italic text-xs shrink-0">
+              {dbUser?.username?.[0] || user?.email?.[0]?.toUpperCase() || 'S'}
+            </div>
+          )}
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-zinc-500">
             <X size={20} />
           </button>
@@ -638,22 +774,35 @@ export const Dashboard = () => {
                 "flex items-center gap-3 w-full p-3 rounded-xl transition-all text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 activeTab === item.name 
                   ? "bg-primary text-black shadow-lg shadow-primary/20" 
-                  : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                  : "text-zinc-400 hover:bg-zinc-900 hover:text-white",
+                isSidebarCollapsed && "justify-center px-0"
               )}
+              title={isSidebarCollapsed ? item.name : undefined}
             >
-              <item.icon size={18} />
-              {item.name}
+              <item.icon size={18} className="shrink-0" />
+              {!isSidebarCollapsed && <span>{item.name}</span>}
             </button>
           ))}
         </nav>
 
-        <div className="pt-6 border-t border-zinc-800 mt-6">
+        <div className="pt-6 border-t border-zinc-800 mt-6 space-y-2">
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="hidden md:flex items-center gap-3 w-full p-3 rounded-xl text-zinc-500 hover:bg-zinc-900 hover:text-white transition-all text-sm font-medium"
+          >
+            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            {!isSidebarCollapsed && <span>Réduire</span>}
+          </button>
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full p-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-all text-sm font-medium"
+            className={cn(
+              "flex items-center gap-3 w-full p-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-all text-sm font-medium",
+              isSidebarCollapsed && "justify-center px-0"
+            )}
+            title={isSidebarCollapsed ? "Déconnexion" : undefined}
           >
-            <LogOut size={18} />
-            Déconnexion
+            <LogOut size={18} className="shrink-0" />
+            {!isSidebarCollapsed && <span>Déconnexion</span>}
           </button>
         </div>
       </aside>
@@ -664,7 +813,7 @@ export const Dashboard = () => {
         <div className="p-4 md:p-8 space-y-8 flex-1">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h1 className="text-3xl font-black italic">{activeTab}</h1>
-            <Card className="bg-primary/10 border-primary/20 p-4 py-2 flex items-center gap-3">
+            <Card className="bg-primary/10 border-primary/20 p-4 py-2 flex items-center gap-3 shrink-0 whitespace-nowrap">
               <CreditCard size={18} className="text-primary" />
               <div>
                 <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Solde</p>

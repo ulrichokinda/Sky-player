@@ -229,5 +229,52 @@ export const api = {
     } catch (error) {
       console.error('Update channel error:', error);
     }
+  },
+
+  // Admin Functions
+  async generateCredits(uid: string, amount: number) {
+    try {
+      const userDoc = doc(db, 'users', uid);
+      const snapshot = await getDoc(userDoc);
+      if (!snapshot.exists()) throw new Error('User not found');
+      
+      const currentCredits = snapshot.data().credits || 0;
+      await updateDoc(userDoc, {
+        credits: currentCredits + amount
+      });
+      return currentCredits + amount;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+    }
+  },
+
+  async getAllActivations(): Promise<Activation[]> {
+    try {
+      const snapshot = await getDocs(collection(db, 'activations'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Activation));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'activations');
+      return [];
+    }
+  },
+
+  async getAllPayments(): Promise<Payment[]> {
+    try {
+      const snapshot = await getDocs(collection(db, 'payments'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'payments');
+      return [];
+    }
+  },
+
+  async getAllUsers(): Promise<UserProfile[]> {
+    try {
+      const snapshot = await getDocs(collection(db, 'users'));
+      return snapshot.docs.map(doc => doc.data() as UserProfile);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'users');
+      return [];
+    }
   }
 };
