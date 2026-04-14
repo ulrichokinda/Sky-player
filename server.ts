@@ -11,16 +11,38 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Initialize Firebase Admin
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-} else {
-  // Fallback for local development or if running on GCP with default credentials
-  admin.initializeApp({
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634'
-  });
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const saContent = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+    if (saContent.startsWith('{')) {
+      const serviceAccount = JSON.parse(saContent);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log('Firebase Admin initialized with Service Account JSON');
+    } else {
+      console.error('CRITICAL: FIREBASE_SERVICE_ACCOUNT appears to be a legacy Database Secret (string).');
+      console.error('Legacy secrets are deprecated. Please use a Service Account JSON key instead.');
+      // Fallback to default credentials if possible
+      admin.initializeApp({
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634'
+      });
+    }
+  } else {
+    // Fallback for local development or if running on GCP with default credentials
+    admin.initializeApp({
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634'
+    });
+    console.log('Firebase Admin initialized with Project ID (ADC)');
+  }
+} catch (error) {
+  console.error('Error initializing Firebase Admin:', error);
+  // Last resort fallback
+  if (admin.apps.length === 0) {
+    admin.initializeApp({
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634'
+    });
+  }
 }
 
 const firestore = admin.firestore();

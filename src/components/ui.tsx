@@ -90,21 +90,27 @@ export const Button = ({
   </button>
 );
 
-export const Input = ({ label, error, rightElement, ...props }: any) => (
+export const Input = ({ label, error, icon: Icon, rightElement, ...props }: any) => (
   <div className="space-y-2 w-full">
     {label && <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">{label}</label>}
     <div className="relative flex items-center">
+      {Icon && (
+        <div className="absolute left-5 text-zinc-500">
+          <Icon size={18} />
+        </div>
+      )}
       <input
         {...props}
         className={cn(
-          "w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all focus-visible:ring-primary focus-visible:border-primary",
+          "w-full bg-zinc-950 border border-zinc-800 rounded-2xl py-4 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all focus-visible:ring-primary focus-visible:border-primary",
+          Icon ? "pl-14" : "pl-5",
+          rightElement ? "pr-14" : "pr-5",
           error && "border-red-500/50 focus:border-red-500",
-          rightElement && "pr-12",
           props.className
         )}
       />
       {rightElement && (
-        <div className="absolute right-2">
+        <div className="absolute right-3 flex items-center">
           {rightElement}
         </div>
       )}
