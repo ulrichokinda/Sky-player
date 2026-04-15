@@ -87,7 +87,7 @@ export const api = {
       const snap = await getDoc(brandingDoc);
       return snap.exists() ? snap.data() : null;
     } catch (error) {
-      console.error('Error fetching branding:', error);
+      handleFirestoreError(error, OperationType.GET, 'settings/branding');
       return null;
     }
   },
