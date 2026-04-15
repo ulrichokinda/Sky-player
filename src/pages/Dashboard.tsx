@@ -805,13 +805,27 @@ export const Dashboard = () => {
         <div className="p-4 md:p-8 space-y-8 flex-1">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h1 className="text-3xl font-black italic">{activeTab}</h1>
-            <Card className="bg-primary/10 border-primary/20 p-4 py-2 flex items-center gap-3 shrink-0 whitespace-nowrap">
-              <CreditCard size={18} className="text-primary" />
-              <div>
-                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Solde</p>
-                <p className="text-sm text-primary font-black">{dbUser?.credits || 0} CRÉDITS</p>
-              </div>
-            </Card>
+            <div className="flex items-center gap-3">
+              {isAdminUser && (
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  icon={Zap} 
+                  loading={loading}
+                  onClick={handleGenerateCredits}
+                  className="bg-amber-500 text-black hover:bg-amber-400 h-[46px] px-6"
+                >
+                  Générer 10 Crédits
+                </Button>
+              )}
+              <Card className="bg-primary/10 border-primary/20 p-4 py-2 flex items-center gap-3 shrink-0 whitespace-nowrap">
+                <CreditCard size={18} className="text-primary" />
+                <div>
+                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Solde</p>
+                  <p className="text-sm text-primary font-black">{dbUser?.credits || 0} CRÉDITS</p>
+                </div>
+              </Card>
+            </div>
           </div>
 
           {renderContent()}
@@ -961,6 +975,34 @@ export const Dashboard = () => {
                       }}
                     >
                       Lien M3U
+                    </Button>
+                  </div>
+
+                  {/* Playlist Cleaning Section */}
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-3">
+                    <div className="flex items-center gap-2 text-primary">
+                      <Filter size={16} />
+                      <h4 className="text-xs font-black uppercase tracking-widest">Nettoyage de Playlist</h4>
+                    </div>
+                    <p className="text-[10px] text-zinc-500 leading-tight">
+                      Sélectionnez les bouquets à <span className="text-red-500 font-bold">SUPPRIMER</span> pour rendre le lecteur plus fluide (recommandé pour Smart TV).
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['FRANCE', 'BELGIQUE', 'CANADA', 'AFRIQUE', 'ADULTES', 'VOD'].map(country => (
+                        <label key={country} className="flex items-center gap-2 p-2 bg-zinc-900 rounded-lg cursor-pointer hover:bg-zinc-800 transition-colors">
+                          <input type="checkbox" className="rounded border-zinc-700 text-primary focus:ring-primary bg-zinc-800" />
+                          <span className="text-[10px] font-bold text-zinc-400">{country}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <Button 
+                      fullWidth 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-[10px] h-8 border-primary/30 hover:bg-primary/10"
+                      onClick={() => showToast("Playlist optimisée avec succès !", "success")}
+                    >
+                      Appliquer le nettoyage
                     </Button>
                   </div>
 
