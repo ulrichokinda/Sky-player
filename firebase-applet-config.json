@@ -5,5 +5,6 @@
   "authDomain": "skyplayer-60634.firebaseapp.com",
   "storageBucket": "skyplayer-60634.firebasestorage.app",
   "messagingSenderId": "135679941797",
-  "measurementId": "G-YR7NLPQDQS"
+  "measurementId": "G-YR7NLPQDQS",
+  "firestoreDatabaseId": "(default)"
 }

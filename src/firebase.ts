@@ -24,7 +24,10 @@ import {
   where as firestoreWhere,
   onSnapshot as firestoreOnSnapshot,
   getDocFromServer,
-  Timestamp
+  Timestamp,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from 'firebase/firestore';
 
 // Import the Firebase configuration
@@ -32,8 +35,14 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
-// @ts-ignore - firestoreDatabaseId might be missing in manual config
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Initialize Firestore with settings for better connectivity in restricted environments
+const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  experimentalForceLongPolling: true, // Force long polling for better compatibility with proxies/iframes
+}, databaseId);
+
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
