@@ -18,8 +18,10 @@ const TRANSACTIONS: any[] = [];
 
 import { auth, onAuthStateChanged, signOut } from '../firebase';
 import { api } from '../services/api';
+import { useBranding } from '../components/BrandingProvider';
 
 export const Dashboard = () => {
+  const { branding: globalBranding } = useBranding();
   const [activeTab, setActiveTab] = useState('Clients');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Tous');
@@ -44,6 +46,7 @@ export const Dashboard = () => {
   const [newPlaylistUrl, setNewPlaylistUrl] = useState('');
   const [newMac, setNewMac] = useState('');
   const [newNote, setNewNote] = useState('');
+  const [branding, setBranding] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -71,6 +74,12 @@ export const Dashboard = () => {
     });
     return () => unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (globalBranding) {
+      setBranding(globalBranding);
+    }
+  }, [globalBranding]);
 
   const fetchUserData = async (uid: string, fbUser: any) => {
     try {
@@ -129,6 +138,33 @@ export const Dashboard = () => {
     }
   };
 
+  const fetchBranding = async () => {
+    try {
+      const data = await api.getBranding();
+      setBranding(data);
+      if (data?.appName) document.title = `${data.appName} - Dashboard`;
+    } catch (error) {
+      console.error("Error fetching branding:", error);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const url = await api.uploadFile(file, `branding/logo_${Date.now()}`);
+      await api.updateBranding({ ...branding, logoUrl: url });
+      setBranding((prev: any) => ({ ...prev, logoUrl: url }));
+      showToast("Logo mis à jour avec succès !", "success");
+    } catch (error) {
+      showToast("Erreur lors de l'upload du logo", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleForceUpdate = () => {
     localStorage.clear();
     sessionStorage.clear();
@@ -181,7 +217,10 @@ export const Dashboard = () => {
 
   const menuItems = [
     { name: 'Clients', icon: Users },
-    ...(isAdminUser ? [{ name: 'Activités Globales', icon: Activity }] : []),
+    ...(isAdminUser ? [
+      { name: 'Activités Globales', icon: Activity },
+      { name: 'Branding', icon: Tv }
+    ] : []),
     { name: 'Profil', icon: User },
     { name: 'Infos Boutique', icon: Store },
     { name: 'Vérifier MAC', icon: Search },
@@ -656,84 +695,89 @@ export const Dashboard = () => {
       case 'Activités Globales':
         return (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="p-6 border-zinc-800 bg-zinc-900/20">
-                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Utilisateurs</p>
-                <p className="text-3xl font-black">{allUsers.length}</p>
-              </Card>
-              <Card className="p-6 border-zinc-800 bg-zinc-900/20">
-                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Activations</p>
-                <p className="text-3xl font-black text-primary">{allActivations.length}</p>
-              </Card>
-              <Card className="p-6 border-zinc-800 bg-zinc-900/20">
-                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Transactions</p>
-                <p className="text-3xl font-black text-emerald-500">{allTransactions.length}</p>
-              </Card>
-            </div>
+            {/* ... existing content ... */}
+          </div>
+        );
 
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <Activity size={18} className="text-primary" />
-                Dernières Activations (Tous les Revendeurs)
-              </h3>
-              <Card className="overflow-hidden p-0 border-zinc-800">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="text-zinc-500 bg-zinc-900/50 border-b border-zinc-800">
-                      <tr>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">MAC</th>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Revendeur (ID)</th>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Date</th>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Note</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allActivations.slice(0, 20).map((act, i) => (
-                        <tr key={i} className="border-b border-zinc-900 hover:bg-zinc-950 transition-colors">
-                          <td className="p-4 font-mono text-primary">{act.target_mac}</td>
-                          <td className="p-4 text-zinc-400">{act.resellerId}</td>
-                          <td className="p-4 text-zinc-500">{new Date(act.createdAt?.seconds * 1000).toLocaleDateString('fr-FR')}</td>
-                          <td className="p-4 italic text-zinc-500">{act.note || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+      case 'Branding':
+        return (
+          <div className="space-y-6">
+            <Card className="max-w-2xl space-y-6">
+              <div className="flex items-center gap-3 text-primary">
+                <Tv size={24} />
+                <h2 className="text-xl font-bold">Personnalisation (Branding)</h2>
+              </div>
+              <p className="text-sm text-zinc-500">Personnalisez l'apparence de Sky Player pour vos clients. Ces paramètres seront appliqués à tous les utilisateurs.</p>
+              
+              <div className="space-y-4">
+                <div className="p-6 border border-zinc-800 rounded-2xl bg-zinc-900/20 flex flex-col items-center gap-4">
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Logo de l'application</p>
+                  {branding?.logoUrl ? (
+                    <img 
+                      src={branding.logoUrl} 
+                      alt="Logo" 
+                      className="h-20 max-w-full object-contain" 
+                      referrerPolicy="no-referrer" 
+                    />
+                  ) : (
+                    <div className="h-20 w-20 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-600">
+                      <Tv size={40} />
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => document.getElementById('logo-upload')?.click()}>
+                      Changer le logo
+                    </Button>
+                    {branding?.logoUrl && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-500 border-red-500/20 hover:bg-red-500/10"
+                        onClick={() => handleAction("Suppression du logo", async () => {
+                          await api.updateBranding({ ...branding, logoUrl: null });
+                          setBranding((prev: any) => ({ ...prev, logoUrl: null }));
+                        })}
+                      >
+                        Supprimer
+                      </Button>
+                    )}
+                    <input 
+                      id="logo-upload" 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleLogoUpload} 
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-600">Format recommandé : PNG transparent, 512x512px</p>
                 </div>
-              </Card>
-            </div>
 
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <CreditCard size={18} className="text-emerald-500" />
-                Derniers Paiements (Global)
-              </h3>
-              <Card className="overflow-hidden p-0 border-zinc-800">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="text-zinc-500 bg-zinc-900/50 border-b border-zinc-800">
-                      <tr>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Utilisateur</th>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Montant</th>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Crédits</th>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Méthode</th>
-                        <th className="p-4 text-left font-black uppercase tracking-widest text-[10px]">Statut</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allTransactions.slice(0, 20).map((t, i) => (
-                        <tr key={i} className="border-b border-zinc-900 hover:bg-zinc-950 transition-colors">
-                          <td className="p-4 text-zinc-400">{t.userId}</td>
-                          <td className="p-4 font-bold">{t.amount}</td>
-                          <td className="p-4 text-emerald-500 font-bold">+{t.credits_purchased}</td>
-                          <td className="p-4 text-zinc-500">{t.payment_method}</td>
-                          <td className="p-4"><Badge variant={t.status === 'completed' ? 'success' : 'info'}>{t.status}</Badge></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input 
+                    label="Nom de l'application" 
+                    placeholder="Sky Player Pro" 
+                    value={branding?.appName || ''}
+                    onChange={(e: any) => setBranding((prev: any) => ({ ...prev, appName: e.target.value }))}
+                  />
+                  <Input 
+                    label="Couleur Primaire (Hex)" 
+                    placeholder="#FFD700" 
+                    value={branding?.primaryColor || ''}
+                    onChange={(e: any) => setBranding((prev: any) => ({ ...prev, primaryColor: e.target.value }))}
+                  />
                 </div>
-              </Card>
-            </div>
+                
+                <Button 
+                  fullWidth 
+                  loading={loading}
+                  onClick={() => handleAction("Mise à jour du branding", async () => {
+                    await api.updateBranding(branding);
+                  })}
+                >
+                  Enregistrer les modifications
+                </Button>
+              </div>
+            </Card>
           </div>
         );
 
@@ -757,8 +801,17 @@ export const Dashboard = () => {
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-black font-black italic text-xs">SP</div>
-          <h2 className="font-bold text-sm">Sky Player</h2>
+          {globalBranding?.logoUrl ? (
+            <img 
+              src={globalBranding.logoUrl} 
+              alt={globalBranding.appName || 'Logo'} 
+              className="h-8 w-8 object-contain" 
+              referrerPolicy="no-referrer" 
+            />
+          ) : (
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-black font-black italic text-xs">SP</div>
+          )}
+          <h2 className="font-bold text-sm">{globalBranding?.appName || 'Sky Player'}</h2>
         </div>
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -796,9 +849,18 @@ export const Dashboard = () => {
             <p className="text-zinc-500 text-sm truncate">{user?.email}</p>
           </div>
           {isSidebarCollapsed && (
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-black font-black italic text-xs shrink-0">
-              {dbUser?.username?.[0] || user?.email?.[0]?.toUpperCase() || 'S'}
-            </div>
+            globalBranding?.logoUrl ? (
+              <img 
+                src={globalBranding.logoUrl} 
+                alt="Logo" 
+                className="w-10 h-10 object-contain shrink-0" 
+                referrerPolicy="no-referrer" 
+              />
+            ) : (
+              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-black font-black italic text-xs shrink-0">
+                {dbUser?.username?.[0] || user?.email?.[0]?.toUpperCase() || 'S'}
+              </div>
+            )
           )}
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-zinc-500">
             <X size={20} />

@@ -29,6 +29,13 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager
 } from 'firebase/firestore';
+import { 
+  getStorage, 
+  ref as storageRef, 
+  uploadBytes as storageUploadBytes, 
+  getDownloadURL as storageGetDownloadURL,
+  deleteObject as storageDeleteObject
+} from 'firebase/storage';
 
 // Import the Firebase configuration
 import firebaseConfig from '../firebase-applet-config.json';
@@ -44,6 +51,7 @@ export const db = initializeFirestore(app, {
 }, databaseId);
 
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Initialize Analytics
@@ -72,6 +80,12 @@ export const deleteDoc = firestoreDeleteDoc;
 export const query = firestoreQuery;
 export const where = firestoreWhere;
 export const onSnapshot = firestoreOnSnapshot;
+
+// Storage Helpers
+export const ref = storageRef;
+export const uploadBytes = storageUploadBytes;
+export const getDownloadURL = storageGetDownloadURL;
+export const deleteObject = storageDeleteObject;
 
 export enum OperationType {
   CREATE = 'create',

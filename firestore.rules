@@ -142,5 +142,10 @@ service cloud.firestore {
     match /test/connection {
       allow read: if true;
     }
+
+    match /settings/branding {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

@@ -7,6 +7,7 @@ import { Player } from './Player';
 import { fetchAndParsePlaylist, Channel } from '../lib/playlistParser';
 import { runSpeedTest } from '../lib/speedTest';
 import { api } from '../services/api';
+import { useBranding } from './BrandingProvider';
 
 interface SimpleUserViewProps {
   channels: any[];
@@ -14,6 +15,7 @@ interface SimpleUserViewProps {
 }
 
 export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
+  const { branding } = useBranding();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lowDataMode, setLowDataMode] = useState(false);
   const [macAddress, setMacAddress] = useState('00:00:00:00:00:00');
@@ -159,7 +161,16 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               {isOnline ? 'Connecté' : 'Hors-ligne'}
             </Badge>
           </div>
-          <Logo size={80} />
+          {branding?.logoUrl ? (
+            <img 
+              src={branding.logoUrl} 
+              alt={branding.appName || 'Logo'} 
+              className="h-20 max-w-full object-contain mb-4" 
+              referrerPolicy="no-referrer" 
+            />
+          ) : (
+            <Logo size={80} />
+          )}
           
           <div className="flex flex-col items-center gap-2 bg-zinc-900/50 px-6 py-4 rounded-2xl border border-zinc-800 w-full max-w-sm relative group">
             <button 

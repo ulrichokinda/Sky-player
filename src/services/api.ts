@@ -1,5 +1,9 @@
 import { 
   db, 
+  storage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
   collection, 
   doc, 
   getDoc, 
@@ -65,6 +69,38 @@ export const isTrialExpired = (trialStartedAt?: any) => {
 };
 
 export const api = {
+  // Storage
+  async uploadFile(file: File, path: string): Promise<string> {
+    try {
+      const fileRef = ref(storage, path);
+      await uploadBytes(fileRef, file);
+      return await getDownloadURL(fileRef);
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+  },
+
+  async getBranding() {
+    try {
+      const brandingDoc = doc(db, 'settings', 'branding');
+      const snap = await getDoc(brandingDoc);
+      return snap.exists() ? snap.data() : null;
+    } catch (error) {
+      console.error('Error fetching branding:', error);
+      return null;
+    }
+  },
+
+  async updateBranding(data: any) {
+    try {
+      const brandingDoc = doc(db, 'settings', 'branding');
+      await setDoc(brandingDoc, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'settings/branding');
+    }
+  },
+
   async registerUser(userData: Partial<UserProfile>) {
     if (!userData.uid) throw new Error('UID is required');
     try {
