@@ -177,14 +177,6 @@ export const Dashboard = () => {
   const handleAction = async (actionName: string, callback: () => Promise<void>) => {
     setLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Randomly fail for demonstration of error handling (20% chance)
-      if (Math.random() < 0.2) {
-        throw new Error(`Erreur lors de l'exécution de l'action : ${actionName}`);
-      }
-      
       await callback();
       showToast(`Action "${actionName}" réussie !`, 'success');
       setShowModal(null);
