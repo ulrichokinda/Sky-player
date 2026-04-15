@@ -249,7 +249,7 @@ export const Home = () => {
                 <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Support technique 24/7</li>
                 <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Sans publicité</li>
               </ul>
-              <Link to="/payment" onClick={(e) => handlePlanClick(e, '1an')}>
+              <Link to={`/payment?plan=1an`} onClick={(e) => handlePlanClick(e, '1an')}>
                 <Button fullWidth size="lg" className="mt-4">Activer maintenant</Button>
               </Link>
             </div>
@@ -270,7 +270,7 @@ export const Home = () => {
                 <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Priorité sur les nouveautés</li>
                 <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Support VIP</li>
               </ul>
-              <Link to="/payment" onClick={(e) => handlePlanClick(e, 'vie')}>
+              <Link to={`/payment?plan=vie`} onClick={(e) => handlePlanClick(e, 'vie')}>
                 <Button fullWidth size="lg" variant="outline" className="mt-4 border-primary/50 text-primary hover:bg-primary hover:text-black">Prendre l'offre à vie</Button>
               </Link>
             </div>

@@ -154,32 +154,53 @@ export const Payment = () => {
           </p>
         </header>
         
-        <div className="grid md:grid-cols-3 gap-8">
-          {allPlans.map(plan => (
-            <Card 
-              key={plan.id} 
-              className={`flex flex-col items-center gap-6 p-10 cursor-pointer transition-all duration-500 hover:scale-105 ${selectedPlan?.id === plan.id ? 'border-primary bg-primary/5 shadow-2xl shadow-primary/10' : 'border-zinc-800 hover:border-zinc-700'}`}
-              onClick={() => setSelectedPlan(plan)}
-            >
-              <div className="p-4 bg-primary/10 rounded-2xl text-primary">
-                <Zap size={32} />
-              </div>
-              <div className="text-center space-y-1">
-                <h3 className="text-2xl font-black tracking-tight">{plan.name}</h3>
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{plan.desc}</p>
-              </div>
-              <p className="text-4xl font-black tracking-tighter">{plan.price.toLocaleString()} <span className="text-lg text-zinc-500">FCFA</span></p>
-            </Card>
-          ))}
-        </div>
-
-        {selectedPlan && (
+        {!selectedPlan ? (
+          <div className="grid md:grid-cols-3 gap-8">
+            {allPlans.map(plan => (
+              <Card 
+                key={plan.id} 
+                className={`flex flex-col items-center gap-6 p-10 cursor-pointer transition-all duration-500 hover:scale-105 ${selectedPlan?.id === plan.id ? 'border-primary bg-primary/5 shadow-2xl shadow-primary/10' : 'border-zinc-800 hover:border-zinc-700'}`}
+                onClick={() => setSelectedPlan(plan)}
+              >
+                <div className="p-4 bg-primary/10 rounded-2xl text-primary">
+                  <Zap size={32} />
+                </div>
+                <div className="text-center space-y-1">
+                  <h3 className="text-2xl font-black tracking-tight">{plan.name}</h3>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{plan.desc}</p>
+                </div>
+                <p className="text-4xl font-black tracking-tighter">{plan.price.toLocaleString()} <span className="text-lg text-zinc-500">FCFA</span></p>
+              </Card>
+            ))}
+          </div>
+        ) : (
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-2xl mx-auto space-y-6"
           >
-            <Card className="p-8 md:p-12 space-y-10 border-zinc-800/50 bg-zinc-900/30 backdrop-blur-xl">
+            <div className="flex items-center justify-between p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                  <Zap size={24} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-zinc-500 uppercase tracking-widest">Plan sélectionné</p>
+                  <h3 className="text-xl font-bold">{selectedPlan.name}</h3>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-black text-primary">{selectedPlan.price.toLocaleString()} FCFA</p>
+                <button 
+                  onClick={() => setSelectedPlan(null)}
+                  className="text-[10px] font-black text-zinc-500 uppercase tracking-widest hover:text-white transition-colors"
+                >
+                  Modifier le plan
+                </button>
+              </div>
+            </div>
+
+            <Card className="p-8 md:p-12 space-y-10 border-zinc-800/50 bg-zinc-900/30 backdrop-blur-xl shadow-2xl shadow-primary/5">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-primary/10 rounded-xl text-primary">
                   <Globe size={24} />
