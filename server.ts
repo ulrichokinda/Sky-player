@@ -5,9 +5,25 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Read firebase-applet-config.json
+let firebaseConfig: any = {};
+try {
+  const configPath = path.resolve(__dirname, 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  }
+} catch (e) {
+  console.error('Could not read firebase-applet-config.json', e);
+}
+
+const projectId = firebaseConfig.projectId || process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634';
+const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
 
 // Initialize Firebase Admin
 try {
@@ -16,31 +32,32 @@ try {
     if (saContent.startsWith('{')) {
       const serviceAccount = JSON.parse(saContent);
       admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+        credential: admin.credential.cert(serviceAccount),
+        projectId: projectId
       });
       console.log('Firebase Admin initialized with Service Account JSON');
     } else {
       console.error('CRITICAL: FIREBASE_SERVICE_ACCOUNT appears to be a legacy Database Secret (string).');
       admin.initializeApp({
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634'
+        projectId: projectId
       });
     }
   } else {
     admin.initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634'
+      projectId: projectId
     });
-    console.log('Firebase Admin initialized with Project ID (ADC)');
+    console.log(`Firebase Admin initialized with Project ID: ${projectId}`);
   }
 } catch (error) {
   console.error('Error initializing Firebase Admin:', error);
   if (admin.apps.length === 0) {
     admin.initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634'
+      projectId: projectId
     });
   }
 }
 
-const firestore = admin.firestore();
+const firestore = getFirestore(admin.app(), databaseId);
 
 async function startServer() {
   const app = express();
