@@ -44,6 +44,10 @@ const firestore = admin.firestore();
 
 async function startServer() {
   const app = express();
+  const VERSION = '4.0.0-ULTRA';
+  console.log(`Starting Sky Player Server v${VERSION}...`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
   app.use(cors());
   app.use(express.json());
 

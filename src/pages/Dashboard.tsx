@@ -47,6 +47,16 @@ export const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check for version mismatch on mount
+    const CURRENT_VERSION = '4.0.0-ULTRA';
+    const storedVersion = localStorage.getItem('app_version');
+    if (storedVersion && storedVersion !== CURRENT_VERSION) {
+      localStorage.setItem('app_version', CURRENT_VERSION);
+      window.location.reload();
+    }
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         navigate('/login');
@@ -117,6 +127,13 @@ export const Dashboard = () => {
     } catch (error) {
       console.error("Error fetching admin data:", error);
     }
+  };
+
+  const handleForceUpdate = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('app_version', '4.0.0-ULTRA');
+    window.location.reload();
   };
 
   const handleGenerateCredits = async () => {
@@ -841,16 +858,28 @@ export const Dashboard = () => {
             <h1 className="text-3xl font-black italic">{activeTab}</h1>
             <div className="flex items-center gap-3">
               {isAdminUser && (
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  icon={Zap} 
-                  loading={genLoading}
-                  onClick={handleGenerateCredits}
-                  className="bg-amber-500 text-black hover:bg-amber-400 h-[46px] px-6"
-                >
-                  Générer 10 Crédits
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    icon={Zap} 
+                    loading={genLoading}
+                    onClick={handleGenerateCredits}
+                    className="bg-amber-500 text-black hover:bg-amber-400 h-[46px] px-6"
+                  >
+                    Générer 10 Crédits
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={RefreshCw}
+                    onClick={handleForceUpdate}
+                    className="h-[46px] border-zinc-800 text-zinc-500 hover:text-white"
+                    title="Forcer la mise à jour"
+                  >
+                    MAJ
+                  </Button>
+                </div>
               )}
               <Card className="bg-primary/10 border-primary/20 p-4 py-2 flex items-center gap-3 shrink-0 whitespace-nowrap">
                 <CreditCard size={18} className="text-primary" />

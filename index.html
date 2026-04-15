@@ -13,6 +13,30 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
+    <script>
+      // Force clear service workers from previous versions
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+      
+      // Check for version mismatch and force reload if needed
+      const CURRENT_VERSION = '4.0.0-ULTRA';
+      const storedVersion = localStorage.getItem('app_version');
+      if (storedVersion && storedVersion !== CURRENT_VERSION) {
+        console.log('Version mismatch detected, clearing cache and reloading...');
+        localStorage.clear();
+        sessionStorage.clear();
+        localStorage.setItem('app_version', CURRENT_VERSION);
+        window.location.reload(true);
+      } else {
+        localStorage.setItem('app_version', CURRENT_VERSION);
+      }
+    </script>
+    
     <!-- Smart TV Compatibility -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Sky Player">
