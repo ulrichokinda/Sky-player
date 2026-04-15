@@ -40,6 +40,14 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const handleKeyDown = (e: KeyboardEvent) => {
       // Back button handling (Tizen: 10009, webOS: 461, etc.)
       if (isKey(e, 'BACK')) {
+        // If the user is typing in an input or textarea, don't intercept Backspace (8)
+        const target = e.target as HTMLElement;
+        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+        
+        if (e.keyCode === 8 && isInput) {
+          return; // Let the default backspace behavior happen (deleting text)
+        }
+
         // If there's a modal or something, we might want to close it first
         // But for now, we'll just go back in history
         if (window.history.length > 1) {

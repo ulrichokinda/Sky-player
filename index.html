@@ -55,6 +55,14 @@
         // Common TV Back Button KeyCodes: 
         // 10009 (Tizen), 461 (webOS), 8 (Android TV), 27 (Escape)
         if (e.keyCode === 10009 || e.keyCode === 461 || e.keyCode === 8 || e.keyCode === 27) {
+          // If the user is typing in an input or textarea, don't intercept Backspace (8)
+          const target = e.target;
+          const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+          
+          if (e.keyCode === 8 && isInput) {
+            return; // Let the default backspace behavior happen (deleting text)
+          }
+
           if (window.location.pathname !== '/') {
             e.preventDefault();
             window.history.back();
