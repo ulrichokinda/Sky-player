@@ -27,27 +27,33 @@ const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
 
 // Initialize Firebase Admin
 try {
+  let credential;
+  
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const saContent = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
     if (saContent.startsWith('{')) {
       const serviceAccount = JSON.parse(saContent);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: projectId
-      });
-      console.log('Firebase Admin initialized with Service Account JSON');
+      // Only use the service account if it matches the target project
+      if (!firebaseConfig.projectId || serviceAccount.project_id === firebaseConfig.projectId) {
+        credential = admin.credential.cert(serviceAccount);
+        console.log('Using Firebase Service Account JSON for authentication');
+      } else {
+        console.warn(`Warning: Service Account project_id (${serviceAccount.project_id}) does not match target project (${projectId}). Falling back to Application Default Credentials.`);
+        credential = admin.credential.applicationDefault();
+      }
     } else {
       console.error('CRITICAL: FIREBASE_SERVICE_ACCOUNT appears to be a legacy Database Secret (string).');
-      admin.initializeApp({
-        projectId: projectId
-      });
+      credential = admin.credential.applicationDefault();
     }
   } else {
-    admin.initializeApp({
-      projectId: projectId
-    });
-    console.log(`Firebase Admin initialized with Project ID: ${projectId}`);
+    credential = admin.credential.applicationDefault();
   }
+
+  admin.initializeApp({
+    credential,
+    projectId: projectId
+  });
+  console.log(`Firebase Admin initialized for project: ${projectId}`);
 } catch (error) {
   console.error('Error initializing Firebase Admin:', error);
   if (admin.apps.length === 0) {
