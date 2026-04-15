@@ -246,11 +246,12 @@ export const ResellerPanel: React.FC<ResellerPanelProps> = ({ activeTab, setActi
     try {
       const resellerId = auth.currentUser.uid;
       const id = Math.random().toString(36).substr(2, 9);
+      const normalizedMac = targetMac.toUpperCase().trim();
       
       await api.createActivation({
         id,
         resellerId,
-        target_mac: targetMac,
+        target_mac: normalizedMac,
         credits_used: 1,
         note: ''
       });

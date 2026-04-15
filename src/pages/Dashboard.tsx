@@ -935,9 +935,10 @@ export const Dashboard = () => {
                     fullWidth 
                     loading={loading}
                     onClick={() => handleAction("Activation de l'appareil", async () => {
+                      const normalizedMac = newMac.toUpperCase().trim();
                       await api.createActivation({
                         resellerId: user.uid,
-                        target_mac: newMac,
+                        target_mac: normalizedMac,
                         credits_used: 1,
                         note: newNote || 'Activation manuelle',
                         playlist_url: newPlaylistUrl
@@ -977,9 +978,10 @@ export const Dashboard = () => {
                     fullWidth 
                     loading={loading}
                     onClick={() => handleAction("Ajout d'un nouveau client", async () => {
+                      const normalizedMac = newMac.toUpperCase().trim();
                       await api.createActivation({
                         resellerId: user.uid,
-                        target_mac: newMac,
+                        target_mac: normalizedMac,
                         credits_used: 0, // Just adding to list
                         note: newNote || 'Client manuel',
                         playlist_url: newPlaylistUrl

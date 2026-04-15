@@ -123,24 +123,23 @@ export const api = {
 
   async createActivation(activation: Partial<Activation>) {
     try {
-      if (!activation.resellerId) throw new Error('Reseller ID is required');
-      
-      const resellerDoc = doc(db, 'users', activation.resellerId);
-      const resellerSnap = await getDoc(resellerDoc);
-      if (!resellerSnap.exists()) throw new Error('Reseller not found');
-      
-      const resellerData = resellerSnap.data();
       const creditsUsed = activation.credits_used || 0;
       
-      if (resellerData.credits < creditsUsed) {
-        throw new Error('Crédits insuffisants');
+      if (creditsUsed > 0 && activation.resellerId && activation.resellerId !== 'SYSTEM_TRIAL') {
+        const resellerDoc = doc(db, 'users', activation.resellerId);
+        const resellerSnap = await getDoc(resellerDoc);
+        if (!resellerSnap.exists()) throw new Error('Reseller not found');
+        
+        const resellerData = resellerSnap.data();
+        if (resellerData.credits < creditsUsed) {
+          throw new Error('Crédits insuffisants');
+        }
+        
+        await updateDoc(resellerDoc, {
+          credits: resellerData.credits - creditsUsed
+        });
       }
-      
-      // Atomic-ish update (should be a transaction in real app)
-      await updateDoc(resellerDoc, {
-        credits: resellerData.credits - creditsUsed
-      });
-      
+
       const newActivation = {
         ...activation,
         createdAt: serverTimestamp(),
@@ -151,6 +150,25 @@ export const api = {
       return { id: docRef.id, ...newActivation };
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'activations');
+    }
+  },
+
+  async activateTrial(mac: string) {
+    try {
+      const normalizedMac = mac.toUpperCase().trim();
+      const trialPlaylist = "https://raw.githubusercontent.com/Luka-Sky/SkyPlayer/main/trial.json"; // Example trial playlist
+      
+      await this.createActivation({
+        resellerId: "SYSTEM_TRIAL",
+        target_mac: normalizedMac,
+        credits_used: 0,
+        note: "Essai Gratuit 14 Jours",
+        playlist_url: trialPlaylist
+      });
+      return trialPlaylist;
+    } catch (error) {
+      console.error('Trial activation error:', error);
+      throw error;
     }
   },
 
@@ -200,9 +218,16 @@ export const api = {
 
   async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
     try {
-      const q = query(collection(db, 'activations'), where('target_mac', '==', mac));
+      const normalizedMac = mac.toUpperCase().trim();
+      const q = query(collection(db, 'activations'), where('target_mac', '==', normalizedMac));
       const snapshot = await getDocs(q);
-      if (snapshot.empty) return { active: false, error: "MAC non trouvée" };
+      
+      if (snapshot.empty) {
+        return { 
+          active: false, 
+          error: "MAC non activée. Veuillez l'ajouter dans votre panel revendeur ou contacter un administrateur." 
+        };
+      }
       
       const data = snapshot.docs[0].data();
       return { 
@@ -211,7 +236,7 @@ export const api = {
       };
     } catch (error: any) {
       console.error('Check MAC error:', error);
-      return { active: false, error: error.message };
+      return { active: false, error: "Erreur de connexion au serveur." };
     }
   },
 
