@@ -208,6 +208,21 @@ export const Home = () => {
               <p className="text-zinc-500 text-sm leading-relaxed">Réduisez votre consommation de données mobiles tout en gardant une fluidité exceptionnelle.</p>
             </div>
           </div>
+
+          {/* Mobile Payments Section */}
+          <div className="mt-12 p-8 bg-primary/5 border border-primary/10 rounded-[2.5rem] text-center space-y-4">
+            <div className="flex justify-center gap-4 mb-2">
+              <div className="px-3 py-1 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 border border-zinc-800">MTN MONEY</div>
+              <div className="px-3 py-1 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 border border-zinc-800">ORANGE MONEY</div>
+              <div className="px-3 py-1 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 border border-zinc-800">AIRTEL MONEY</div>
+              <div className="px-3 py-1 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 border border-zinc-800">MOOV MONEY</div>
+            </div>
+            <h3 className="text-2xl font-black italic">Paiements Mobiles Sans Frais</h3>
+            <p className="text-zinc-400 max-w-2xl mx-auto text-sm">
+              Sky Player accepte les moyens de paiements mobiles locaux sans aucun frais caché. 
+              Activez votre compte instantanément via <span className="text-primary font-bold">MTN, Orange, Airtel ou Moov Money</span>.
+            </p>
+          </div>
         </div>
 
         {/* Section Achat Simple */}

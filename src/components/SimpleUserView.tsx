@@ -26,6 +26,20 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   const [isTestingSpeed, setIsTestingSpeed] = useState(false);
 
   useEffect(() => {
+    // Force landscape mode if possible
+    try {
+      const orientation = window.screen.orientation as any;
+      if (orientation && orientation.lock) {
+        orientation.lock('landscape').catch(() => {
+          console.log('Orientation lock not supported on this device/browser');
+        });
+      }
+    } catch (e) {
+      console.error('Orientation lock error:', e);
+    }
+  }, []);
+
+  useEffect(() => {
     let deviceId = localStorage.getItem('sky_player_device_id');
     if (!deviceId) {
       const chars = '0123456789ABCDEF';
@@ -94,8 +108,20 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 md:p-8 flex flex-col overflow-hidden tv-container">
-      <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 md:gap-8 flex-1">
+    <div className="min-h-screen bg-black text-white flex flex-col overflow-hidden tv-container w-screen h-screen">
+      {/* Top Marquee */}
+      <div className="w-full bg-primary/20 border-b border-primary/30 py-1.5 overflow-hidden whitespace-nowrap sticky top-0 z-50">
+        <div className="inline-block animate-marquee">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-8">
+            🎁 ESSAI GRATUIT DE 14 JOURS DISPONIBLE APRÈS INSTALLATION — PROFITEZ DE TOUTES LES FONCTIONNALITÉS PREMIUM SANS FRAIS — SKY PLAYER PRO : LA RÉFÉRENCE DU STREAMING 🎁
+          </span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-8">
+            🎁 ESSAI GRATUIT DE 14 JOURS DISPONIBLE APRÈS INSTALLATION — PROFITEZ DE TOUTES LES FONCTIONNALITÉS PREMIUM SANS FRAIS — SKY PLAYER PRO : LA RÉFÉRENCE DU STREAMING 🎁
+          </span>
+        </div>
+      </div>
+
+      <div className="w-full max-w-7xl mx-auto flex flex-col gap-4 md:gap-6 flex-1 p-4 md:p-8">
         
         <div className="flex flex-col items-center justify-center gap-4 md:gap-6 py-4 relative">
           <div className="absolute top-0 right-0 flex items-center gap-2">
@@ -204,13 +230,20 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
           )}
         </div>
 
-        <div className="mt-auto pt-4 border-t border-zinc-900 flex justify-center">
+        <div className="mt-auto pt-4 border-t border-zinc-900 flex flex-col items-center gap-4">
           <a 
             href="/dashboard"
             className="flex items-center gap-2 bg-primary hover:bg-primary-dark px-8 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all tv-focus"
           >
             Devenir Revendeur <ArrowRight size={14} />
           </a>
+          
+          {/* Bottom Warning */}
+          <div className="w-full text-center pb-2">
+            <p className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest max-w-2xl mx-auto leading-relaxed">
+              ⚠️ Sky Player est un lecteur multimédia neutre. Nous ne fournissons aucun contenu, lien ou flux. Vous êtes responsable du contenu que vous ajoutez.
+            </p>
+          </div>
         </div>
       </div>
     </div>
