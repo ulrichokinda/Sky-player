@@ -9,35 +9,7 @@ export default defineConfig(({mode}) => {
   return {
     plugins: [
       react(), 
-      tailwindcss(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        workbox: {
-          cleanupOutdatedCaches: true,
-          skipWaiting: true,
-          clientsClaim: true,
-        },
-        manifest: {
-          name: 'Sky Player Reseller',
-          short_name: 'Sky Player',
-          description: 'Sky Player Reseller Panel & Streaming Player',
-          theme_color: '#000000',
-          background_color: '#000000',
-          display: 'standalone',
-          icons: [
-            {
-              src: 'icon-192.png',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: 'icon-512.png',
-              sizes: '512x512',
-              type: 'image/png'
-            }
-          ]
-        }
-      })
+      tailwindcss()
     ],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),

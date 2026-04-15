@@ -30,6 +30,7 @@ export const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [genLoading, setGenLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [user, setUser] = useState<any>(null);
   const [dbUser, setDbUser] = useState<any>(null);
@@ -120,7 +121,7 @@ export const Dashboard = () => {
 
   const handleGenerateCredits = async () => {
     if (!user) return;
-    setLoading(true);
+    setGenLoading(true);
     try {
       const newTotal = await api.generateCredits(user.uid, 10);
       if (typeof newTotal === 'number') {
@@ -133,7 +134,7 @@ export const Dashboard = () => {
       console.error("Generate credits error:", error);
       showToast(error.message || "Erreur lors de la génération des crédits", "error");
     } finally {
-      setLoading(false);
+      setGenLoading(false);
     }
   };
 
@@ -809,7 +810,7 @@ export const Dashboard = () => {
 
         <div className="pt-6 border-t border-zinc-800 mt-6 space-y-2">
           <div className={cn("px-3 py-2 text-[10px] font-black text-zinc-600 uppercase tracking-widest", isSidebarCollapsed && "hidden")}>
-            Version 3.2.5-PRO
+            Version 4.0.0-ULTRA
           </div>
           <button 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -844,7 +845,7 @@ export const Dashboard = () => {
                   variant="primary" 
                   size="sm" 
                   icon={Zap} 
-                  loading={loading}
+                  loading={genLoading}
                   onClick={handleGenerateCredits}
                   className="bg-amber-500 text-black hover:bg-amber-400 h-[46px] px-6"
                 >
