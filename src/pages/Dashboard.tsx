@@ -123,10 +123,15 @@ export const Dashboard = () => {
     setLoading(true);
     try {
       const newTotal = await api.generateCredits(user.uid, 10);
-      setDbUser((prev: any) => ({ ...prev, credits: newTotal }));
-      showToast("10 Crédits générés avec succès !", "success");
-    } catch (error) {
-      showToast("Erreur lors de la génération des crédits", "error");
+      if (typeof newTotal === 'number') {
+        setDbUser((prev: any) => ({ ...prev, credits: newTotal }));
+        showToast("10 Crédits générés avec succès !", "success");
+      } else {
+        throw new Error("Réponse invalide du serveur");
+      }
+    } catch (error: any) {
+      console.error("Generate credits error:", error);
+      showToast(error.message || "Erreur lors de la génération des crédits", "error");
     } finally {
       setLoading(false);
     }
@@ -361,23 +366,48 @@ export const Dashboard = () => {
 
       case 'Profil':
         return (
-          <Card className="max-w-2xl space-y-6">
-            <h2 className="text-xl font-bold">Paramètres du profil</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <Input label="Nom complet" defaultValue={dbUser?.username || user?.displayName || ''} />
-              <Input label="Adresse Email" defaultValue={user?.email || ''} readOnly />
-              <Input label="Téléphone" defaultValue={dbUser?.phone || ''} />
-              <Input label="Pays" defaultValue={dbUser?.country || ''} />
-              <Input label="Nouveau mot de passe" type="password" placeholder="••••••••" />
-              <Input label="Confirmer le mot de passe" type="password" placeholder="••••••••" />
-            </div>
-            <Button 
-              loading={loading} 
-              onClick={() => handleAction("Mise à jour du profil", async () => {})}
-            >
-              Mettre à jour le profil
-            </Button>
-          </Card>
+          <div className="space-y-6">
+            <Card className="max-w-2xl space-y-6">
+              <h2 className="text-xl font-bold">Paramètres du profil</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Nom complet" defaultValue={dbUser?.username || user?.displayName || ''} />
+                <Input label="Adresse Email" defaultValue={user?.email || ''} readOnly />
+                <Input label="Téléphone" defaultValue={dbUser?.phone || ''} />
+                <Input label="Pays" defaultValue={dbUser?.country || ''} />
+                <Input label="Nouveau mot de passe" type="password" placeholder="••••••••" />
+                <Input label="Confirmer le mot de passe" type="password" placeholder="••••••••" />
+              </div>
+              <Button 
+                loading={loading} 
+                onClick={() => handleAction("Mise à jour du profil", async () => {})}
+              >
+                Mettre à jour le profil
+              </Button>
+            </Card>
+
+            <Card className="max-w-2xl border-amber-500/20 bg-amber-500/5 space-y-4">
+              <div className="flex items-center gap-3 text-amber-500">
+                <RefreshCw size={20} />
+                <h3 className="font-bold">Zone de Maintenance</h3>
+              </div>
+              <p className="text-sm text-zinc-400">
+                Si vous ne voyez pas les dernières mises à jour ou si vous rencontrez des problèmes d'affichage (écran noir), utilisez le bouton ci-dessous pour forcer le nettoyage du cache de votre navigateur.
+              </p>
+              <Button 
+                variant="outline" 
+                className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                onClick={() => {
+                  if (window.confirm("Voulez-vous forcer le rechargement complet de l'application ?")) {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.reload();
+                  }
+                }}
+              >
+                Forcer le rechargement (Vider le cache)
+              </Button>
+            </Card>
+          </div>
         );
 
       case 'Infos Boutique':
@@ -778,6 +808,9 @@ export const Dashboard = () => {
         </nav>
 
         <div className="pt-6 border-t border-zinc-800 mt-6 space-y-2">
+          <div className={cn("px-3 py-2 text-[10px] font-black text-zinc-600 uppercase tracking-widest", isSidebarCollapsed && "hidden")}>
+            Version 3.2.5-PRO
+          </div>
           <button 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             className="hidden md:flex items-center gap-3 w-full p-3 rounded-xl text-zinc-500 hover:bg-zinc-900 hover:text-white transition-all text-sm font-medium"
