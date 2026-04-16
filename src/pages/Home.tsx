@@ -112,7 +112,7 @@ export const Home = () => {
                   </div>
                 </div>
               </Link>
-              <Button fullWidth size="lg" icon={Download} className="mt-4">Télécharger l'APK</Button>
+              <Button fullWidth size="lg" icon={Download} className="mt-4" onClick={() => window.location.href = '/SkyPlayer.apk'}>Télécharger l'APK</Button>
             </div>
           </motion.div>
         )}
@@ -279,7 +279,7 @@ export const Home = () => {
 
         {/* Call to Action */}
         <div className="flex flex-col sm:flex-row justify-center gap-4 pb-12">
-          <Button size="lg" className="bg-primary hover:bg-primary-dark w-full sm:w-auto">Télécharger Sky Player</Button>
+          <Button size="lg" className="bg-primary hover:bg-primary-dark w-full sm:w-auto" onClick={() => window.location.href = '/SkyPlayer.apk'}>Télécharger Sky Player</Button>
           <Link to="/dashboard" className="w-full sm:w-auto">
             <Button variant="outline" size="lg" className="w-full">Espace Revendeur</Button>
           </Link>

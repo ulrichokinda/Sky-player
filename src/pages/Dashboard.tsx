@@ -610,18 +610,18 @@ export const Dashboard = () => {
             <Card className="space-y-4">
               <div className="flex items-center gap-3 text-primary">
                 <Download size={24} />
-                <h3 className="font-bold">Hot Player Android</h3>
+                <h3 className="font-bold">Sky Player Android</h3>
               </div>
-              <p className="text-sm text-zinc-500">Version stable pour smartphones et tablettes Android.</p>
-              <Button variant="outline" fullWidth icon={ExternalLink}>Télécharger APK</Button>
+              <p className="text-sm text-zinc-500">Version stable pour smartphones Android.</p>
+              <Button variant="outline" fullWidth icon={ExternalLink} onClick={() => window.location.href = '/SkyPlayer.apk'}>Télécharger APK</Button>
             </Card>
             <Card className="space-y-4">
               <div className="flex items-center gap-3 text-primary">
                 <Download size={24} />
-                <h3 className="font-bold">Hot Player TV Box</h3>
+                <h3 className="font-bold">Sky Player TV Box</h3>
               </div>
               <p className="text-sm text-zinc-500">Version optimisée pour Android TV et FireStick.</p>
-              <Button variant="outline" fullWidth icon={ExternalLink}>Télécharger APK</Button>
+              <Button variant="outline" fullWidth icon={ExternalLink} onClick={() => window.location.href = '/SkyPlayer.apk'}>Télécharger APK</Button>
             </Card>
           </div>
         );
