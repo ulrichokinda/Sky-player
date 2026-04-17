@@ -11,6 +11,11 @@ export const Footer = () => (
       <Link to="/faq" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">FAQ</Link>
       <Link to="/assets" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">Kit Média</Link>
     </div>
+    <div className="mb-4">
+      <a href="mailto:contact@skyplayerapp.xyz" className="text-primary hover:text-white transition-colors">
+        contact@skyplayerapp.xyz
+      </a>
+    </div>
     <p>© 2026 Sky Player. Tous droits réservés.</p>
   </footer>
 );

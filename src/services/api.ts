@@ -45,6 +45,9 @@ export interface Activation {
   last_connection?: any;
   country_code?: string;
   playlist_url?: string;
+  xtream_host?: string;
+  xtream_username?: string;
+  xtream_password?: string;
   createdAt: any;
   current_channel?: string;
 }

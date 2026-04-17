@@ -46,6 +46,9 @@ export const Dashboard = () => {
   const [newPlaylistUrl, setNewPlaylistUrl] = useState('');
   const [newMac, setNewMac] = useState('');
   const [newNote, setNewNote] = useState('');
+  const [newXtreamHost, setNewXtreamHost] = useState('');
+  const [newXtreamUser, setNewXtreamUser] = useState('');
+  const [newXtreamPassword, setNewXtreamPassword] = useState('');
   const [branding, setBranding] = useState<any>(null);
   const navigate = useNavigate();
 
@@ -613,7 +616,7 @@ export const Dashboard = () => {
                 <h3 className="font-bold">Sky Player Android</h3>
               </div>
               <p className="text-sm text-zinc-500">Version stable pour smartphones Android.</p>
-              <Button variant="outline" fullWidth icon={ExternalLink} onClick={() => window.location.href = '/SkyPlayer.apk'}>Télécharger APK</Button>
+              <Button variant="outline" fullWidth icon={ExternalLink} onClick={() => window.location.href = 'https://firebasestorage.googleapis.com/v0/b/skyplayer-60634.firebasestorage.app/o/SkyPlayer.apk?alt=media'}>Télécharger APK</Button>
             </Card>
             <Card className="space-y-4">
               <div className="flex items-center gap-3 text-primary">
@@ -621,7 +624,7 @@ export const Dashboard = () => {
                 <h3 className="font-bold">Sky Player TV Box</h3>
               </div>
               <p className="text-sm text-zinc-500">Version optimisée pour Android TV et FireStick.</p>
-              <Button variant="outline" fullWidth icon={ExternalLink} onClick={() => window.location.href = '/SkyPlayer.apk'}>Télécharger APK</Button>
+              <Button variant="outline" fullWidth icon={ExternalLink} onClick={() => window.location.href = 'https://firebasestorage.googleapis.com/v0/b/skyplayer-60634.firebasestorage.app/o/SkyPlayer.apk?alt=media'}>Télécharger APK</Button>
             </Card>
           </div>
         );
@@ -661,9 +664,14 @@ export const Dashboard = () => {
                 Support WhatsApp
                 <span className="text-[10px] text-zinc-500">Réponse rapide</span>
               </Button>
-              <Button variant="outline" className="h-32 flex-col gap-3" icon={HelpCircle}>
+              <Button 
+                variant="outline" 
+                className="h-32 flex-col gap-3" 
+                icon={HelpCircle}
+                onClick={() => window.location.href = 'mailto:contact@skyplayerapp.xyz'}
+              >
                 Ouvrir un ticket
-                <span className="text-[10px] text-zinc-500">Support par email</span>
+                <span className="text-[10px] text-zinc-500">contact@skyplayerapp.xyz</span>
               </Button>
             </div>
           </Card>
@@ -1036,6 +1044,32 @@ export const Dashboard = () => {
                     value={newPlaylistUrl}
                     onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
                   />
+                  <div className="pt-2 border-t border-zinc-800">
+                    <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wider">Ou utiliser Xtream Codes</p>
+                    <div className="space-y-3">
+                      <Input 
+                        label="Hôte (Host URL)" 
+                        placeholder="http://iptv-server.com:8080" 
+                        value={newXtreamHost}
+                        onChange={(e: any) => setNewXtreamHost(e.target.value)}
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input 
+                          label="Utilisateur" 
+                          placeholder="username" 
+                          value={newXtreamUser}
+                          onChange={(e: any) => setNewXtreamUser(e.target.value)}
+                        />
+                        <Input 
+                          label="Mot de passe" 
+                          type="password"
+                          placeholder="password" 
+                          value={newXtreamPassword}
+                          onChange={(e: any) => setNewXtreamPassword(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <Button 
                     fullWidth 
                     loading={loading}
@@ -1046,12 +1080,18 @@ export const Dashboard = () => {
                         target_mac: normalizedMac,
                         credits_used: 0, // Just adding to list
                         note: newNote || 'Client manuel',
-                        playlist_url: newPlaylistUrl
+                        playlist_url: newPlaylistUrl,
+                        xtream_host: newXtreamHost,
+                        xtream_username: newXtreamUser,
+                        xtream_password: newXtreamPassword
                       });
                       fetchActivations(user.uid);
                       setNewMac('');
                       setNewNote('');
                       setNewPlaylistUrl('');
+                      setNewXtreamHost('');
+                      setNewXtreamUser('');
+                      setNewXtreamPassword('');
                     })}
                   >
                     Ajouter le client

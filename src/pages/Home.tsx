@@ -112,7 +112,7 @@ export const Home = () => {
                   </div>
                 </div>
               </Link>
-              <Button fullWidth size="lg" icon={Download} className="mt-4" onClick={() => window.location.href = '/SkyPlayer.apk'}>Télécharger l'APK</Button>
+              <Button fullWidth size="lg" icon={Download} className="mt-4" onClick={() => window.location.href = 'https://firebasestorage.googleapis.com/v0/b/skyplayer-60634.firebasestorage.app/o/SkyPlayer.apk?alt=media'}>Télécharger l'APK</Button>
             </div>
           </motion.div>
         )}
@@ -130,6 +130,24 @@ export const Home = () => {
             Sky Player est le lecteur IPTV le plus fluide et stable du marché. 
             Connectez vos propres serveurs et profitez d'une interface pensée pour vos habitudes.
           </p>
+        </div>
+
+        {/* Compatibility Badges */}
+        <div className="flex flex-wrap justify-center items-center gap-3 md:gap-6 pt-4 pb-2">
+          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900/60 border border-zinc-800 rounded-full text-zinc-300 text-sm font-medium">
+            <Monitor size={18} className="text-primary" />
+            <span>LG webOS</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900/60 border border-zinc-800 rounded-full text-zinc-300 text-sm font-medium">
+            <Monitor size={18} className="text-[#1428A0]" />
+            <span>Samsung Tizen</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900/60 border border-zinc-800 rounded-full text-zinc-300 text-sm font-medium">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" className="text-[#3DDC84]">
+              <path d="M17.523 15.3414C17.523 15.3414 17.522 15.3414 17.521 15.3414L17.523 15.3414ZM16.324 15.3414C16.323 15.3414 16.323 15.3414 16.324 15.3414L16.324 15.3414ZM16.038 10.9634C15.895 10.9634 15.776 11.0774 15.776 11.2184V13.8824C15.776 14.0244 15.894 14.1384 16.038 14.1384H16.038C16.182 14.1384 16.3 14.0234 16.3 13.8824V11.2194C16.3 11.0774 16.182 10.9634 16.038 10.9634M6.478 15.3404C6.477 15.3404 6.476 15.3404 6.475 15.3404L6.478 15.3404ZM7.962 10.9634C7.818 10.9634 7.7 11.0774 7.7 11.2184V13.8824C7.7 14.0244 7.818 14.1384 7.962 14.1384H7.962C8.105 14.1384 8.224 14.0234 8.224 13.8824V11.2194C8.224 11.0774 8.105 10.9634 7.962 10.9634M12.001 22.0004C10.428 22.0004 9.07 21.0364 8.441 19.6454L6.753 19.6454C6.752 19.6454 6.751 19.6454 6.75 19.6454C6.188 19.6454 5.733 19.1914 5.733 18.6314V7.5514C5.733 6.9904 6.188 6.5364 6.75 6.5364H17.25C17.812 6.5364 18.267 6.9904 18.267 7.5514V18.6314C18.267 19.1914 17.812 19.6454 17.25 19.6454C17.249 19.6454 17.248 19.6454 17.247 19.6454L15.559 19.6454C14.93 21.0364 13.572 22.0004 12.001 22.0004M12.001 9.4074C10.519 9.4074 9.24 10.2794 8.653 11.5834H15.349C14.761 10.2784 13.483 9.4074 12.001 9.4074M10.153 10.7414C9.972 10.7414 9.825 10.5944 9.825 10.4134C9.825 10.2334 9.972 10.0864 10.153 10.0864C10.334 10.0864 10.481 10.2334 10.481 10.4134C10.481 10.5944 10.334 10.7414 10.153 10.7414M13.849 10.7414C13.668 10.7414 13.521 10.5944 13.521 10.4134C13.521 10.2334 13.668 10.0864 13.849 10.0864C14.03 10.0864 14.177 10.2334 14.177 10.4134C14.177 10.5944 14.03 10.7414 13.849 10.7414" />
+            </svg>
+            <span>Android TV</span>
+          </div>
         </div>
 
         {/* Avantages */}
@@ -279,7 +297,7 @@ export const Home = () => {
 
         {/* Call to Action */}
         <div className="flex flex-col sm:flex-row justify-center gap-4 pb-12">
-          <Button size="lg" className="bg-primary hover:bg-primary-dark w-full sm:w-auto" onClick={() => window.location.href = '/SkyPlayer.apk'}>Télécharger Sky Player</Button>
+          <Button size="lg" className="bg-primary hover:bg-primary-dark w-full sm:w-auto" onClick={() => window.location.href = 'https://firebasestorage.googleapis.com/v0/b/skyplayer-60634.firebasestorage.app/o/SkyPlayer.apk?alt=media'}>Télécharger Sky Player</Button>
           <Link to="/dashboard" className="w-full sm:w-auto">
             <Button variant="outline" size="lg" className="w-full">Espace Revendeur</Button>
           </Link>
