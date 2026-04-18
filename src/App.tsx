@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { Dashboard } from './pages/Dashboard';
 import { Payment } from './pages/Payment';
@@ -20,7 +20,7 @@ export default function App() {
 
   return (
     <BrandingProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           {/* If native app (APK/TV), show the MAC screen as home. Otherwise show the landing page. */}
           <Route path="/" element={isNative ? <Navigate to="/app" replace /> : <Home />} />
@@ -39,7 +39,7 @@ export default function App() {
           {/* The specialized view for the APK/TV app */}
           <Route path="/app" element={<SimpleUserView channels={[]} onNotify={() => {}} />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </BrandingProvider>
   );
 }

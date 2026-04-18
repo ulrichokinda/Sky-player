@@ -11,6 +11,7 @@ import {
   setDoc, 
   addDoc, 
   updateDoc, 
+  deleteDoc,
   query, 
   where, 
   onSnapshot,
@@ -189,6 +190,24 @@ export const api = {
       return { id: docRef.id, ...newActivation };
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'activations');
+    }
+  },
+
+  async updateActivation(id: string, updates: Partial<Activation>) {
+    try {
+      const docRef = doc(db, 'activations', id);
+      await updateDoc(docRef, updates);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'activations');
+    }
+  },
+
+  async deleteActivation(id: string) {
+    try {
+      const docRef = doc(db, 'activations', id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'activations');
     }
   },
 

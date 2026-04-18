@@ -7,6 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
+    base: './', // CRITICAL FOR TV APPS (APK, IPK, WGT)
     plugins: [
       react(), 
       tailwindcss()

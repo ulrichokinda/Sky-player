@@ -1114,7 +1114,14 @@ export const Dashboard = () => {
                   <Button 
                     fullWidth 
                     loading={loading}
-                    onClick={() => handleAction("Prolongation d'abonnement", async () => {})}
+                    onClick={() => handleAction("Prolongation d'abonnement", async () => {
+                      if (selectedCustomer?.id) {
+                         await api.updateActivation(selectedCustomer.id, { 
+                            credits_used: (selectedCustomer.credits_used || 0) + 1 
+                         });
+                         fetchActivations(user.uid);
+                      }
+                    })}
                   >
                     Confirmer la prolongation
                   </Button>
@@ -1208,7 +1215,12 @@ export const Dashboard = () => {
 
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <Button variant="outline" fullWidth onClick={() => setShowModal(null)}>Fermer</Button>
-                    <Button fullWidth onClick={() => { alert('Réinitialisé'); setShowModal(null); }} className="bg-red-500 hover:bg-red-600 text-white">Réinitialiser</Button>
+                    <Button fullWidth onClick={() => handleAction("Réinitialisation listes", async () => {
+                      if (selectedCustomer?.id) {
+                        await api.updateActivation(selectedCustomer.id, { playlist_url: '' });
+                        fetchActivations(user.uid);
+                      }
+                    })} className="bg-red-500 hover:bg-red-600 text-white">Réinitialiser</Button>
                   </div>
                 </div>
               </>
@@ -1216,13 +1228,20 @@ export const Dashboard = () => {
               <>
                 <h2 className="text-2xl font-black italic">Modifier le client</h2>
                 <div className="space-y-4">
-                  <Input label="Nom du Client" defaultValue={selectedCustomer?.name} />
-                  <Input label="Adresse MAC" defaultValue={selectedCustomer?.mac} readOnly className="opacity-50" />
-                  <Input label="Notes" placeholder="Notes sur le client..." />
+                  <Input id="edit-client-name" label="Nom du Client" defaultValue={selectedCustomer?.note || selectedCustomer?.name} />
+                  <Input label="Adresse MAC" defaultValue={selectedCustomer?.target_mac || selectedCustomer?.mac} readOnly className="opacity-50" />
+                  <Input id="edit-client-note" label="Notes" placeholder="Notes additionnelles..." />
                   <Button 
                     fullWidth 
                     loading={loading}
-                    onClick={() => handleAction("Modification du client", async () => {})}
+                    onClick={() => handleAction("Modification du client", async () => {
+                      if (selectedCustomer?.id) {
+                        const name = (document.getElementById('edit-client-name') as HTMLInputElement)?.value;
+                        const note = (document.getElementById('edit-client-note') as HTMLInputElement)?.value;
+                        await api.updateActivation(selectedCustomer.id, { note: name + (note ? ' - ' + note : '') });
+                        fetchActivations(user.uid);
+                      }
+                    })}
                   >
                     Enregistrer les modifications
                   </Button>
@@ -1239,7 +1258,12 @@ export const Dashboard = () => {
                   <Button 
                     fullWidth 
                     loading={loading}
-                    onClick={() => handleAction("Réinitialisation de l'appareil", async () => {})}
+                    onClick={() => handleAction("Réinitialisation de l'appareil", async () => {
+                      if (selectedCustomer?.id) {
+                        await api.updateActivation(selectedCustomer.id, { playlist_url: '' });
+                        fetchActivations(user.uid);
+                      }
+                    })}
                   >
                     Confirmer la réinitialisation
                   </Button>
@@ -1249,13 +1273,18 @@ export const Dashboard = () => {
               <>
                 <h2 className="text-2xl font-black italic text-red-500">Supprimer le client</h2>
                 <div className="space-y-4">
-                  <p className="text-sm text-zinc-400">Êtes-vous sûr de vouloir supprimer <span className="text-white font-bold">{selectedCustomer?.name}</span> ?</p>
+                  <p className="text-sm text-zinc-400">Êtes-vous sûr de vouloir supprimer <span className="text-white font-bold">{selectedCustomer?.note || selectedCustomer?.name}</span> ?</p>
                   <p className="text-xs text-red-500/70">Attention : L'abonnement en cours sera définitivement perdu.</p>
                   <Button 
                     fullWidth 
                     variant="danger"
                     loading={loading}
-                    onClick={() => handleAction("Suppression du client", async () => {})}
+                    onClick={() => handleAction("Suppression du client", async () => {
+                      if (selectedCustomer?.id) {
+                        await api.deleteActivation(selectedCustomer.id);
+                        fetchActivations(user.uid);
+                      }
+                    })}
                   >
                     Supprimer définitivement
                   </Button>
