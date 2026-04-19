@@ -3,4 +3,4 @@ apiVersion: "v1"
 runConfig:
   maxInstances: 10
   cpu: 1
-  memory: "512Mi"
+  memory: "1Gi"
