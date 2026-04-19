@@ -20,7 +20,7 @@ export const Logo: React.FC<LogoProps> = ({ className = "", size = 40, showText 
         {/* Background Circle with Gradient */}
         <defs>
           <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--color-primary)" />
+            <stop offset="0%" stopColor="#00AEEF" />
             <stop offset="100%" stopColor="#0EA5E9" />
           </linearGradient>
         </defs>

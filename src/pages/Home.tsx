@@ -47,9 +47,6 @@ export const Home = () => {
               </Link>
             </>
           )}
-          <Link to="/payment">
-            <Button>Devenir Revendeur</Button>
-          </Link>
         </div>
 
         {/* Mobile Menu Button */}
@@ -103,15 +100,6 @@ export const Home = () => {
                   </Link>
                 </>
               )}
-              <Link to="/payment" onClick={() => setIsMenuOpen(false)}>
-                <div className="flex items-center gap-4 p-5 bg-primary/10 rounded-2xl border border-primary/20">
-                  <UserPlus className="text-primary" />
-                  <div className="text-left">
-                    <p className="font-bold text-primary">Devenir Revendeur</p>
-                    <p className="text-xs text-zinc-400">Rejoignez notre réseau</p>
-                  </div>
-                </div>
-              </Link>
               <Button fullWidth size="lg" icon={Download} className="mt-4" onClick={() => window.location.href = 'https://firebasestorage.googleapis.com/v0/b/skyplayer-60634.firebasestorage.app/o/SkyPlayer.apk?alt=media'}>Télécharger l'APK</Button>
             </div>
           </motion.div>

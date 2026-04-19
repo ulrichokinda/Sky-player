@@ -130,10 +130,10 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col overflow-hidden tv-container w-screen h-screen">
+    <div className="min-h-screen bg-black text-white flex flex-col overflow-y-auto custom-scrollbar w-full pb-8">
       {/* Top Marquee */}
-      <div className="w-full bg-primary/20 border-b border-primary/30 py-1.5 overflow-hidden whitespace-nowrap sticky top-0 z-50">
-        <div className="inline-block animate-marquee">
+      <div className="w-full bg-primary/20 border-b border-primary/30 py-1.5 overflow-hidden whitespace-nowrap shrink-0">
+        <div className="inline-block animate-marquee shrink-0">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-8">
             🎁 ESSAI GRATUIT DE 14 JOURS DISPONIBLE APRÈS INSTALLATION — PROFITEZ DE TOUTES LES FONCTIONNALITÉS PREMIUM SANS FRAIS — SKY PLAYER PRO : LA RÉFÉRENCE DU STREAMING 🎁
           </span>
@@ -143,81 +143,88 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto flex flex-col gap-4 md:gap-6 flex-1 p-4 md:p-8">
+      <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-4 md:p-8">
         
-        <div className="flex flex-col items-center justify-center gap-4 md:gap-6 py-4 relative">
-          <div className="absolute top-0 right-0 flex items-center gap-2">
-            <button 
-              onClick={() => setLowDataMode(!lowDataMode)}
-              className={cn(
-                "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
-                lowDataMode ? "bg-primary/20 border-primary text-primary" : "bg-zinc-900 border-zinc-800 text-zinc-500"
-              )}
-            >
-              Mode Éco : {lowDataMode ? 'ON' : 'OFF'}
-            </button>
-            <Badge variant={isOnline ? 'success' : 'error'} className="gap-2">
-              {isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
-              {isOnline ? 'Connecté' : 'Hors-ligne'}
-            </Badge>
-          </div>
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 shrink-0 bg-zinc-900/30 p-6 rounded-3xl border border-white/5">
           {branding?.logoUrl ? (
             <img 
               src={branding.logoUrl} 
               alt={branding.appName || 'Logo'} 
-              className="h-20 max-w-full object-contain mb-4" 
+              className="h-16 max-w-[200px] object-contain shrink-0" 
               referrerPolicy="no-referrer" 
             />
           ) : (
-            <Logo size={80} />
+            <div className="shrink-0 scale-75 md:scale-100 origin-left">
+              <Logo size={60} />
+            </div>
           )}
-          
-          <div className="flex flex-col items-center gap-2 bg-zinc-900/50 px-6 py-4 rounded-2xl border border-zinc-800 w-full max-w-sm relative group">
+
+          <div className="flex items-center gap-4 shrink-0">
+            <button 
+              onClick={() => setLowDataMode(!lowDataMode)}
+              className={cn(
+                "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
+                lowDataMode ? "bg-primary/20 border-primary text-primary" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white"
+              )}
+            >
+              Mode Éco : {lowDataMode ? 'ON' : 'OFF'}
+            </button>
+            <Badge variant={isOnline ? 'success' : 'error'} className="gap-2 py-2">
+              {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+              {isOnline ? 'Connecté' : 'Hors-ligne'}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Mac Address Section */}
+        <div className="flex justify-center shrink-0">
+          <div className="flex flex-col items-center gap-3 bg-zinc-900/50 px-8 py-6 rounded-2xl border border-zinc-800 w-full max-w-md relative group">
             <button 
               onClick={() => window.location.reload()} 
-              className="absolute -top-2 -right-2 p-2 bg-zinc-800 hover:bg-primary text-zinc-500 hover:text-black rounded-full border border-zinc-700 transition-all opacity-0 group-hover:opacity-100"
+              className="absolute -top-3 -right-3 p-2 bg-zinc-800 hover:bg-primary text-zinc-400 hover:text-black rounded-full border border-zinc-700 transition-all shadow-lg"
               title="Rafraîchir"
             >
-              <RotateCcw size={12} />
+              <RotateCcw size={14} />
             </button>
-            <span className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Adresse MAC Virtuelle</span>
-            <div className="flex items-center gap-3">
+            <span className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em]">Adresse MAC Virtuelle</span>
+            <div className="flex items-center gap-3 w-full justify-center">
               {isEditingMac ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full max-w-[250px]">
                   <input 
                     type="text"
                     value={newMacInput}
                     onChange={(e) => setNewMacInput(e.target.value)}
-                    className="bg-black border border-primary/50 text-primary font-mono px-3 py-1 rounded text-center focus:outline-none focus:border-primary"
+                    className="bg-black border border-primary/50 text-primary font-mono px-3 py-2 rounded-lg text-center focus:outline-none focus:border-primary w-full text-sm"
                     autoFocus
                   />
                   <button 
                     onClick={handleSaveMac}
-                    className="p-1.5 bg-primary text-black rounded-full hover:bg-primary-dark transition-colors"
+                    className="p-2.5 bg-primary text-black rounded-lg hover:bg-primary-dark transition-colors shrink-0"
                   >
                     <Check size={16} />
                   </button>
                   <button 
                     onClick={() => { setIsEditingMac(false); setNewMacInput(macAddress); }}
-                    className="p-1.5 bg-zinc-800 text-zinc-400 rounded-full hover:bg-zinc-700 transition-colors"
+                    className="p-2.5 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 transition-colors shrink-0"
                   >
                     <X size={16} />
                   </button>
                 </div>
               ) : (
                 <>
-                  <span className="text-lg md:text-xl font-mono font-bold text-white tracking-wider">{macAddress}</span>
-                  <div className="flex items-center gap-1">
+                  <span className="text-xl md:text-2xl font-mono font-bold text-white tracking-widest">{macAddress}</span>
+                  <div className="flex items-center gap-2 shrink-0">
                     <button 
                       onClick={() => { navigator.clipboard.writeText(macAddress); onNotify('MAC copiée !', 'success'); }} 
-                      className="text-zinc-500 hover:text-primary p-1.5 hover:bg-zinc-800 rounded-full transition-colors"
+                      className="text-zinc-500 hover:text-primary p-2 hover:bg-zinc-800 rounded-lg transition-colors bg-zinc-900"
                       title="Copier"
                     >
                       <Copy size={16} />
                     </button>
                     <button 
                       onClick={() => setIsEditingMac(true)} 
-                      className="text-zinc-500 hover:text-primary p-1.5 hover:bg-zinc-800 rounded-full transition-colors"
+                      className="text-zinc-500 hover:text-primary p-2 hover:bg-zinc-800 rounded-lg transition-colors bg-zinc-900"
                       title="Modifier"
                     >
                       <Edit2 size={16} />
@@ -229,7 +236,8 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 max-w-2xl mx-auto w-full">
+        {/* Content Section */}
+        <div className="flex flex-col gap-6 max-w-2xl mx-auto w-full shrink-0">
           {isChecking ? (
             <div className="flex flex-col items-center gap-4 py-8">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -344,13 +352,6 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
         </div>
 
         <div className="mt-auto pt-4 border-t border-zinc-900 flex flex-col items-center gap-4">
-          <a 
-            href="/dashboard"
-            className="flex items-center gap-2 bg-primary hover:bg-primary-dark px-8 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all tv-focus"
-          >
-            Devenir Revendeur <ArrowRight size={14} />
-          </a>
-          
           {/* Bottom Warning */}
           <div className="w-full text-center pb-2">
             <p className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest max-w-2xl mx-auto leading-relaxed">
