@@ -85,7 +85,7 @@ service cloud.firestore {
 
     function isValidUser(data) {
       return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
-             hasOnlyAllowedFields(['uid', 'email', 'username', 'role', 'credits', 'phone', 'country', 'createdAt', 'trialStartedAt', 'isPremium']) &&
+             hasOnlyAllowedFields(['uid', 'email', 'username', 'firstName', 'lastName', 'role', 'credits', 'phone', 'country', 'createdAt', 'trialStartedAt', 'isPremium']) &&
              data.uid is string &&
              data.email is string && isValidEmail(data.email) &&
              data.role in ['admin', 'reseller', 'client'] &&
