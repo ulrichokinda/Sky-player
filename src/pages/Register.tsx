@@ -95,7 +95,11 @@ export const Register = () => {
         navigate('/dashboard');
       }
     } catch (error: any) {
-      alert("Erreur Google Login: " + error.message);
+      if (error.code === 'auth/popup-blocked') {
+        alert("La fenêtre de connexion Google a été bloquée par votre navigateur. Veuillez autoriser les popups pour ce site ou ouvrir l'application dans un nouvel onglet.");
+      } else {
+        alert("Erreur Google Login: " + error.message);
+      }
     } finally {
       setLoading(false);
     }
