@@ -47,6 +47,7 @@
     "react-router-dom": "^7.14.0",
     "shaka-player": "^5.0.5",
     "tailwind-merge": "^3.5.0",
+    "tsx": "^4.21.0",
     "video.js": "^8.23.7",
     "vite": "^6.2.0",
     "vite-plugin-pwa": "^0.21.1"
@@ -62,7 +63,6 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
-    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
