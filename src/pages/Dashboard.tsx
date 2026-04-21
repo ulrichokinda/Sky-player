@@ -53,6 +53,22 @@ export const Dashboard = () => {
   const [branding, setBranding] = useState<any>(null);
   const navigate = useNavigate();
 
+  const [editPlaylistUrl, setEditPlaylistUrl] = useState('');
+  const [editXtreamHost, setEditXtreamHost] = useState('');
+  const [editXtreamUser, setEditXtreamUser] = useState('');
+  const [editXtreamPassword, setEditXtreamPassword] = useState('');
+  const [editNote, setEditNote] = useState('');
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      setEditPlaylistUrl(selectedCustomer.playlist_url || '');
+      setEditXtreamHost(selectedCustomer.xtream_host || '');
+      setEditXtreamUser(selectedCustomer.xtream_username || '');
+      setEditXtreamPassword(selectedCustomer.xtream_password || '');
+      setEditNote(selectedCustomer.note || '');
+    }
+  }, [selectedCustomer]);
+
   useEffect(() => {
     // Check for version mismatch on mount
     const CURRENT_VERSION = '4.0.0-ULTRA';
@@ -301,6 +317,31 @@ export const Dashboard = () => {
 
         return (
           <div className="space-y-6">
+            {!user?.emailVerified && (
+              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
+                <AlertCircle className="text-amber-500" size={24} />
+                <div className="flex-1">
+                  <h3 className="font-bold text-amber-500">Email non vérifié</h3>
+                  <p className="text-xs text-amber-500/80">Vous devez vérifier votre email pour gérer vos clients. Vérifiez votre boîte de réception.</p>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                  onClick={async () => {
+                    try {
+                      await sendEmailVerification(auth.currentUser);
+                      showToast("Lien de vérification envoyé !", "success");
+                    } catch (e: any) {
+                      showToast(e.message, "error");
+                    }
+                  }}
+                >
+                  Renvoyer le lien
+                </Button>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-4 items-center">
               <Button onClick={() => { setServerType('playlist'); setShowModal('activate'); }} icon={Plus}>Activer</Button>
               <Button onClick={() => { setServerType('playlist'); setShowModal('new-client'); }} variant="outline" icon={Plus}>Nouveau client</Button>
@@ -450,6 +491,39 @@ export const Dashboard = () => {
               >
                 Mettre à jour le profil
               </Button>
+            </Card>
+
+            <Card className="max-w-2xl border-emerald-500/20 bg-emerald-500/5 space-y-4">
+              <div className="flex items-center gap-3 text-emerald-500">
+                <CheckCircle2 size={20} />
+                <h3 className="font-bold">Statut de la Double Connexion</h3>
+              </div>
+              <p className="text-sm text-zinc-400">
+                L'application utilise deux connexions : une directe (Navigateur) et une sécurisée (Serveur). Vérifiez ici que les deux sont opérationnelles.
+              </p>
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                   className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      const health = await fetch('/api/health').then(r => r.json());
+                      if (health.dbReady) {
+                        showToast("Serveur : Connecté à Firebase !", "success");
+                      } else {
+                        showToast("Serveur : Déconnecté (Vérifiez vos Secrets AI Studio)", "error");
+                      }
+                    } catch (e) {
+                      showToast("Serveur : Impossible de joindre l'API", "error");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                >
+                  Tester la connexion Serveur
+                </Button>
+              </div>
             </Card>
 
             <Card className="max-w-2xl border-amber-500/20 bg-amber-500/5 space-y-4">
@@ -1328,25 +1402,28 @@ export const Dashboard = () => {
               </>
             ) : showModal === 'edit-client' ? (
               <>
-                <h2 className="text-2xl font-black italic">Modifier le client</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold">Modifier le client</h2>
+                    <p className="text-xs text-zinc-500">MAC: {selectedCustomer?.mac || selectedCustomer?.target_mac}</p>
+                  </div>
+                  <button onClick={() => setShowModal(null)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                
                 <div className="space-y-4">
-                  <Input id="edit-client-name" label="Nom du Client" defaultValue={selectedCustomer?.note || selectedCustomer?.name} />
-                  <Input label="Adresse MAC" defaultValue={selectedCustomer?.target_mac || selectedCustomer?.mac} readOnly className="opacity-50" />
-                  
-                  {/* Server Type Selector */}
-                  <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                  <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
                     <button 
-                      type="button"
                       onClick={() => setServerType('playlist')}
                       className={cn(
                         "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
                         serverType === 'playlist' ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
                       )}
                     >
-                      Playlist (M3U/JSON)
+                      Lien Playlist
                     </button>
                     <button 
-                      type="button"
                       onClick={() => setServerType('xtream')}
                       className={cn(
                         "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
@@ -1358,36 +1435,51 @@ export const Dashboard = () => {
                   </div>
 
                   {serverType === 'playlist' ? (
-                    <Input id="edit-client-playlist" label="Lien Playlist" defaultValue={selectedCustomer?.playlist_url || ''} />
+                    <Input 
+                      label="Lien Playlist" 
+                      value={editPlaylistUrl}
+                      onChange={(e: any) => setEditPlaylistUrl(e.target.value)}
+                    />
                   ) : (
                     <div className="space-y-3 p-4 bg-zinc-950/50 border border-zinc-900 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
-                      <Input id="edit-client-xtream-host" label="Hôte" defaultValue={selectedCustomer?.xtream_host || ''} />
+                      <Input 
+                        label="Hôte" 
+                        value={editXtreamHost}
+                        onChange={(e: any) => setEditXtreamHost(e.target.value)}
+                      />
                       <div className="grid grid-cols-2 gap-3">
-                        <Input id="edit-client-xtream-user" label="Utilisateur" defaultValue={selectedCustomer?.xtream_username || ''} />
-                        <Input id="edit-client-xtream-pass" label="Mot de passe" type="password" defaultValue={selectedCustomer?.xtream_password || ''} />
+                        <Input 
+                          label="Utilisateur" 
+                          value={editXtreamUser}
+                          onChange={(e: any) => setEditXtreamUser(e.target.value)}
+                        />
+                        <Input 
+                          label="Mot de passe" 
+                          type="password" 
+                          value={editXtreamPassword}
+                          onChange={(e: any) => setEditXtreamPassword(e.target.value)}
+                        />
                       </div>
                     </div>
                   )}
 
-                  <Input id="edit-client-note" label="Notes" placeholder="Notes additionnelles..." />
+                  <Input 
+                    label="Notes / Nom" 
+                    placeholder="Notes additionnelles..." 
+                    value={editNote}
+                    onChange={(e: any) => setEditNote(e.target.value)}
+                  />
                   <Button 
                     fullWidth 
                     loading={loading}
                     onClick={() => handleAction("Modification du client", async () => {
                       if (selectedCustomer?.id) {
-                        const name = (document.getElementById('edit-client-name') as HTMLInputElement)?.value;
-                        const note = (document.getElementById('edit-client-note') as HTMLInputElement)?.value;
-                        const playlist = (document.getElementById('edit-client-playlist') as HTMLInputElement)?.value || '';
-                        const xHost = (document.getElementById('edit-client-xtream-host') as HTMLInputElement)?.value || '';
-                        const xUser = (document.getElementById('edit-client-xtream-user') as HTMLInputElement)?.value || '';
-                        const xPass = (document.getElementById('edit-client-xtream-pass') as HTMLInputElement)?.value || '';
-                        
                         await api.updateActivation(selectedCustomer.id, { 
-                          note: name + (note ? ' - ' + note : ''),
-                          playlist_url: serverType === 'playlist' ? playlist : '',
-                          xtream_host: serverType === 'xtream' ? xHost : '',
-                          xtream_username: serverType === 'xtream' ? xUser : '',
-                          xtream_password: serverType === 'xtream' ? xPass : ''
+                          note: editNote,
+                          playlist_url: serverType === 'playlist' ? editPlaylistUrl : '',
+                          xtream_host: serverType === 'xtream' ? editXtreamHost : '',
+                          xtream_username: serverType === 'xtream' ? editXtreamUser : '',
+                          xtream_password: serverType === 'xtream' ? editXtreamPassword : ''
                         });
                         fetchActivations(user.uid);
                       }

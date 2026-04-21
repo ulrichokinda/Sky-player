@@ -110,7 +110,7 @@ service cloud.firestore {
 
     match /activations/{activationId} {
       allow get: if true; // Allowed for MAC check from device
-      allow list: if isEmailVerified() && (resource.data.resellerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.resellerId == request.auth.uid || isAdmin());
       
       allow create: if isEmailVerified() && 
                     isValidActivation(incoming()) && 

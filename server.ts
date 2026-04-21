@@ -314,24 +314,36 @@ async function startServer() {
   // Create Activation with Credit Deduction (Secure)
   app.post("/api/activations/create", async (req, res) => {
     const { resellerId, target_mac, credits_used, note, playlist_url, xtream_host, xtream_username, xtream_password } = req.body;
+    const effectiveDbId = databaseId || '(default)';
+    console.log(`[API] Creation Activation request for MAC: ${target_mac} by Reseller: ${resellerId} on DB: ${effectiveDbId}`);
     
     try {
       const firestore = getDb();
-      if (!firestore) throw new Error("Base de données non accessible");
+      if (!firestore) {
+        console.error("[API] Firestore not initialized. Check service account secret.");
+        return res.status(503).json({ error: "Base de données non accessible. Vérifiez la configuration Firebase dans les réglages." });
+      }
+
+      const normalizedMac = target_mac ? target_mac.toUpperCase().trim() : '';
+      if (!normalizedMac) return res.status(400).json({ error: "L'adresse MAC est obligatoire" });
       
-      const normalizedMac = target_mac.toUpperCase().trim();
-      
-      // 1. Transactional Credit Deduction (Only if not a trial and credits > 0)
+      // 0. Check for existing activation with this MAC to avoid duplicates
+      const existingActs = await firestore.collection('activations').where('target_mac', '==', normalizedMac).get();
+      if (!existingActs.empty) {
+        return res.status(400).json({ error: `L'appareil avec la MAC ${normalizedMac} est déjà activé.` });
+      }
+
+      // 1. Transactional Credit Deduction...
       if (credits_used > 0 && resellerId && resellerId !== 'SYSTEM_TRIAL') {
         const userRef = firestore.collection('users').doc(resellerId);
         
         await firestore.runTransaction(async (transaction) => {
           const userDoc = await transaction.get(userRef);
-          if (!userDoc.exists) throw new Error('Utilisateur non trouvé');
+          if (!userDoc.exists) throw new Error('Utilisateur non trouvé dans la base de données');
           
           const currentCredits = userDoc.data()?.credits || 0;
           if (currentCredits < credits_used) {
-            throw new Error('Crédits insuffisants');
+            throw new Error(`Crédits insuffisants (Solde: ${currentCredits}, Requis: ${credits_used})`);
           }
           
           transaction.update(userRef, {
@@ -344,8 +356,8 @@ async function startServer() {
       const activationData = {
         resellerId,
         target_mac: normalizedMac,
-        credits_used,
-        note: note || 'Activation manuelle',
+        credits_used: credits_used || 0,
+        note: note || 'Client manuel',
         playlist_url: playlist_url || '',
         xtream_host: xtream_host || '',
         xtream_username: xtream_username || '',
@@ -360,10 +372,10 @@ async function startServer() {
       
       const docRef = await firestore.collection('activations').add(activationData);
       
-      console.log(`Successfully created activation for MAC ${normalizedMac}. Client: ${note}`);
+      console.log(`[API] Activation created successfully ID: ${docRef.id} for MAC ${normalizedMac}`);
       res.json({ success: true, id: docRef.id });
     } catch (error: any) {
-      console.error('Activation Create Error:', error);
+      console.error('[API] Activation Create Error:', error);
       res.status(500).json({ error: error.message || 'Erreur lors de la création de l\'activation' });
     }
   });
