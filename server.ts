@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import admin from 'firebase-admin';
@@ -14,7 +13,7 @@ const __dirname = path.dirname(__filename);
 // Read firebase-applet-config.json
 let firebaseConfig: any = {};
 try {
-  const configPath = path.resolve(__dirname, 'firebase-applet-config.json');
+  const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
   if (fs.existsSync(configPath)) {
     firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   }
@@ -131,14 +130,15 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
+    const { createServer } = await import('vite');
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
     // Serve static files from dist
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = path.resolve(process.cwd(), 'dist');
     app.use(express.static(distPath, {
       setHeaders: (res, path) => {
         if (path.endsWith('.html')) {
@@ -156,8 +156,8 @@ async function startServer() {
     });
   }
 
-  // Cloud Run provides the PORT environment variable (usually 8080)
-  const PORT = Number(process.env.PORT) || 3000;
+  // Cloud Run provides the PORT environment variable, but AI Studio proxy strictly expects 3000
+  const PORT = 3000;
   
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);

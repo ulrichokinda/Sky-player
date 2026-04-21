@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
-    "start": "node --experimental-strip-types server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --packages=external",
+    "start": "node dist/server.js",
     "preview": "vite preview",
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
     "lint": "tsc --noEmit",
@@ -58,6 +58,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.21",
+    "esbuild": "^0.28.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "typescript": "~5.8.2",
