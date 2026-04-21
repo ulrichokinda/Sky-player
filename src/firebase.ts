@@ -8,7 +8,8 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup as firebaseSignInWithPopup,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  sendEmailVerification as firebaseSendEmailVerification
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -67,6 +68,7 @@ export const createUserWithEmailAndPassword = firebaseCreateUserWithEmailAndPass
 export const signOut = firebaseSignOut;
 export const signInWithPopup = firebaseSignInWithPopup;
 export const sendPasswordResetEmail = firebaseSendPasswordResetEmail;
+export const sendEmailVerification = firebaseSendEmailVerification;
 
 // Firestore Helpers
 export const collection = firestoreCollection;

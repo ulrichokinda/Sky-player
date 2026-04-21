@@ -18,7 +18,14 @@ export const Login = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if (!user.emailVerified) {
+        await auth.signOut();
+        alert("Votre adresse e-mail n'a pas encore été vérifiée. Veuillez vérifier votre boîte de réception (et vos spams) pour confirmer votre compte.");
+        return;
+      }
       
       const redirect = searchParams.get('redirect');
       const plan = searchParams.get('plan');

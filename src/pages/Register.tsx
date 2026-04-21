@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 import { Button, Input, Card, Badge } from '../components/ui';
-import { auth, createUserWithEmailAndPassword, signInWithPopup, googleProvider } from '../firebase';
+import { auth, createUserWithEmailAndPassword, signInWithPopup, googleProvider, sendEmailVerification, signOut } from '../firebase';
 import { api } from '../services/api';
 import { Footer } from '../components/Footer';
 import { Mail, Lock, User, Phone, Globe, Chrome, ArrowRight, ShieldCheck, ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -57,7 +57,10 @@ export const Register = () => {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const user = result.user;
 
-      // 2. Create user profile in Firestore
+      // 2. Send Email Verification
+      await sendEmailVerification(user);
+
+      // 3. Create user profile in Firestore
       await api.registerUser({
         uid: user.uid,
         email,
@@ -69,16 +72,11 @@ export const Register = () => {
         role: 'client'
       });
 
-      alert('Inscription réussie !');
-      
-      const redirect = searchParams.get('redirect');
-      const plan = searchParams.get('plan');
-      
-      if (redirect) {
-        navigate(`${redirect}${plan ? `?plan=${plan}` : ''}`);
-      } else {
-        navigate('/dashboard');
-      }
+      // 4. Force sign out until email is verified
+      await signOut(auth);
+
+      alert('Inscription réussie ! Un e-mail de vérification a été envoyé à ' + email + '. Veuillez confirmer votre e-mail avant de vous connecter.');
+      navigate('/login');
     } catch (error: any) {
       alert('Erreur : ' + error.message);
     } finally {
