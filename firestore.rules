@@ -3,161 +3,152 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ===============================================================
-    // Assumed Data Model
+    // Global Default Deny
     // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {uid}
-    // Fields:
-    //   - uid: string (required) - Firebase Auth UID
-    //   - email: string (required, email) - User email
-    //   - username: string (optional) - User display name
-    //   - role: string (required, enum: ['admin', 'reseller', 'client']) - User role
-    //   - credits: number (optional) - Available credits
-    //   - phone: string (optional) - User phone number
-    //   - country: string (optional) - User country
-    //   - createdAt: timestamp (required) - Creation time
-    //
-    // Collection: activations
-    // Document ID: {activationId}
-    // Fields:
-    //   - resellerId: string (required) - UID of the reseller
-    //   - target_mac: string (required) - Device MAC address
-    //   - credits_used: number (required) - Credits spent
-    //   - note: string (optional) - Optional note
-    //   - system: string (optional) - Device system
-    //   - version: string (optional) - Device version
-    //   - last_connection: timestamp (optional) - Last seen
-    //   - country_code: string (optional) - Country code
-    //   - playlist_url: string (optional) - Playlist URL
-    //   - xtream_host: string (optional) - Xtream codes host
-    //   - xtream_username: string (optional) - Xtream codes username
-    //   - xtream_password: string (optional) - Xtream codes password
-    //   - current_channel: string (optional) - Current channel
-    //   - createdAt: timestamp (required) - Creation time
-    //
-    // Collection: payments
-    // Document ID: {paymentId}
-    // Fields:
-    //   - userId: string (required) - UID of the user
-    //   - amount: number (required) - Payment amount
-    //   - credits_purchased: number (required) - Credits bought
-    //   - payment_method: string (required) - Method used
-    //   - provider: string (required) - Payment provider
-    //   - status: string (required, enum: ['pending', 'completed', 'failed']) - Transaction status
-    //   - external_id: string (required) - External transaction ID
-    //   - createdAt: timestamp (required) - Creation time
-    //
-    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===============================================================
-    // Helper Functions
+    // Global Helpers
     // ===============================================================
 
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          request.auth.token.email == "inestaulrichokinda@gmail.com" ||
-          request.auth.token.email == "koutoudivine@gmail.com");
+      return isSignedIn() && (
+        request.auth.token.email == "inestaulrichokinda@gmail.com" ||
+        request.auth.token.email == "koutoudivine@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function affectedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
     }
 
     function isValidEmail(email) {
       return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
 
-    // Helper to check if a map has required fields (List hasAll)
-    function hasRequiredFields(data, fields) {
-      return data.keys().hasAll(fields);
-    }
-
-    // Helper to check incoming data against allowed keys using diff() and Set.hasOnly()
-    function affectedKeysOnly(fields) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
-    }
-
     // ===============================================================
-    // Domain Validators
+    // Entity Validations (Blueprints)
     // ===============================================================
 
     function isValidUser(data) {
-      return hasRequiredFields(data, ['uid', 'email', 'role', 'createdAt']) &&
-             data.uid is string &&
-             data.email is string && isValidEmail(data.email) &&
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email &&
+             isValidEmail(data.email) &&
              data.role in ['admin', 'reseller', 'client'] &&
              (data.credits == null || data.credits is number) &&
              data.createdAt is timestamp;
     }
 
     function isValidActivation(data) {
-      return hasRequiredFields(data, ['resellerId', 'target_mac', 'credits_used', 'createdAt']) &&
-             data.resellerId is string &&
+      return data.keys().hasAll(['resellerId', 'target_mac', 'credits_used', 'createdAt']) &&
+             isValidId(data.resellerId) &&
              data.target_mac is string && data.target_mac.size() >= 12 && data.target_mac.size() <= 20 &&
              data.credits_used is number && data.credits_used >= 0 &&
              data.createdAt is timestamp &&
-             (data.playlist_url == null || data.playlist_url is string);
+             // Ensure the reseller actually exists and matches requester
+             (data.resellerId == request.auth.uid || isAdmin());
     }
 
     function isValidPayment(data) {
-      return hasRequiredFields(data, ['userId', 'amount', 'credits_purchased', 'payment_method', 'provider', 'status', 'external_id', 'createdAt']) &&
-             data.userId is string &&
+      return data.keys().hasAll(['userId', 'amount', 'credits_purchased', 'status', 'createdAt']) &&
+             isValidId(data.userId) &&
              data.amount is number && data.amount >= 0 &&
              data.credits_purchased is number && data.credits_purchased >= 0 &&
-             data.status in ['pending', 'completed', 'failed', 'SUCCESS', 'FAILED', 'PENDING'] &&
+             data.status in ['PENDING', 'SUCCESS', 'FAILED', 'pending', 'completed', 'failed'] &&
              data.createdAt is timestamp;
     }
 
     // ===============================================================
-    // Rules
+    // Collection Matches
     // ===============================================================
 
     match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) && request.resource.data.role != 'admin' || isAdmin());
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) && request.resource.data.role == resource.data.role || isAdmin());
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin(); // Prevent scraping user emails
+      
+      allow create: if isEmailVerified() && isValidUser(incoming()) && (isOwner(uid) || isAdmin());
+      
+      allow update: if isEmailVerified() && (
+        // Admin Master Access
+        isAdmin() ||
+        // Action: Self Update (Locked credits/role)
+        (isOwner(uid) && 
+         incoming().role == existing().role && 
+         incoming().credits == existing().credits &&
+         affectedKeys().hasOnly(['username', 'firstName', 'lastName', 'phone', 'country', 'updatedAt']))
+      );
     }
 
     match /activations/{activationId} {
-      // Allow public read for MAC check (limited to specific query)
-      allow get: if true;
-      allow list: if isAuthenticated() && (resource.data.resellerId == request.auth.uid || isAdmin());
+      allow get: if true; // Allowed for MAC check from device
+      allow list: if isEmailVerified() && (resource.data.resellerId == request.auth.uid || isAdmin());
       
-      allow create: if isAuthenticated() && 
-                    isValidActivation(request.resource.data) && 
-                    (request.auth.uid == request.resource.data.resellerId || isAdmin());
+      allow create: if isEmailVerified() && 
+                    isValidActivation(incoming()) && 
+                    (request.auth.uid == incoming().resellerId || isAdmin());
       
-      allow update: if (isAuthenticated() && (request.auth.uid == resource.data.resellerId || isAdmin())) && (
-        // Action: Update Playlist/Meta
-        affectedKeysOnly(['playlist_url', 'xtream_host', 'xtream_username', 'xtream_password', 'note', 'credits_used']) ||
-        // Action: System Heartbeat (mac can be updated by device/simulated)
-        affectedKeysOnly(['current_channel', 'last_connection', 'system', 'version', 'country_code'])
+      allow update: if isEmailVerified() && (
+        // Admin Master Access
+        isAdmin() ||
+        // Action: Reseller Content Update
+        (request.auth.uid == existing().resellerId && 
+         incoming().resellerId == existing().resellerId &&
+         incoming().target_mac == existing().target_mac &&
+         affectedKeys().hasOnly(['playlist_url', 'xtream_host', 'xtream_username', 'xtream_password', 'note', 'credits_used', 'updatedAt'])) ||
+        // Action: System Heartbeat (Simplified for device reporting)
+        (affectedKeys().hasOnly(['current_channel', 'last_connection', 'system', 'version', 'country_code']) &&
+         existing().target_mac != null)
       );
       
       allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated() && isValidPayment(request.resource.data) && (request.auth.uid == request.resource.data.userId || isAdmin());
-      allow update: if isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isEmailVerified() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      allow create: if isEmailVerified() && isValidPayment(incoming()) && (isOwner(incoming().userId) || isAdmin());
+      
+      allow update: if isAdmin(); // Users cannot modify payment records once created
       allow delete: if isAdmin();
-    }
-
-    match /test/connection {
-      allow read: if true;
     }
 
     match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /test/connection {
+      allow read: if true;
     }
   }
 }

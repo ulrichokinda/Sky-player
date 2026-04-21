@@ -36,8 +36,16 @@ try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const saContent = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
     if (saContent.startsWith('{')) {
-      credential = admin.credential.cert(JSON.parse(saContent));
-      console.log('Using FIREBASE_SERVICE_ACCOUNT from Secrets for authentication');
+      try {
+        credential = admin.credential.cert(JSON.parse(saContent));
+        console.log('Using FIREBASE_SERVICE_ACCOUNT from Secrets for authentication');
+      } catch (jsonErr: any) {
+        console.error('CRITICAL ERROR: FIREBASE_SERVICE_ACCOUNT is NOT a valid JSON.');
+        console.error('Error Details:', jsonErr.message);
+        console.error('Check your secret in Settings > Secrets. Ensure it starts with { and ends with } and has no extra spaces.');
+      }
+    } else {
+      console.error('CRITICAL ERROR: FIREBASE_SERVICE_ACCOUNT secret does not start with "{". It appears to be invalid.');
     }
   }
 
