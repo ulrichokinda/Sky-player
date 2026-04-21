@@ -97,7 +97,9 @@ export const Dashboard = () => {
           role: 'client'
         });
       }
-      setDbUser(data);
+      setDbUser(data || null);
+      
+      // Also fetch these whenever we fetch user data
       fetchActivations(uid);
       fetchTransactions(uid);
       
@@ -1077,7 +1079,13 @@ export const Dashboard = () => {
                         xtream_username: serverType === 'xtream' ? newXtreamUser : '',
                         xtream_password: serverType === 'xtream' ? newXtreamPassword : ''
                       });
-                      fetchActivations(user.uid);
+                      
+                      // Refresh both activations and user profile (credits)
+                      await Promise.all([
+                        fetchActivations(user.uid),
+                        fetchUserData(user.uid, user)
+                      ]);
+                      
                       setNewMac('');
                       setNewPlaylistUrl('');
                       setNewNote('');
@@ -1164,7 +1172,7 @@ export const Dashboard = () => {
 
                   <Button 
                     fullWidth 
-                    loading={loading}
+                    loading={loading} 
                     onClick={() => handleAction("Ajout d'un nouveau client", async () => {
                       const normalizedMac = newMac.toUpperCase().trim();
                       await api.createActivation({
@@ -1177,7 +1185,13 @@ export const Dashboard = () => {
                         xtream_username: serverType === 'xtream' ? newXtreamUser : '',
                         xtream_password: serverType === 'xtream' ? newXtreamPassword : ''
                       });
-                      fetchActivations(user.uid);
+
+                      // Refresh both activations and user profile (credits)
+                      await Promise.all([
+                        fetchActivations(user.uid),
+                        fetchUserData(user.uid, user)
+                      ]);
+
                       setNewMac('');
                       setNewNote('');
                       setNewPlaylistUrl('');

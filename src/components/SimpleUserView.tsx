@@ -7,7 +7,9 @@ import { Player } from './Player';
 import { fetchAndParsePlaylist, Channel } from '../lib/playlistParser';
 import { runSpeedTest } from '../lib/speedTest';
 import { api } from '../services/api';
-import { useBranding } from './BrandingProvider';
+import { BrandingProvider, useBranding } from './BrandingProvider';
+import { Device } from '@capacitor/device';
+import { Capacitor } from '@capacitor/core';
 
 interface SimpleUserViewProps {
   channels: any[];
@@ -26,8 +28,45 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   const [error, setError] = useState<string | null>(null);
   const [speed, setSpeed] = useState<number | null>(null);
   const [isTestingSpeed, setIsTestingSpeed] = useState(false);
+  const [loadTimeout, setLoadTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const initDevice = async () => {
+      let devId = localStorage.getItem('sky_player_device_id');
+      
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const id = await Device.getId();
+          if (id.identifier) {
+            // Keep it consistent. If it's already a MAC format in storage, keep it.
+            // If it's the first time on native, use the identifier.
+            if (!devId || devId.startsWith('00:E4:55')) {
+              devId = id.identifier.toUpperCase().replace(/[^A-F0-9]/g, '');
+              // Format as MAC if it's 12 chars
+              if (devId.length >= 12) {
+                devId = devId.substring(0, 12).match(/.{1,2}/g)?.join(':') || devId;
+              }
+              localStorage.setItem('sky_player_device_id', devId);
+            }
+          }
+        } catch (e) {
+          console.error('Device ID error:', e);
+        }
+      }
+
+      if (!devId) {
+        const chars = '0123456789ABCDEF';
+        const prefix = '00:E4:55'; 
+        const suffix = Array.from({ length: 3 }, () => 
+          chars[Math.floor(Math.random() * 16)] + chars[Math.floor(Math.random() * 16)]
+        ).join(':');
+        devId = `${prefix}:${suffix}`;
+        localStorage.setItem('sky_player_device_id', devId);
+      }
+      setMacAddress(devId);
+    };
+    initDevice();
+
     // Force landscape mode if possible
     try {
       const orientation = window.screen.orientation as any;
@@ -45,27 +84,14 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   const [newMacInput, setNewMacInput] = useState('');
 
   useEffect(() => {
-    let deviceId = localStorage.getItem('sky_player_device_id');
-    if (!deviceId) {
-      const chars = '0123456789ABCDEF';
-      // Use a common virtual prefix like 00:1A:79 (MAG/IPTV standard) or a custom one
-      const prefix = '00:E4:55'; // SkyPlayer Custom Prefix
-      const suffix = Array.from({ length: 3 }, () => 
-        chars[Math.floor(Math.random() * 16)] + chars[Math.floor(Math.random() * 16)]
-      ).join(':');
-      deviceId = `${prefix}:${suffix}`;
-      localStorage.setItem('sky_player_device_id', deviceId);
-    }
-    setMacAddress(deviceId);
-    setNewMacInput(deviceId);
+    if (macAddress === '00:00:00:00:00:00') return;
 
     const checkActivation = async () => {
       try {
-        const data = await api.checkMacStatus(deviceId);
+        const data = await api.checkMacStatus(macAddress);
         if (data.active) {
           let targetUrl = data.activation?.playlist_url;
           
-          // If no playlist URL but Xtream codes are present, construct the Xtream M3U link
           if (!targetUrl && data.activation?.xtream_host && data.activation?.xtream_username && data.activation?.xtream_password) {
             const host = data.activation.xtream_host.endsWith('/') ? data.activation.xtream_host.slice(0, -1) : data.activation.xtream_host;
             targetUrl = `${host}/get.php?username=${data.activation.xtream_username}&password=${data.activation.xtream_password}&type=m3u_plus&output=ts`;
@@ -73,11 +99,30 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
 
           if (targetUrl && targetUrl !== playlistUrl) {
             setPlaylistUrl(targetUrl);
-            const parsedChannels = await fetchAndParsePlaylist(targetUrl);
-            setChannels(parsedChannels);
-            setCurrentChannelIndex(0);
+            
+            // Add safety timeout for loading
+            const timeout = setTimeout(() => {
+              if (channels.length === 0) {
+                setError("Le chargement de la liste de lecture prend trop de temps. Vérifiez votre connexion.");
+                setIsChecking(false);
+              }
+            }, 10000);
+            
+            try {
+              const parsedChannels = await fetchAndParsePlaylist(targetUrl);
+              clearTimeout(timeout);
+              if (parsedChannels.length > 0) {
+                setChannels(parsedChannels);
+                setCurrentChannelIndex(0);
+                setError(null);
+              } else {
+                setError("La liste de lecture est vide ou invalide.");
+              }
+            } catch (err) {
+              clearTimeout(timeout);
+              setError("Erreur lors du téléchargement de la liste.");
+            }
           }
-          setError(null);
         } else if (data.error) {
           setError(data.error);
         }
@@ -88,8 +133,32 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
       }
     };
 
+    const updateDeviceInfo = async () => {
+      try {
+        const info = await Device.getInfo();
+        let country = 'N/A';
+        try {
+          const res = await fetch('https://ipapi.co/json/');
+          const data = await res.json();
+          country = data.country_code || 'N/A';
+        } catch (e) {}
+
+        api.sendHeartbeat({
+          mac: macAddress,
+          system: `${info.platform} ${info.osVersion}`,
+          version: `4.0.0-ULTRA`,
+          country: country
+        });
+      } catch (e) {}
+    };
+
     checkActivation();
-    const interval = setInterval(checkActivation, 10000);
+    updateDeviceInfo();
+    
+    const interval = setInterval(() => {
+      checkActivation();
+      updateDeviceInfo();
+    }, 30000);
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -100,20 +169,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [playlistUrl]);
-
-  const handleSaveMac = () => {
-    const normalized = newMacInput.toUpperCase().trim();
-    if (normalized.length < 12) {
-      onNotify('MAC invalide', 'error');
-      return;
-    }
-    localStorage.setItem('sky_player_device_id', normalized);
-    setMacAddress(normalized);
-    setIsEditingMac(false);
-    onNotify('MAC mise à jour !', 'success');
-    window.location.reload();
-  };
+  }, [macAddress, playlistUrl]);
 
   const startSpeedTest = async () => {
     setIsTestingSpeed(true);
@@ -195,51 +251,16 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
             >
               <RotateCcw size={14} />
             </button>
-            <span className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em]">Adresse MAC Virtuelle</span>
+            <span className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em]">Votre Adresse MAC</span>
             <div className="flex items-center gap-3 w-full justify-center">
-              {isEditingMac ? (
-                <div className="flex items-center gap-2 w-full max-w-[250px]">
-                  <input 
-                    type="text"
-                    value={newMacInput}
-                    onChange={(e) => setNewMacInput(e.target.value)}
-                    className="bg-black border border-primary/50 text-primary font-mono px-3 py-2 rounded-lg text-center focus:outline-none focus:border-primary w-full text-sm"
-                    autoFocus
-                  />
-                  <button 
-                    onClick={handleSaveMac}
-                    className="p-2.5 bg-primary text-black rounded-lg hover:bg-primary-dark transition-colors shrink-0"
-                  >
-                    <Check size={16} />
-                  </button>
-                  <button 
-                    onClick={() => { setIsEditingMac(false); setNewMacInput(macAddress); }}
-                    className="p-2.5 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 transition-colors shrink-0"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <span className="text-xl md:text-2xl font-mono font-bold text-white tracking-widest">{macAddress}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button 
-                      onClick={() => { navigator.clipboard.writeText(macAddress); onNotify('MAC copiée !', 'success'); }} 
-                      className="text-zinc-500 hover:text-primary p-2 hover:bg-zinc-800 rounded-lg transition-colors bg-zinc-900"
-                      title="Copier"
-                    >
-                      <Copy size={16} />
-                    </button>
-                    <button 
-                      onClick={() => setIsEditingMac(true)} 
-                      className="text-zinc-500 hover:text-primary p-2 hover:bg-zinc-800 rounded-lg transition-colors bg-zinc-900"
-                      title="Modifier"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                  </div>
-                </>
-              )}
+              <span className="text-xl md:text-2xl font-mono font-bold text-white tracking-widest">{macAddress}</span>
+              <button 
+                onClick={() => { navigator.clipboard.writeText(macAddress); onNotify('MAC copiée !', 'success'); }} 
+                className="text-zinc-500 hover:text-primary p-2 hover:bg-zinc-800 rounded-lg transition-colors bg-zinc-900"
+                title="Copier"
+              >
+                <Copy size={16} />
+              </button>
             </div>
           </div>
         </div>

@@ -163,33 +163,19 @@ export const api = {
 
   async createActivation(activation: Partial<Activation>) {
     try {
-      const creditsUsed = activation.credits_used || 0;
+      const response = await fetch('/api/activations/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(activation)
+      });
       
-      if (creditsUsed > 0 && activation.resellerId && activation.resellerId !== 'SYSTEM_TRIAL') {
-        const resellerDoc = doc(db, 'users', activation.resellerId);
-        const resellerSnap = await getDoc(resellerDoc);
-        if (!resellerSnap.exists()) throw new Error('Reseller not found');
-        
-        const resellerData = resellerSnap.data();
-        if (resellerData.credits < creditsUsed) {
-          throw new Error('Crédits insuffisants');
-        }
-        
-        await updateDoc(resellerDoc, {
-          credits: resellerData.credits - creditsUsed
-        });
-      }
-
-      const newActivation = {
-        ...activation,
-        createdAt: serverTimestamp(),
-        last_connection: serverTimestamp()
-      };
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Erreur lors de l\'activation');
       
-      const docRef = await addDoc(collection(db, 'activations'), newActivation);
-      return { id: docRef.id, ...newActivation };
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'activations');
+      return data;
+    } catch (error: any) {
+      console.error('Create Activation Error:', error);
+      throw error;
     }
   },
 
@@ -214,7 +200,7 @@ export const api = {
   async activateTrial(mac: string) {
     try {
       const normalizedMac = mac.toUpperCase().trim();
-      const trialPlaylist = "https://raw.githubusercontent.com/Luka-Sky/SkyPlayer/main/trial.json"; // Example trial playlist
+      const trialPlaylist = "https://raw.githubusercontent.com/Luka-Sky/SkyPlayer/main/trial.json"; 
       
       await this.createActivation({
         resellerId: "SYSTEM_TRIAL",
@@ -283,7 +269,7 @@ export const api = {
       if (snapshot.empty) {
         return { 
           active: false, 
-          error: "MAC non activée. Veuillez l'ajouter dans votre panel revendeur ou contacter un administrateur." 
+          error: "MAC non activée. Veuillez l'ajouter dans votre panel revendeur." 
         };
       }
       
@@ -298,20 +284,20 @@ export const api = {
     }
   },
 
-  async updateCurrentChannel(mac: string, channelName: string) {
+  async sendHeartbeat(data: { mac: string; system?: string; version?: string; country?: string; channel?: string }) {
     try {
-      const q = query(collection(db, 'activations'), where('target_mac', '==', mac));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        const docRef = doc(db, 'activations', snapshot.docs[0].id);
-        await updateDoc(docRef, {
-          current_channel: channelName,
-          last_connection: serverTimestamp()
-        });
-      }
+      await fetch('/api/activations/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
     } catch (error) {
-      console.error('Update channel error:', error);
+      console.error('Send heartbeat error:', error);
     }
+  },
+
+  async updateCurrentChannel(mac: string, channelName: string) {
+    return this.sendHeartbeat({ mac, channelName });
   },
 
   // Admin Functions

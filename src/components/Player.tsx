@@ -7,6 +7,7 @@ import { Channel } from '../lib/playlistParser';
 import { MultiScreenPlayer } from './MultiScreenPlayer';
 import { Badge } from './ui';
 import { api } from '../services/api';
+import { Button } from './ui';
 
 interface PlayerProps {
   url: string;
@@ -43,6 +44,7 @@ export const Player: React.FC<PlayerProps> = ({
   const [showEPG, setShowEPG] = useState(false);
   const [epgData, setEPGData] = useState<EPGProgram[]>([]);
   const [isMultiScreen, setIsMultiScreen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Simple URL protection: obfuscate the URL in the DOM
@@ -62,7 +64,41 @@ export const Player: React.FC<PlayerProps> = ({
       ]);
     };
     fetchEPG();
-  }, [url]);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Show controls on any key press
+      setShowControls(true);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = setTimeout(() => {
+        if (!showChannelList) setShowControls(false);
+      }, 4000);
+
+      // Navigation
+      switch(e.key) {
+        case 'Enter':
+          if (!showControls) togglePlay();
+          break;
+        case 'Escape':
+        case 'Backspace':
+          if (showChannelList) setShowChannelList(false);
+          else if (showEPG) setShowEPG(false);
+          else onBack();
+          break;
+        case 'ArrowRight':
+          onNext?.();
+          break;
+        case 'ArrowLeft':
+          onPrev?.();
+          break;
+        case 'ArrowUp':
+          setShowChannelList(true);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [url, showChannelList, showEPG]);
 
   const toggleFavorite = (channelUrl: string) => {
     const newFavorites = favorites.includes(channelUrl)
@@ -108,13 +144,24 @@ export const Player: React.FC<PlayerProps> = ({
     } else {
       // Direct MP4/TS/MKV link
       video.src = url;
-      video.play().catch(() => setIsPlaying(false));
+      video.play().catch((err) => {
+        setIsPlaying(false);
+        setError("Impossible de charger ce flux. Le lien est peut-être expiré ou invalide.");
+      });
       setIsPlaying(true);
       setIsLoading(false);
     }
 
+    const handleError = () => {
+      setError("Erreur de lecture du média. Tentative de reconnexion...");
+      setIsLoading(false);
+    };
+
+    video.addEventListener('error', handleError);
+
     return () => {
       if (hls) hls.destroy();
+      video.removeEventListener('error', handleError);
     };
   }, [url]);
 
@@ -161,6 +208,20 @@ export const Player: React.FC<PlayerProps> = ({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-50">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
           <p className="text-primary font-black uppercase tracking-[0.2em] text-xs animate-pulse">Chargement du flux...</p>
+        </div>
+      )}
+
+      {error && !isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-50 p-8 text-center">
+          <div className="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mb-6">
+            <X size={40} />
+          </div>
+          <h3 className="text-2xl font-black italic mb-2 tracking-tighter">Erreur de Lecture</h3>
+          <p className="text-zinc-500 max-w-md mb-8">{error}</p>
+          <div className="flex gap-4">
+            <Button onClick={() => window.location.reload()} variant="primary">Réessayer</Button>
+            <Button onClick={onBack} variant="outline">Retour aux chaînes</Button>
+          </div>
         </div>
       )}
 

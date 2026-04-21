@@ -7,6 +7,10 @@ import admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 
+console.log('--- SERVER STARTING UP ---');
+console.log('Node Version:', process.version);
+console.log('CWD:', process.cwd());
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -74,7 +78,92 @@ async function startServer() {
 
   // Health check
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', version: VERSION, timestamp: new Date().toISOString() });
+  });
+
+  // Create Activation with Credit Deduction (Secure)
+  app.post("/api/activations/create", async (req, res) => {
+    const { resellerId, target_mac, credits_used, note, playlist_url, xtream_host, xtream_username, xtream_password } = req.body;
+    
+    try {
+      const normalizedMac = target_mac.toUpperCase().trim();
+      
+      // 1. Transactional Credit Deduction (Only if not a trial and credits > 0)
+      if (credits_used > 0 && resellerId && resellerId !== 'SYSTEM_TRIAL') {
+        const userRef = firestore.collection('users').doc(resellerId);
+        
+        await firestore.runTransaction(async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          if (!userDoc.exists) throw new Error('Utilisateur non trouvé');
+          
+          const currentCredits = userDoc.data()?.credits || 0;
+          if (currentCredits < credits_used) {
+            throw new Error('Crédits insuffisants');
+          }
+          
+          transaction.update(userRef, {
+            credits: currentCredits - credits_used
+          });
+        });
+      }
+
+      // 2. Create Activation
+      const activationData = {
+        resellerId,
+        target_mac: normalizedMac,
+        credits_used,
+        note: note || 'Activation manuelle',
+        playlist_url: playlist_url || '',
+        xtream_host: xtream_host || '',
+        xtream_username: xtream_username || '',
+        xtream_password: xtream_password || '',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        last_connection: admin.firestore.FieldValue.serverTimestamp(),
+        system: 'N/A',
+        version: 'N/A',
+        country_code: 'N/A',
+        current_channel: 'Hors-ligne'
+      };
+      
+      const docRef = await firestore.collection('activations').add(activationData);
+      
+      console.log(`Successfully created activation for MAC ${normalizedMac}. Client: ${note}`);
+      res.json({ success: true, id: docRef.id });
+    } catch (error: any) {
+      console.error('Activation Create Error:', error);
+      res.status(500).json({ error: error.message || 'Erreur lors de la création de l\'activation' });
+    }
+  });
+
+  // Heartbeat / Device Info Update
+  app.post("/api/activations/heartbeat", async (req, res) => {
+    const { mac, system, version, country, channel } = req.body;
+    
+    try {
+      if (!mac) return res.status(400).json({ error: 'MAC est requise' });
+      
+      const normalizedMac = mac.toUpperCase().trim();
+      const q = firestore.collection('activations').where('target_mac', '==', normalizedMac);
+      const snapshot = await q.get();
+      
+      if (snapshot.empty) {
+        return res.status(404).json({ error: 'Appareil non envoyé au serveur (non activé)' });
+      }
+      
+      const docRef = snapshot.docs[0].ref;
+      await docRef.update({
+        system: system || 'Inconnu',
+        version: version || 'Inconnu',
+        country_code: country || 'N/A',
+        current_channel: channel || 'Hors-ligne',
+        last_connection: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Heartbeat Error:', error);
+      res.status(500).json({ error: 'Erreur lors de la mise à jour des infos' });
+    }
   });
 
   // Payment Initiation Route (Server-side to protect keys)
@@ -137,8 +226,13 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Serve static files from dist
-    const distPath = path.resolve(process.cwd(), 'dist');
+    // In production, we assume the server is running from dist/server.js
+    // and assets are siblings in the same dist folder.
+    const __currentDir = path.dirname(fileURLToPath(import.meta.url));
+    const distPath = __currentDir;
+    
+    console.log(`Production assets path: ${distPath}`);
+    
     app.use(express.static(distPath, {
       setHeaders: (res, path) => {
         if (path.endsWith('.html')) {
@@ -156,11 +250,25 @@ async function startServer() {
     });
   }
 
-  // Cloud Run provides the PORT environment variable, but AI Studio proxy strictly expects 3000
-  const PORT = 3000;
+  // Cloud Run provides the PORT environment variable. AI Studio proxy uses 3000.
+  let PORT = 3000;
+  if (process.env.PORT) {
+    const parsed = parseInt(process.env.PORT);
+    if (!isNaN(parsed)) {
+      PORT = parsed;
+    }
+  }
   
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Port resolved to: ${PORT}`);
+  
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server successfully listening on 0.0.0.0:${PORT}`);
+    console.log(`Ready to serve traffic.`);
+  });
+
+  server.on('error', (err) => {
+    console.error('SERVER BINDING ERROR:', err);
+    process.exit(1);
   });
 }
 
