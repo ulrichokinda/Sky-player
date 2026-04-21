@@ -994,6 +994,34 @@ export const Dashboard = () => {
                     value={newPlaylistUrl}
                     onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
                   />
+                  
+                  <div className="pt-2 border-t border-zinc-800">
+                    <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wider">Ou utiliser Xtream Codes</p>
+                    <div className="space-y-3">
+                      <Input 
+                        label="Hôte (Host URL)" 
+                        placeholder="http://iptv-server.com:8080" 
+                        value={newXtreamHost}
+                        onChange={(e: any) => setNewXtreamHost(e.target.value)}
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input 
+                          label="Utilisateur" 
+                          placeholder="username" 
+                          value={newXtreamUser}
+                          onChange={(e: any) => setNewXtreamUser(e.target.value)}
+                        />
+                        <Input 
+                          label="Mot de passe" 
+                          type="password"
+                          placeholder="password" 
+                          value={newXtreamPassword}
+                          onChange={(e: any) => setNewXtreamPassword(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <Input 
                     label="Note (Optionnel)" 
                     placeholder="Nom du client ou référence" 
@@ -1017,12 +1045,18 @@ export const Dashboard = () => {
                         target_mac: normalizedMac,
                         credits_used: 1,
                         note: newNote || 'Activation manuelle',
-                        playlist_url: newPlaylistUrl
+                        playlist_url: newPlaylistUrl,
+                        xtream_host: newXtreamHost,
+                        xtream_username: newXtreamUser,
+                        xtream_password: newXtreamPassword
                       });
                       fetchActivations(user.uid);
                       setNewMac('');
                       setNewPlaylistUrl('');
                       setNewNote('');
+                      setNewXtreamHost('');
+                      setNewXtreamUser('');
+                      setNewXtreamPassword('');
                     })}
                   >
                     Confirmer l'activation
@@ -1224,7 +1258,12 @@ export const Dashboard = () => {
                     <Button variant="outline" fullWidth onClick={() => setShowModal(null)}>Fermer</Button>
                     <Button fullWidth onClick={() => handleAction("Réinitialisation listes", async () => {
                       if (selectedCustomer?.id) {
-                        await api.updateActivation(selectedCustomer.id, { playlist_url: '' });
+                        await api.updateActivation(selectedCustomer.id, { 
+                          playlist_url: '',
+                          xtream_host: '',
+                          xtream_username: '',
+                          xtream_password: ''
+                        });
                         fetchActivations(user.uid);
                       }
                     })} className="bg-red-500 hover:bg-red-600 text-white">Réinitialiser</Button>
@@ -1237,6 +1276,15 @@ export const Dashboard = () => {
                 <div className="space-y-4">
                   <Input id="edit-client-name" label="Nom du Client" defaultValue={selectedCustomer?.note || selectedCustomer?.name} />
                   <Input label="Adresse MAC" defaultValue={selectedCustomer?.target_mac || selectedCustomer?.mac} readOnly className="opacity-50" />
+                  <Input id="edit-client-playlist" label="Lien Playlist" defaultValue={selectedCustomer?.playlist_url || ''} />
+                  <div className="pt-2 border-t border-zinc-800 space-y-3">
+                    <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Xtream Codes</p>
+                    <Input id="edit-client-xtream-host" label="Hôte" defaultValue={selectedCustomer?.xtream_host || ''} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input id="edit-client-xtream-user" label="Utilisateur" defaultValue={selectedCustomer?.xtream_username || ''} />
+                      <Input id="edit-client-xtream-pass" label="Mot de passe" type="password" defaultValue={selectedCustomer?.xtream_password || ''} />
+                    </div>
+                  </div>
                   <Input id="edit-client-note" label="Notes" placeholder="Notes additionnelles..." />
                   <Button 
                     fullWidth 
@@ -1245,7 +1293,18 @@ export const Dashboard = () => {
                       if (selectedCustomer?.id) {
                         const name = (document.getElementById('edit-client-name') as HTMLInputElement)?.value;
                         const note = (document.getElementById('edit-client-note') as HTMLInputElement)?.value;
-                        await api.updateActivation(selectedCustomer.id, { note: name + (note ? ' - ' + note : '') });
+                        const playlist = (document.getElementById('edit-client-playlist') as HTMLInputElement)?.value;
+                        const xHost = (document.getElementById('edit-client-xtream-host') as HTMLInputElement)?.value;
+                        const xUser = (document.getElementById('edit-client-xtream-user') as HTMLInputElement)?.value;
+                        const xPass = (document.getElementById('edit-client-xtream-pass') as HTMLInputElement)?.value;
+                        
+                        await api.updateActivation(selectedCustomer.id, { 
+                          note: name + (note ? ' - ' + note : ''),
+                          playlist_url: playlist,
+                          xtream_host: xHost,
+                          xtream_username: xUser,
+                          xtream_password: xPass
+                        });
                         fetchActivations(user.uid);
                       }
                     })}
@@ -1267,7 +1326,12 @@ export const Dashboard = () => {
                     loading={loading}
                     onClick={() => handleAction("Réinitialisation de l'appareil", async () => {
                       if (selectedCustomer?.id) {
-                        await api.updateActivation(selectedCustomer.id, { playlist_url: '' });
+                        await api.updateActivation(selectedCustomer.id, { 
+                          playlist_url: '',
+                          xtream_host: '',
+                          xtream_username: '',
+                          xtream_password: ''
+                        });
                         fetchActivations(user.uid);
                       }
                     })}

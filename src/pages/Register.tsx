@@ -12,7 +12,7 @@ const COUNTRIES = [
   'Bénin', 'Burkina Faso', 'Burundi', 'Cameroun', 'Centrafrique', 'Comores', 
   'Congo-Brazzaville', 'RDC', 'Côte d\'Ivoire', 'Djibouti', 'Gabon', 'Guinée', 
   'Guinée Équatoriale', 'Madagascar', 'Mali', 'Maroc', 'Maurice', 'Mauritanie', 
-  'Niger', 'Rwanda', 'Sénégal', 'Seychelles', 'Tchad', 'Togo', 'Tunisie'
+  'Niger', 'Rwanda', 'Sénégal', 'Seychelles', 'Tchad', 'Togo', 'Tunisie', 'Autre'
 ];
 
 export const Register = () => {
@@ -26,6 +26,7 @@ export const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState(COUNTRIES[0]);
+  const [customCountry, setCustomCountry] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -35,6 +36,18 @@ export const Register = () => {
     
     if (password !== confirmPassword) {
       alert('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
+    // New password requirements
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      alert('Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.');
+      return;
+    }
+
+    if (country === 'Autre' && !customCountry) {
+      alert('Veuillez préciser votre pays.');
       return;
     }
 
@@ -52,7 +65,7 @@ export const Register = () => {
         firstName,
         lastName,
         phone,
-        country,
+        country: country === 'Autre' ? customCountry : country,
         role: 'client'
       });
 
@@ -170,20 +183,37 @@ export const Register = () => {
                   </button>
                 }
               />
-              <Input label="Téléphone" value={phone} onChange={(e: any) => setPhone(e.target.value)} icon={Phone} required />
+              <Input 
+                label="Téléphone (avec indicatif)" 
+                placeholder="+241 00 00 00 00"
+                value={phone} 
+                onChange={(e: any) => setPhone(e.target.value)} 
+                icon={Phone} 
+                required 
+              />
               
               <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2 flex items-center gap-2">
                   <Globe size={10} />
                   Pays de Résidence
                 </label>
-                <select 
-                  value={country} 
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm focus:border-primary outline-none transition-all hover:border-zinc-700"
-                >
-                  {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <select 
+                    value={country} 
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm focus:border-primary outline-none transition-all hover:border-zinc-700"
+                  >
+                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  {country === 'Autre' && (
+                    <Input 
+                      placeholder="Précisez votre pays" 
+                      value={customCountry} 
+                      onChange={(e: any) => setCustomCountry(e.target.value)}
+                      required
+                    />
+                  )}
+                </div>
               </div>
             </div>
 

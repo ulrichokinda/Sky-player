@@ -62,10 +62,18 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
     const checkActivation = async () => {
       try {
         const data = await api.checkMacStatus(deviceId);
-        if (data.active && data.activation?.playlist_url) {
-          if (data.activation.playlist_url !== playlistUrl) {
-            setPlaylistUrl(data.activation.playlist_url);
-            const parsedChannels = await fetchAndParsePlaylist(data.activation.playlist_url);
+        if (data.active) {
+          let targetUrl = data.activation?.playlist_url;
+          
+          // If no playlist URL but Xtream codes are present, construct the Xtream M3U link
+          if (!targetUrl && data.activation?.xtream_host && data.activation?.xtream_username && data.activation?.xtream_password) {
+            const host = data.activation.xtream_host.endsWith('/') ? data.activation.xtream_host.slice(0, -1) : data.activation.xtream_host;
+            targetUrl = `${host}/get.php?username=${data.activation.xtream_username}&password=${data.activation.xtream_password}&type=m3u_plus&output=ts`;
+          }
+
+          if (targetUrl && targetUrl !== playlistUrl) {
+            setPlaylistUrl(targetUrl);
+            const parsedChannels = await fetchAndParsePlaylist(targetUrl);
             setChannels(parsedChannels);
             setCurrentChannelIndex(0);
           }
