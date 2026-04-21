@@ -47,8 +47,7 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore with settings for better connectivity in restricted environments
 const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-  experimentalForceLongPolling: true, // Force long polling for better compatibility with proxies/iframes
+  experimentalForceLongPolling: true,
 }, databaseId);
 
 export const auth = getAuth(app);
@@ -145,9 +144,12 @@ async function testConnection() {
   try {
     await getDocFromServer(firestoreDoc(db, 'test', 'connection'));
     console.log("Firebase connection successful");
-  } catch (error) {
-    if(error instanceof Error && error.message.includes('the client is offline')) {
+  } catch (error: any) {
+    console.error("Firebase Connection Error Details:", error);
+    if(error?.message?.includes('the client is offline')) {
       console.error("Please check your Firebase configuration. The client is offline.");
+    } else if (error?.code === 'permission-denied') {
+      console.log("Firestore connection acknowledged (Permission denied is normal for test doc)");
     }
   }
 }
