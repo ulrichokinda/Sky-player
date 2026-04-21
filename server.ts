@@ -63,9 +63,8 @@ try {
   }
 }
 
-const firestore = getFirestore(admin.app(), databaseId);
-
 async function startServer() {
+  const firestore = getFirestore(admin.app(), databaseId);
   const app = express();
   const VERSION = '4.0.0-ULTRA';
   console.log(`Starting Sky Player Server v${VERSION}...`);
@@ -124,7 +123,7 @@ async function startServer() {
         depositId,
         message 
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Payment Error:', error);
       res.status(500).json({ error: 'Erreur lors de l\'initiation du paiement' });
     }
@@ -165,4 +164,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("FAILED TO START SERVER:", err);
+  process.exit(1);
+});

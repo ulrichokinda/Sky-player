@@ -994,6 +994,12 @@ export const Dashboard = () => {
                     value={newPlaylistUrl}
                     onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
                   />
+                  <Input 
+                    label="Note (Optionnel)" 
+                    placeholder="Nom du client ou référence" 
+                    value={newNote}
+                    onChange={(e: any) => setNewNote(e.target.value)}
+                  />
                   <Select label="Forfait d'abonnement">
                     <option>1 An (1 Crédit)</option>
                     <option>À vie (2 Crédits)</option>
@@ -1016,6 +1022,7 @@ export const Dashboard = () => {
                       fetchActivations(user.uid);
                       setNewMac('');
                       setNewPlaylistUrl('');
+                      setNewNote('');
                     })}
                   >
                     Confirmer l'activation
