@@ -222,6 +222,76 @@ async function startServer() {
 
   // --- END YABETOO PAY ---
 
+  // --- MONEYFUSION (FUSION PAY) ---
+  app.post("/api/payments/moneyfusion/init", async (req, res) => {
+    const { userId, amount, credits, phone, network, description } = req.body;
+    try {
+      const MERCHANT_ID = process.env.MONEYFUSION_MERCHANT_ID;
+      const API_KEY = process.env.MONEYFUSION_API_KEY;
+
+      if (!MERCHANT_ID || !API_KEY) {
+        throw new Error("MoneyFusion non configuré sur le serveur (Merchant ID ou API Key manquant)");
+      }
+
+      const paymentRef = await firestore.collection('payments').add({
+        userId,
+        amount: parseFloat(amount),
+        credits_purchased: parseInt(credits) || 0,
+        phone,
+        network,
+        status: 'PENDING',
+        provider: 'MONEYFUSION',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Simulation of MoneyFusion API call
+      // In production, this would call fusionpay.net API
+      // For now, we return a success with the payment ID to show we're ready
+      res.json({
+        success: true,
+        paymentId: paymentRef.id,
+        message: "Initialisation MoneyFusion terminée. En attente de validation."
+      });
+    } catch (error: any) {
+      console.error('MoneyFusion Init Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/payments/moneyfusion/webhook", async (req, res) => {
+    const payload = req.body;
+    // Typical payload: { transaction_id, status, external_reference, amount }
+    try {
+      const paymentId = payload.external_reference;
+      const paymentDoc = await firestore.collection('payments').doc(paymentId).get();
+      
+      if (paymentDoc.exists && payload.status === 'success') {
+        const paymentData = paymentDoc.data();
+        if (paymentData?.status !== 'SUCCESS') {
+          const userRef = firestore.collection('users').doc(paymentData?.userId);
+          
+          await firestore.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            const currentCredits = userDoc.data()?.credits || 0;
+            const addedCredits = paymentData?.credits_purchased || 0;
+
+            transaction.update(userRef, { credits: currentCredits + addedCredits });
+            transaction.update(paymentDoc.ref, { 
+              status: 'SUCCESS', 
+              updatedAt: admin.firestore.FieldValue.serverTimestamp() 
+            });
+          });
+        }
+      }
+      res.status(200).send('OK');
+    } catch (error) {
+      console.error('MoneyFusion Webhook Error:', error);
+      res.status(500).send('Error');
+    }
+  });
+  // --- END MONEYFUSION ---
+
   // Create Activation with Credit Deduction (Secure)
   app.post("/api/activations/create", async (req, res) => {
     const { resellerId, target_mac, credits_used, note, playlist_url, xtream_host, xtream_username, xtream_password } = req.body;

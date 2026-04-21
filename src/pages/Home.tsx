@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 import { Button, Badge } from '../components/ui';
 import { Footer } from '../components/Footer';
-import { CheckCircle2, Menu, X, LayoutDashboard, UserPlus, Download, LogIn, Zap, Shield, Cpu, Monitor, Activity, Sliders, Calendar, Grid, RotateCw, Lock, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Menu, X, LayoutDashboard, UserPlus, Download, LogIn, Zap, Shield, Cpu, Monitor, Activity, Sliders, Calendar, Grid, RotateCw, Lock, ChevronRight, Store, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, onAuthStateChanged } from '../firebase';
 
@@ -110,13 +110,14 @@ export const Home = () => {
         
         {/* Titre d'accroche */}
         <div className="space-y-4">
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter leading-tight">
-            L'expérience IPTV <span className="text-primary">Premium</span><br className="hidden sm:block"/>
-            pour l'Afrique.
+          <Badge variant="primary" className="mx-auto mb-4 px-4 py-1.5 text-[10px] uppercase font-black tracking-[0.2em] bg-primary/20 text-primary border-primary/30">L'Écosystème Multimédia n°1 en Afrique</Badge>
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter leading-[1.1]">
+            Gérez votre Business <br className="hidden sm:block"/>
+            <span className="text-primary">Multimédia</span> avec Sky Pro.
           </h1>
           <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-            Sky Player est le lecteur IPTV le plus fluide et stable du marché. 
-            Connectez vos propres serveurs et profitez d'une interface pensée pour vos habitudes.
+            La plateforme SaaS tout-en-un pour les professionnels de la distribution média. 
+            Gérez vos clients, automatisez vos activations et offrez le lecteur le plus puissant du marché.
           </p>
         </div>
 
@@ -142,38 +143,31 @@ export const Home = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 py-8 md:py-12">
           <div className="space-y-2 p-6 bg-zinc-900/20 rounded-3xl border border-zinc-800/50 hover:border-primary/20 transition-all hover:-translate-y-1 group">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-4 mx-auto group-hover:bg-primary group-hover:text-black transition-all">
-              <Calendar size={24} />
+              <Activity size={24} />
             </div>
-            <h3 className="text-primary font-bold text-lg">EPG Avancé</h3>
-            <p className="text-zinc-500 text-sm">Guide des programmes complet avec description et horaires en temps réel.</p>
+            <h3 className="text-primary font-bold text-lg">Activations Instantanées</h3>
+            <p className="text-zinc-500 text-sm">Système d'activation automatisé par API. Pas de temps d'attente pour vos clients finaux.</p>
           </div>
           <div className="space-y-2 p-6 bg-zinc-900/20 rounded-3xl border border-zinc-800/50 hover:border-primary/20 transition-all hover:-translate-y-1 group">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-4 mx-auto group-hover:bg-primary group-hover:text-black transition-all">
-              <Grid size={24} />
+              <Store size={24} />
             </div>
-            <h3 className="text-primary font-bold text-lg">Multi-Écran</h3>
-            <p className="text-zinc-500 text-sm">Regardez jusqu'à 4 flux simultanément. Ne ratez plus aucun match important.</p>
+            <h3 className="text-primary font-bold text-lg">Panel Revendeur Pro</h3>
+            <p className="text-zinc-500 text-sm">Gérez des milliers de clients depuis une interface unique, sécurisée et performante.</p>
           </div>
           <div className="space-y-2 p-6 bg-zinc-900/20 rounded-3xl border border-zinc-800/50 hover:border-primary/20 transition-all hover:-translate-y-1 group">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-4 mx-auto group-hover:bg-primary group-hover:text-black transition-all">
-              <RotateCw size={24} />
+              <CreditCard size={24} />
             </div>
-            <h3 className="text-primary font-bold text-lg">Replay (Catch-up)</h3>
-            <p className="text-zinc-500 text-sm">Revenez en arrière sur vos émissions préférées. Le contrôle du temps est à vous.</p>
+            <h3 className="text-primary font-bold text-lg">Paiements Mobiles</h3>
+            <p className="text-zinc-500 text-sm">Rechargement de crédits via Mobile Money (Airtel, MTN, Moov, Orange) en temps réel.</p>
           </div>
           <div className="space-y-2 p-6 bg-zinc-900/20 rounded-3xl border border-zinc-800/50 hover:border-primary/20 transition-all hover:-translate-y-1 group">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-4 mx-auto group-hover:bg-primary group-hover:text-black transition-all">
               <Lock size={24} />
             </div>
-            <h3 className="text-primary font-bold text-lg">Flux Sécurisés</h3>
-            <p className="text-zinc-500 text-sm">Protection anti-vol de serveur et cryptage des flux pour une confidentialité totale.</p>
-          </div>
-          <div className="space-y-2 p-6 bg-zinc-900/20 rounded-3xl border border-zinc-800/50 hover:border-primary/20 transition-all hover:-translate-y-1 group">
-            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-4 mx-auto group-hover:bg-primary group-hover:text-black transition-all">
-              <Zap size={24} />
-            </div>
-            <h3 className="text-primary font-bold text-lg">HLS (m3u8) Natif</h3>
-            <p className="text-zinc-500 text-sm">Support optimisé du protocole HLS pour une stabilité maximale sur mobile et Smart TV.</p>
+            <h3 className="text-primary font-bold text-lg">Sécurité Bancaire</h3>
+            <p className="text-zinc-500 text-sm">Toutes vos transactions et données clients sont protégées par un cryptage SSL de niveau bancaire.</p>
           </div>
         </div>
 
@@ -182,6 +176,37 @@ export const Home = () => {
             <span>En savoir plus dans la FAQ</span>
             <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </Link>
+        </div>
+
+        {/* Why Sky Pro Section */}
+        <div className="py-20 bg-zinc-900/10 border-y border-zinc-800/50 -mx-4 md:-mx-8 px-4 md:px-8">
+          <div className="max-w-5xl mx-auto space-y-16">
+            <div className="text-center space-y-4">
+              <h2 className="text-3xl md:text-5xl font-black italic">Le Choix des Professionnels</h2>
+              <p className="text-zinc-500 max-w-xl mx-auto">Sky Player Pro n'est pas qu'un simple lecteur. C'est une infrastructure complète pour bâtir votre business de distribution média.</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-12 text-left">
+              <div className="flex gap-6">
+                <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shrink-0">
+                  <Shield size={28} />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-xl font-bold">Infrastructure Cloud</h4>
+                  <p className="text-zinc-500 text-sm leading-relaxed">Centralisez vos clients et serveurs sur notre cloud sécurisé. Gérez tout à distance sans aucune manipulation technique complexe.</p>
+                </div>
+              </div>
+              <div className="flex gap-6">
+                <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shrink-0">
+                  <Zap size={28} />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-xl font-bold">Performance Native</h4>
+                  <p className="text-zinc-500 text-sm leading-relaxed">Cœur de lecture optimisé pour les processeurs d'entrée de gamme des TV connectées et smartphones Android en Afrique.</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Pourquoi nous choisir ? */}
@@ -216,56 +241,61 @@ export const Home = () => {
           </div>
 
           {/* Mobile Payments Section */}
-          <div className="mt-12 p-8 bg-primary/5 border border-primary/10 rounded-[2.5rem] text-center space-y-4">
-            <div className="flex justify-center gap-4 mb-2">
-              <div className="px-3 py-1 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 border border-zinc-800">MTN MONEY</div>
-              <div className="px-3 py-1 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 border border-zinc-800">ORANGE MONEY</div>
-              <div className="px-3 py-1 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 border border-zinc-800">AIRTEL MONEY</div>
-              <div className="px-3 py-1 bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-400 border border-zinc-800">MOOV MONEY</div>
+          <div className="mt-12 p-12 bg-primary/5 border border-primary/10 rounded-[3rem] text-center space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[60px] rounded-full -translate-y-1/2 translate-x-1/2" />
+            
+            <div className="flex justify-center flex-wrap gap-4 mb-2">
+              <span className="px-5 py-2 bg-zinc-950 rounded-xl text-[10px] font-black tracking-widest text-zinc-500 border border-zinc-800 uppercase">Orange Money</span>
+              <span className="px-5 py-2 bg-zinc-950 rounded-xl text-[10px] font-black tracking-widest text-zinc-500 border border-zinc-800 uppercase">MTN MoMo</span>
+              <span className="px-5 py-2 bg-zinc-950 rounded-xl text-[10px] font-black tracking-widest text-zinc-500 border border-zinc-800 uppercase">Airtel Money</span>
+              <span className="px-5 py-2 bg-zinc-950 rounded-xl text-[10px] font-black tracking-widest text-zinc-500 border border-zinc-800 uppercase">Wave</span>
             </div>
-            <h3 className="text-2xl font-black italic">Paiements Mobiles Sans Frais</h3>
-            <p className="text-zinc-400 max-w-2xl mx-auto text-sm">
-              Sky Player accepte les moyens de paiements mobiles locaux sans aucun frais caché. 
-              Activez votre compte instantanément via <span className="text-primary font-bold">MTN, Orange, Airtel ou Moov Money</span>.
-            </p>
+            
+            <div className="space-y-2">
+              <h3 className="text-3xl font-black italic">Une Solution Locale et Native</h3>
+              <p className="text-zinc-400 max-w-3xl mx-auto text-base">
+                Notre plateforme est conçue pour s'intégrer nativement avec les infrastructures de paiement africaines. 
+                Rechargez vos crédits revendeurs en quelques secondes via vos opérateurs locaux préférés.
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Section Achat Simple */}
         <div className="py-12 md:py-16 space-y-10">
-          <div className="space-y-2">
-            <h2 className="text-3xl md:text-5xl font-black italic">Activez votre application</h2>
-            <p className="text-zinc-500 text-sm md:text-base">Choisissez le forfait qui vous convient pour profiter de Sky Player sans limites.</p>
+          <div className="space-y-4 text-center">
+            <h2 className="text-3xl md:text-5xl font-black italic">Licences & Écosystème</h2>
+            <p className="text-zinc-500 max-w-2xl mx-auto">Choisissez le modèle qui convient à votre déploiement. De l'utilisateur individuel au large réseau de distribution.</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {/* Forfait 1 An */}
             <div className="bg-zinc-900/40 border border-zinc-800 p-6 md:p-8 rounded-[2rem] hover:border-primary/30 transition-all group text-left space-y-6">
               <div className="space-y-2">
-                <Badge variant="primary">Populaire</Badge>
-                <h3 className="text-2xl font-bold">Abonnement 1 An</h3>
-                <p className="text-zinc-500 text-sm">Idéal pour tester la puissance de Sky Player sur la durée.</p>
+                <Badge variant="primary">Utilisation Standard</Badge>
+                <h3 className="text-2xl font-bold">Licence Annuelle</h3>
+                <p className="text-zinc-500 text-sm">Parfait pour tester la puissance de Sky Pro sur un appareil unique.</p>
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-black text-primary">2285F</span>
-                <span className="text-zinc-500 text-sm">/ an</span>
+                <span className="text-zinc-500 text-sm">/ an par device</span>
               </div>
               <ul className="space-y-3 text-sm text-zinc-400">
-                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Mises à jour incluses</li>
-                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Support technique 24/7</li>
+                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Mises à jour OTA incluses</li>
+                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Support technique Standard</li>
                 <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Sans publicité</li>
               </ul>
               <Link to={`/payment?plan=1an`} onClick={(e) => handlePlanClick(e, '1an')}>
-                <Button fullWidth size="lg" className="mt-4">Activer maintenant</Button>
+                <Button fullWidth size="lg" className="mt-4">Activer une licence</Button>
               </Link>
             </div>
 
             {/* Forfait À Vie */}
             <div className="bg-zinc-900/40 border border-zinc-800 p-6 md:p-8 rounded-[2rem] hover:border-primary/30 transition-all group text-left space-y-6">
               <div className="space-y-2">
-                <Badge variant="success">Meilleure Valeur</Badge>
-                <h3 className="text-2xl font-bold">Durée à Vie</h3>
-                <p className="text-zinc-500 text-sm">Payez une seule fois et profitez de l'application pour toujours.</p>
+                <Badge variant="success">Économie Maximale</Badge>
+                <h3 className="text-2xl font-bold">Licence Perpétuelle</h3>
+                <p className="text-zinc-500 text-sm">Paiement unique. Idéal pour les installations résidentielles longue durée.</p>
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-black text-primary">4675F</span>
@@ -273,8 +303,8 @@ export const Home = () => {
               </div>
               <ul className="space-y-3 text-sm text-zinc-400">
                 <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Accès illimité à vie</li>
-                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Priorité sur les nouveautés</li>
-                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Support VIP</li>
+                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Priorité sur les fonctions Cloud</li>
+                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-primary" /> Support technique VIP</li>
               </ul>
               <Link to={`/payment?plan=vie`} onClick={(e) => handlePlanClick(e, 'vie')}>
                 <Button fullWidth size="lg" variant="outline" className="mt-4 border-primary/50 text-primary hover:bg-primary hover:text-black">Prendre l'offre à vie</Button>

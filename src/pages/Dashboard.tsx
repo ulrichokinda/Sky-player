@@ -1457,10 +1457,20 @@ const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: 
   const [step, setStep] = useState<'packages' | 'details' | 'waiting'>('packages');
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState('GA');
   const [network, setNetwork] = useState('AIRTEL');
   const [loading, setLoading] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+
+  const countries = [
+    { code: 'GA', name: 'Gabon', prefix: '+241', networks: ['AIRTEL', 'MOOV'] },
+    { code: 'CM', name: 'Cameroun', prefix: '+237', networks: ['MTN', 'ORANGE'] },
+    { code: 'CG', name: 'Congo-Brazzaville', prefix: '+242', networks: ['MTN', 'AIRTEL'] },
+    { code: 'TD', name: 'Tchad', prefix: '+235', networks: ['AIRTEL', 'MOOV'] },
+    { code: 'SN', name: 'Sénégal', prefix: '+221', networks: ['WAVE', 'ORANGE', 'FREE_MONEY'] },
+    { code: 'CI', name: 'Côte d\'Ivoire', prefix: '+225', networks: ['MTN', 'ORANGE', 'MOOV'] },
+  ];
 
   const packages = [
     { credits: 10, price: 14999, label: 'Pack Débutant', color: 'from-blue-500/20 to-blue-600/20' },
@@ -1470,13 +1480,16 @@ const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: 
 
   const handleInitPayment = async () => {
     if (!phone || !selectedPackage) return;
+    const countryData = countries.find(c => c.code === country);
+    const fullPhone = phone.startsWith('+') ? phone : (countryData?.prefix + phone.replace(/^0/, ''));
+    
     setLoading(true);
     try {
       const result = await api.initYabetooPayment({
         userId: user.uid,
         amount: selectedPackage.price,
         credits: selectedPackage.credits,
-        phone,
+        phone: fullPhone,
         network,
         description: `Achat de ${selectedPackage.credits} crédits`
       });
@@ -1489,6 +1502,14 @@ const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: 
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Auto-select first network when country changes
+    const countryData = countries.find(c => c.code === country);
+    if (countryData && !countryData.networks.includes(network)) {
+      setNetwork(countryData.networks[0]);
+    }
+  }, [country]);
 
   useEffect(() => {
     let interval: any;
@@ -1548,6 +1569,7 @@ const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: 
   }
 
   if (step === 'details') {
+    const selectedCountry = countries.find(c => c.code === country);
     return (
       <Card className="max-w-md mx-auto space-y-6 p-8 animate-in slide-in-from-bottom-4 duration-500">
         <button onClick={() => setStep('packages')} className="text-zinc-500 hover:text-white flex items-center gap-2 text-xs transition-colors">
@@ -1559,20 +1581,25 @@ const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: 
         </div>
 
         <div className="space-y-4">
-          <Select label="Réseau Mobile" value={network} onChange={(e: any) => setNetwork(e.target.value)}>
-            <option value="AIRTEL">Airtel Money</option>
-            <option value="MOOV">Moov Money</option>
-          </Select>
+          <div className="grid grid-cols-1 gap-4">
+            <Select label="Pays" value={country} onChange={(e: any) => setCountry(e.target.value)}>
+              {countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+            </Select>
+            <Select label="Réseau Mobile" value={network} onChange={(e: any) => setNetwork(e.target.value)}>
+              {selectedCountry?.networks.map(n => <option key={n} value={n}>{n.replace('_', ' ')}</option>)}
+            </Select>
+          </div>
           <Input 
             label="Numéro de téléphone" 
-            placeholder="077000000" 
+            placeholder={selectedCountry?.prefix + " ..."} 
             value={phone} 
             onChange={(e: any) => setPhone(e.target.value)} 
+            icon={() => <span className="text-xs font-bold text-zinc-600">{selectedCountry?.prefix}</span>}
           />
           <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex gap-3 items-start">
             <AlertCircle size={18} className="text-primary shrink-0 mt-0.5" />
             <p className="text-[10px] text-zinc-400 leading-relaxed">
-              Une fois que vous aurez cliqué sur le bouton, vous recevrez une demande de confirmation de paiement sur votre téléphone. Saisissez votre code secret Mobile Money pour valider.
+              Assurez-vous que votre compte est approvisionné. Une demande de confirmation apparaîtra sur votre téléphone.
             </p>
           </div>
           <Button fullWidth size="lg" loading={loading} onClick={handleInitPayment} icon={Zap}>
