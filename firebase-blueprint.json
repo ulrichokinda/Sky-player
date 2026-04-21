@@ -33,6 +33,9 @@
         "last_connection": { "type": "string", "format": "date-time" },
         "country_code": { "type": "string" },
         "playlist_url": { "type": "string" },
+        "xtream_host": { "type": "string" },
+        "xtream_username": { "type": "string" },
+        "xtream_password": { "type": "string" },
         "current_channel": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

@@ -30,6 +30,9 @@ service cloud.firestore {
     //   - last_connection: timestamp (optional) - Last seen
     //   - country_code: string (optional) - Country code
     //   - playlist_url: string (optional) - Playlist URL
+    //   - xtream_host: string (optional) - Xtream codes host
+    //   - xtream_username: string (optional) - Xtream codes username
+    //   - xtream_password: string (optional) - Xtream codes password
     //   - current_channel: string (optional) - Current channel
     //   - createdAt: timestamp (required) - Creation time
     //
@@ -95,7 +98,7 @@ service cloud.firestore {
 
     function isValidActivation(data) {
       return hasRequiredFields(['resellerId', 'target_mac', 'credits_used', 'createdAt']) &&
-             hasOnlyAllowedFields(['resellerId', 'target_mac', 'credits_used', 'note', 'system', 'version', 'last_connection', 'country_code', 'playlist_url', 'current_channel', 'createdAt']) &&
+             hasOnlyAllowedFields(['resellerId', 'target_mac', 'credits_used', 'note', 'system', 'version', 'last_connection', 'country_code', 'playlist_url', 'current_channel', 'createdAt', 'xtream_host', 'xtream_username', 'xtream_password']) &&
              data.resellerId is string &&
              data.target_mac is string && data.target_mac.size() >= 12 && data.target_mac.size() <= 20 &&
              data.credits_used is number && data.credits_used >= 0 &&
