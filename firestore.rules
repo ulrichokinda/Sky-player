@@ -74,12 +74,14 @@ service cloud.firestore {
       return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    // Helper to check if a map has required fields (List hasAll)
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
     }
 
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
+    // Helper to check incoming data against allowed keys using diff() and Set.hasOnly()
+    function affectedKeysOnly(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
     // ===============================================================
@@ -87,8 +89,7 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
-             hasOnlyAllowedFields(['uid', 'email', 'username', 'firstName', 'lastName', 'role', 'credits', 'phone', 'country', 'createdAt', 'trialStartedAt', 'isPremium']) &&
+      return hasRequiredFields(data, ['uid', 'email', 'role', 'createdAt']) &&
              data.uid is string &&
              data.email is string && isValidEmail(data.email) &&
              data.role in ['admin', 'reseller', 'client'] &&
@@ -97,21 +98,20 @@ service cloud.firestore {
     }
 
     function isValidActivation(data) {
-      return hasRequiredFields(['resellerId', 'target_mac', 'credits_used', 'createdAt']) &&
-             hasOnlyAllowedFields(['resellerId', 'target_mac', 'credits_used', 'note', 'system', 'version', 'last_connection', 'country_code', 'playlist_url', 'current_channel', 'createdAt', 'xtream_host', 'xtream_username', 'xtream_password']) &&
+      return hasRequiredFields(data, ['resellerId', 'target_mac', 'credits_used', 'createdAt']) &&
              data.resellerId is string &&
              data.target_mac is string && data.target_mac.size() >= 12 && data.target_mac.size() <= 20 &&
              data.credits_used is number && data.credits_used >= 0 &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             (data.playlist_url == null || data.playlist_url is string);
     }
 
     function isValidPayment(data) {
-      return hasRequiredFields(['userId', 'amount', 'credits_purchased', 'payment_method', 'provider', 'status', 'external_id', 'createdAt']) &&
-             hasOnlyAllowedFields(['userId', 'amount', 'credits_purchased', 'payment_method', 'provider', 'status', 'external_id', 'createdAt']) &&
+      return hasRequiredFields(data, ['userId', 'amount', 'credits_purchased', 'payment_method', 'provider', 'status', 'external_id', 'createdAt']) &&
              data.userId is string &&
              data.amount is number && data.amount >= 0 &&
              data.credits_purchased is number && data.credits_purchased >= 0 &&
-             data.status in ['pending', 'completed', 'failed'] &&
+             data.status in ['pending', 'completed', 'failed', 'SUCCESS', 'FAILED', 'PENDING'] &&
              data.createdAt is timestamp;
     }
 
@@ -127,12 +127,20 @@ service cloud.firestore {
 
     match /activations/{activationId} {
       // Allow public read for MAC check (limited to specific query)
-      allow list: if true; 
       allow get: if true;
+      allow list: if isAuthenticated() && (resource.data.resellerId == request.auth.uid || isAdmin());
       
-      allow create: if isAuthenticated() && isValidActivation(request.resource.data) && (request.auth.uid == request.resource.data.resellerId || isAdmin());
-      allow update: if (isAuthenticated() && isValidActivation(request.resource.data) && (request.auth.uid == resource.data.resellerId || isAdmin())) || 
-                    (hasOnlyAllowedFields(['current_channel', 'last_connection']) && request.resource.data.last_connection is timestamp);
+      allow create: if isAuthenticated() && 
+                    isValidActivation(request.resource.data) && 
+                    (request.auth.uid == request.resource.data.resellerId || isAdmin());
+      
+      allow update: if (isAuthenticated() && (request.auth.uid == resource.data.resellerId || isAdmin())) && (
+        // Action: Update Playlist/Meta
+        affectedKeysOnly(['playlist_url', 'xtream_host', 'xtream_username', 'xtream_password', 'note', 'credits_used']) ||
+        // Action: System Heartbeat (mac can be updated by device/simulated)
+        affectedKeysOnly(['current_channel', 'last_connection', 'system', 'version', 'country_code'])
+      );
+      
       allow delete: if isAdmin();
     }
 
