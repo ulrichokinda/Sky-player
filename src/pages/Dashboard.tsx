@@ -49,6 +49,7 @@ export const Dashboard = () => {
   const [newXtreamHost, setNewXtreamHost] = useState('');
   const [newXtreamUser, setNewXtreamUser] = useState('');
   const [newXtreamPassword, setNewXtreamPassword] = useState('');
+  const [serverType, setServerType] = useState<'playlist' | 'xtream'>('playlist');
   const [branding, setBranding] = useState<any>(null);
   const navigate = useNavigate();
 
@@ -299,8 +300,8 @@ export const Dashboard = () => {
         return (
           <div className="space-y-6">
             <div className="flex flex-wrap gap-4 items-center">
-              <Button onClick={() => setShowModal('activate')} icon={Plus}>Activer</Button>
-              <Button onClick={() => setShowModal('new-client')} variant="outline" icon={Plus}>Nouveau client</Button>
+              <Button onClick={() => { setServerType('playlist'); setShowModal('activate'); }} icon={Plus}>Activer</Button>
+              <Button onClick={() => { setServerType('playlist'); setShowModal('new-client'); }} variant="outline" icon={Plus}>Nouveau client</Button>
               <Button onClick={exportToCSV} variant="ghost" icon={FileSpreadsheet} className="text-emerald-500 hover:bg-emerald-500/10">Exporter Excel</Button>
               <div className="flex-1" />
               <Input 
@@ -393,7 +394,11 @@ export const Dashboard = () => {
                               <List size={16} />
                             </button>
                             <button 
-                              onClick={() => { setSelectedCustomer(c); setShowModal('edit-client'); }}
+                              onClick={() => { 
+                                setSelectedCustomer(c); 
+                                setServerType(c.xtream_host ? 'xtream' : 'playlist');
+                                setShowModal('edit-client'); 
+                              }}
                               className="p-2 hover:bg-white/5 text-zinc-400 hover:text-white rounded-lg transition-colors"
                               title="Modifier"
                             >
@@ -988,16 +993,38 @@ export const Dashboard = () => {
                     value={newMac}
                     onChange={(e: any) => setNewMac(e.target.value)}
                   />
-                  <Input 
-                    label="Lien Playlist (M3U ou JSON)" 
-                    placeholder="http://exemple.com/playlist.m3u ou .json" 
-                    value={newPlaylistUrl}
-                    onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
-                  />
-                  
-                  <div className="pt-2 border-t border-zinc-800">
-                    <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wider">Ou utiliser Xtream Codes</p>
-                    <div className="space-y-3">
+
+                  {/* Server Type Selector */}
+                  <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                    <button 
+                      onClick={() => setServerType('playlist')}
+                      className={cn(
+                        "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                        serverType === 'playlist' ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      Playlist (M3U/JSON)
+                    </button>
+                    <button 
+                      onClick={() => setServerType('xtream')}
+                      className={cn(
+                        "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                        serverType === 'xtream' ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      Xtream Codes
+                    </button>
+                  </div>
+
+                  {serverType === 'playlist' ? (
+                    <Input 
+                      label="Lien Playlist (M3U ou JSON)" 
+                      placeholder="http://exemple.com/playlist.m3u ou .json" 
+                      value={newPlaylistUrl}
+                      onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
+                    />
+                  ) : (
+                    <div className="space-y-3 p-4 bg-zinc-950/50 border border-zinc-900 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
                       <Input 
                         label="Hôte (Host URL)" 
                         placeholder="http://iptv-server.com:8080" 
@@ -1020,7 +1047,7 @@ export const Dashboard = () => {
                         />
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <Input 
                     label="Note (Optionnel)" 
@@ -1045,10 +1072,10 @@ export const Dashboard = () => {
                         target_mac: normalizedMac,
                         credits_used: 1,
                         note: newNote || 'Activation manuelle',
-                        playlist_url: newPlaylistUrl,
-                        xtream_host: newXtreamHost,
-                        xtream_username: newXtreamUser,
-                        xtream_password: newXtreamPassword
+                        playlist_url: serverType === 'playlist' ? newPlaylistUrl : '',
+                        xtream_host: serverType === 'xtream' ? newXtreamHost : '',
+                        xtream_username: serverType === 'xtream' ? newXtreamUser : '',
+                        xtream_password: serverType === 'xtream' ? newXtreamPassword : ''
                       });
                       fetchActivations(user.uid);
                       setNewMac('');
@@ -1079,15 +1106,38 @@ export const Dashboard = () => {
                     value={newMac}
                     onChange={(e: any) => setNewMac(e.target.value)}
                   />
-                  <Input 
-                    label="Lien Playlist (M3U ou JSON)" 
-                    placeholder="http://exemple.com/playlist.m3u ou .json" 
-                    value={newPlaylistUrl}
-                    onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
-                  />
-                  <div className="pt-2 border-t border-zinc-800">
-                    <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wider">Ou utiliser Xtream Codes</p>
-                    <div className="space-y-3">
+
+                  {/* Server Type Selector */}
+                  <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                    <button 
+                      onClick={() => setServerType('playlist')}
+                      className={cn(
+                        "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                        serverType === 'playlist' ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      Playlist (M3U/JSON)
+                    </button>
+                    <button 
+                      onClick={() => setServerType('xtream')}
+                      className={cn(
+                        "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                        serverType === 'xtream' ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      Xtream Codes
+                    </button>
+                  </div>
+
+                  {serverType === 'playlist' ? (
+                    <Input 
+                      label="Lien Playlist (M3U ou JSON)" 
+                      placeholder="http://exemple.com/playlist.m3u ou .json" 
+                      value={newPlaylistUrl}
+                      onChange={(e: any) => setNewPlaylistUrl(e.target.value)}
+                    />
+                  ) : (
+                    <div className="space-y-3 p-4 bg-zinc-950/50 border border-zinc-900 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
                       <Input 
                         label="Hôte (Host URL)" 
                         placeholder="http://iptv-server.com:8080" 
@@ -1110,7 +1160,8 @@ export const Dashboard = () => {
                         />
                       </div>
                     </div>
-                  </div>
+                  )}
+
                   <Button 
                     fullWidth 
                     loading={loading}
@@ -1121,10 +1172,10 @@ export const Dashboard = () => {
                         target_mac: normalizedMac,
                         credits_used: 0, // Just adding to list
                         note: newNote || 'Client manuel',
-                        playlist_url: newPlaylistUrl,
-                        xtream_host: newXtreamHost,
-                        xtream_username: newXtreamUser,
-                        xtream_password: newXtreamPassword
+                        playlist_url: serverType === 'playlist' ? newPlaylistUrl : '',
+                        xtream_host: serverType === 'xtream' ? newXtreamHost : '',
+                        xtream_username: serverType === 'xtream' ? newXtreamUser : '',
+                        xtream_password: serverType === 'xtream' ? newXtreamPassword : ''
                       });
                       fetchActivations(user.uid);
                       setNewMac('');
@@ -1276,15 +1327,43 @@ export const Dashboard = () => {
                 <div className="space-y-4">
                   <Input id="edit-client-name" label="Nom du Client" defaultValue={selectedCustomer?.note || selectedCustomer?.name} />
                   <Input label="Adresse MAC" defaultValue={selectedCustomer?.target_mac || selectedCustomer?.mac} readOnly className="opacity-50" />
-                  <Input id="edit-client-playlist" label="Lien Playlist" defaultValue={selectedCustomer?.playlist_url || ''} />
-                  <div className="pt-2 border-t border-zinc-800 space-y-3">
-                    <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Xtream Codes</p>
-                    <Input id="edit-client-xtream-host" label="Hôte" defaultValue={selectedCustomer?.xtream_host || ''} />
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input id="edit-client-xtream-user" label="Utilisateur" defaultValue={selectedCustomer?.xtream_username || ''} />
-                      <Input id="edit-client-xtream-pass" label="Mot de passe" type="password" defaultValue={selectedCustomer?.xtream_password || ''} />
-                    </div>
+                  
+                  {/* Server Type Selector */}
+                  <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                    <button 
+                      type="button"
+                      onClick={() => setServerType('playlist')}
+                      className={cn(
+                        "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                        serverType === 'playlist' ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      Playlist (M3U/JSON)
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setServerType('xtream')}
+                      className={cn(
+                        "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                        serverType === 'xtream' ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      Xtream Codes
+                    </button>
                   </div>
+
+                  {serverType === 'playlist' ? (
+                    <Input id="edit-client-playlist" label="Lien Playlist" defaultValue={selectedCustomer?.playlist_url || ''} />
+                  ) : (
+                    <div className="space-y-3 p-4 bg-zinc-950/50 border border-zinc-900 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
+                      <Input id="edit-client-xtream-host" label="Hôte" defaultValue={selectedCustomer?.xtream_host || ''} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input id="edit-client-xtream-user" label="Utilisateur" defaultValue={selectedCustomer?.xtream_username || ''} />
+                        <Input id="edit-client-xtream-pass" label="Mot de passe" type="password" defaultValue={selectedCustomer?.xtream_password || ''} />
+                      </div>
+                    </div>
+                  )}
+
                   <Input id="edit-client-note" label="Notes" placeholder="Notes additionnelles..." />
                   <Button 
                     fullWidth 
@@ -1293,17 +1372,17 @@ export const Dashboard = () => {
                       if (selectedCustomer?.id) {
                         const name = (document.getElementById('edit-client-name') as HTMLInputElement)?.value;
                         const note = (document.getElementById('edit-client-note') as HTMLInputElement)?.value;
-                        const playlist = (document.getElementById('edit-client-playlist') as HTMLInputElement)?.value;
-                        const xHost = (document.getElementById('edit-client-xtream-host') as HTMLInputElement)?.value;
-                        const xUser = (document.getElementById('edit-client-xtream-user') as HTMLInputElement)?.value;
-                        const xPass = (document.getElementById('edit-client-xtream-pass') as HTMLInputElement)?.value;
+                        const playlist = (document.getElementById('edit-client-playlist') as HTMLInputElement)?.value || '';
+                        const xHost = (document.getElementById('edit-client-xtream-host') as HTMLInputElement)?.value || '';
+                        const xUser = (document.getElementById('edit-client-xtream-user') as HTMLInputElement)?.value || '';
+                        const xPass = (document.getElementById('edit-client-xtream-pass') as HTMLInputElement)?.value || '';
                         
                         await api.updateActivation(selectedCustomer.id, { 
                           note: name + (note ? ' - ' + note : ''),
-                          playlist_url: playlist,
-                          xtream_host: xHost,
-                          xtream_username: xUser,
-                          xtream_password: xPass
+                          playlist_url: serverType === 'playlist' ? playlist : '',
+                          xtream_host: serverType === 'xtream' ? xHost : '',
+                          xtream_username: serverType === 'xtream' ? xUser : '',
+                          xtream_password: serverType === 'xtream' ? xPass : ''
                         });
                         fetchActivations(user.uid);
                       }
