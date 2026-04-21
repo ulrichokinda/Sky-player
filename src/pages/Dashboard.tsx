@@ -16,7 +16,7 @@ const CUSTOMERS: any[] = [];
 
 const TRANSACTIONS: any[] = [];
 
-import { auth, onAuthStateChanged, signOut } from '../firebase';
+import { auth, onAuthStateChanged, signOut, sendEmailVerification } from '../firebase';
 import { api } from '../services/api';
 import { useBranding } from '../components/BrandingProvider';
 
@@ -330,6 +330,7 @@ export const Dashboard = () => {
                   className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
                   onClick={async () => {
                     try {
+                      if (!auth.currentUser) throw new Error("Utilisateur non connecté");
                       await sendEmailVerification(auth.currentUser);
                       showToast("Lien de vérification envoyé !", "success");
                     } catch (e: any) {
@@ -1052,7 +1053,12 @@ export const Dashboard = () => {
             
             {showModal === 'activate' ? (
               <>
-                <h2 className="text-2xl font-black italic">Activer l'appareil</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-black italic">Activer l'appareil</h2>
+                  <button onClick={() => setShowModal(null)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
                 <div className="space-y-4">
                   <Input 
                     label="Adresse MAC" 
@@ -1165,7 +1171,12 @@ export const Dashboard = () => {
               </>
             ) : showModal === 'new-client' ? (
               <>
-                <h2 className="text-2xl font-black italic">Nouveau Client</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-black italic">Nouveau Client</h2>
+                  <button onClick={() => setShowModal(null)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
                 <div className="space-y-4">
                   <Input 
                     label="Nom du Client" 
