@@ -169,6 +169,13 @@ export const api = {
         body: JSON.stringify(activation)
       });
       
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Expected JSON but got:', text.substring(0, 100));
+        throw new Error('Le serveur a renvoyé une réponse invalide (HTML au lieu de JSON). Veuillez vérifier la configuration Firebase dans les réglages.');
+      }
+      
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erreur lors de l\'activation');
       

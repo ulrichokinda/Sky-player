@@ -59,14 +59,21 @@ try {
 }
 
 async function startServer() {
-  const firestore = getFirestore(admin.app(), databaseId);
   const app = express();
   const VERSION = '4.0.0-ULTRA';
-  console.log(`Starting Sky Player Server v${VERSION}...`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   
   app.use(cors());
   app.use(express.json());
+
+  // Safe Firestore accessor
+  const getDb = () => {
+    try {
+      return getFirestore(admin.app(), databaseId);
+    } catch (e) {
+      console.error("Firestore not ready:", e);
+      return null;
+    }
+  };
 
   // Health check
   app.get('/api/health', (req, res) => {
@@ -80,6 +87,9 @@ async function startServer() {
     const { userId, amount, credits, phone, network, description } = req.body;
     
     try {
+      const firestore = getDb();
+      if (!firestore) throw new Error("Base de données non accessible");
+      
       if (!userId || !amount || !phone || !network) {
         return res.status(400).json({ error: "Paramètres manquants (userId, amount, credits, phone, network)" });
       }
@@ -153,6 +163,9 @@ async function startServer() {
     const { paymentId } = req.params;
     
     try {
+      const firestore = getDb();
+      if (!firestore) throw new Error("Base de données non accessible");
+      
       const paymentDoc = await firestore.collection('payments').doc(paymentId).get();
       if (!paymentDoc.exists) {
         return res.status(404).json({ error: "Paiement non trouvé" });
@@ -218,6 +231,9 @@ async function startServer() {
   app.post("/api/payments/moneyfusion/init", async (req, res) => {
     const { userId, amount, credits, phone, network, description } = req.body;
     try {
+      const firestore = getDb();
+      if (!firestore) throw new Error("Base de données non accessible");
+      
       const MERCHANT_ID = process.env.MONEYFUSION_MERCHANT_ID;
       const API_KEY = process.env.MONEYFUSION_API_KEY;
 
@@ -255,6 +271,9 @@ async function startServer() {
     const payload = req.body;
     // Typical payload: { transaction_id, status, external_reference, amount }
     try {
+      const firestore = getDb();
+      if (!firestore) throw new Error("Base de données non accessible");
+      
       const paymentId = payload.external_reference;
       const paymentDoc = await firestore.collection('payments').doc(paymentId).get();
       
@@ -289,6 +308,9 @@ async function startServer() {
     const { resellerId, target_mac, credits_used, note, playlist_url, xtream_host, xtream_username, xtream_password } = req.body;
     
     try {
+      const firestore = getDb();
+      if (!firestore) throw new Error("Base de données non accessible");
+      
       const normalizedMac = target_mac.toUpperCase().trim();
       
       // 1. Transactional Credit Deduction (Only if not a trial and credits > 0)
@@ -343,6 +365,9 @@ async function startServer() {
     const { mac, system, version, country, channel } = req.body;
     
     try {
+      const firestore = getDb();
+      if (!firestore) throw new Error("Base de données non accessible");
+      
       if (!mac) return res.status(400).json({ error: 'MAC est requise' });
       
       const normalizedMac = mac.toUpperCase().trim();
@@ -375,6 +400,9 @@ async function startServer() {
     const depositId = Math.random().toString(36).substr(2, 9);
 
     try {
+      const firestore = getDb();
+      if (!firestore) throw new Error("Base de données non accessible");
+      
       console.log(`Initiating ${provider} (${methodId}) deposit for ${phoneNumber} with amount ${amount}`);
       
       const externalId = Math.random().toString(36).substr(2, 9);
@@ -418,6 +446,11 @@ async function startServer() {
       console.error('Payment Error:', error);
       res.status(500).json({ error: 'Erreur lors de l\'initiation du paiement' });
     }
+  });
+
+  // Mount API Router fallback
+  app.use('/api/*', (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.originalUrl}` });
   });
 
   // Vite middleware for development
