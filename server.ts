@@ -81,6 +81,147 @@ async function startServer() {
     res.json({ status: 'ok', version: VERSION, timestamp: new Date().toISOString() });
   });
 
+  // --- YABETOO PAY API INTEGRATION ---
+  
+  // Initialize Yabetoo Transaction & Request Payment
+  app.post("/api/payments/yabetoo/init", async (req, res) => {
+    const { userId, amount, credits, phone, network, description } = req.body;
+    
+    try {
+      if (!userId || !amount || !phone || !network) {
+        return res.status(400).json({ error: "Paramètres manquants (userId, amount, credits, phone, network)" });
+      }
+
+      const API_KEY = process.env.YABETOO_API_KEY;
+      if (!API_KEY) {
+        throw new Error("Yabetoo API Key non configurée sur le serveur");
+      }
+
+      // 1. Create a payment record in Firestore to track status
+      const paymentRef = await firestore.collection('payments').add({
+        userId,
+        amount: parseFloat(amount),
+        credits_purchased: parseInt(credits) || 0,
+        phone,
+        network,
+        status: 'PENDING',
+        provider: 'YABETOO',
+        externalId: null, // Will be filled with Yabetoo's ID
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        description: description || 'Achat de crédits'
+      });
+
+      // 2. Call Yabetoo API (Collection)
+      // Documentation typically expects: amount, phone, network, external_id, callback_url
+      const yabetooResponse = await fetch('https://api.yabetoopay.com/v1/payment/collect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          phone: phone.replace('+', ''), // Remove + if present
+          network: network.toUpperCase(),
+          external_id: paymentRef.id,
+          description: description || 'Achat de crédits Sky Player',
+          callback_url: `https://${req.get('host')}/api/payments/yabetoo/webhook`
+        })
+      });
+
+      const data: any = await yabetooResponse.json();
+
+      if (!yabetooResponse.ok) {
+        console.error('Yabetoo Error Output:', data);
+        await paymentRef.update({ status: 'FAILED', error: data.message || 'Erreur Yabetoo' });
+        throw new Error(data.message || "Erreur lors de l'appel à Yabetoo");
+      }
+
+      // Update payment with provider's transaction ID
+      await paymentRef.update({ 
+        externalId: data.transaction_id || data.id,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      res.json({ 
+        success: true, 
+        paymentId: paymentRef.id,
+        message: "Demande de paiement envoyée. Veuillez valider sur votre téléphone." 
+      });
+
+    } catch (error: any) {
+      console.error('Yabetoo Init Error:', error);
+      res.status(500).json({ error: error.message || "Erreur lors de l'initialisation du paiement" });
+    }
+  });
+
+  // Verify Yabetoo Payment Status
+  app.get("/api/payments/yabetoo/status/:paymentId", async (req, res) => {
+    const { paymentId } = req.params;
+    
+    try {
+      const paymentDoc = await firestore.collection('payments').doc(paymentId).get();
+      if (!paymentDoc.exists) {
+        return res.status(404).json({ error: "Paiement non trouvé" });
+      }
+
+      const paymentData = paymentDoc.data();
+      if (paymentData?.status === 'SUCCESS') {
+        return res.json({ status: 'SUCCESS', message: 'Déjà validé' });
+      }
+
+      const API_KEY = process.env.YABETOO_API_KEY;
+      const externalId = paymentData?.externalId;
+
+      if (!externalId) {
+        return res.json({ status: 'PENDING', message: 'ID externe manquant' });
+      }
+
+      // Check with Yabetoo
+      const yabetooCheck = await fetch(`https://api.yabetoopay.com/v1/payment/verify/${externalId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+
+      const data: any = await yabetooCheck.json();
+
+      if (data.status === 'SUCCESS' || data.status === 'COMPLETED') {
+        // --- CRITICAL: Atomic Credit Addition ---
+        const userRef = firestore.collection('users').doc(paymentData?.userId);
+        
+        await firestore.runTransaction(async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          if (!userDoc.exists) throw new Error("Utilisateur introuvable");
+
+          const currentCredits = userDoc.data()?.credits || 0;
+          const addedCredits = paymentData?.credits_purchased || 0; 
+
+          transaction.update(userRef, {
+            credits: currentCredits + addedCredits
+          });
+
+          transaction.update(paymentDoc.ref, {
+            status: 'SUCCESS',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        });
+
+        return res.json({ status: 'SUCCESS', credits_added: true });
+      }
+
+      res.json({ status: data.status || 'PENDING' });
+
+    } catch (error: any) {
+      console.error('Yabetoo Status Check Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- END YABETOO PAY ---
+
   // Create Activation with Credit Deduction (Secure)
   app.post("/api/activations/create", async (req, res) => {
     const { resellerId, target_mac, credits_used, note, playlist_url, xtream_host, xtream_username, xtream_password } = req.body;

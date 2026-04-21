@@ -216,6 +216,24 @@ export const api = {
     }
   },
 
+  async initYabetooPayment(data: { userId: string; amount: number; credits: number; phone: string; network: string; description?: string }) {
+    const response = await fetch('/api/payments/yabetoo/init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Erreur lors de l\'initialisation du paiement');
+    return result;
+  },
+
+  async verifyYabetooPayment(paymentId: string) {
+    const response = await fetch(`/api/payments/yabetoo/status/${paymentId}`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Erreur lors de la vérification');
+    return result;
+  },
+
   async getPayments(userId: string): Promise<Payment[]> {
     try {
       const q = query(collection(db, 'payments'), where('userId', '==', userId));

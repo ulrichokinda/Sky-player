@@ -585,12 +585,12 @@ export const Dashboard = () => {
                 <tbody>
                   {displayTransactions.map((t, i) => (
                     <tr key={i} className="border-b border-zinc-900">
-                      <td className="p-4 text-zinc-400">{t.date || new Date(t.createdAt).toLocaleDateString('fr-FR')}</td>
+                      <td className="p-4 text-zinc-400">{t.date || new Date(t.createdAt?.seconds * 1000 || t.createdAt).toLocaleDateString('fr-FR')}</td>
                       <td className="p-4 font-bold">{t.type || (t.amount > 0 ? 'Achat' : 'Activation')}</td>
-                      <td className={`p-4 font-bold ${(t.amount?.toString().startsWith('+') || t.status === 'completed') ? 'text-emerald-500' : 'text-red-500'}`}>
-                        {t.amount?.toString().startsWith('+') || t.amount?.toString().startsWith('-') ? t.amount : (t.status === 'completed' ? `+${t.credits_purchased} Crédits` : `-${t.credits_used} Crédits`)}
+                      <td className={`p-4 font-bold ${(t.amount > 0 || t.status === 'SUCCESS') ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {t.status === 'SUCCESS' ? `+${Math.floor(t.amount/1000)} Crédits` : `-${t.credits_used || 0} Crédits`}
                       </td>
-                      <td className="p-4"><Badge variant={t.status === 'completed' || t.status === 'TERMINÉ' ? 'success' : 'info'}>{t.status}</Badge></td>
+                      <td className="p-4"><Badge variant={t.status === 'SUCCESS' ? 'success' : 'info'}>{t.status}</Badge></td>
                     </tr>
                   ))}
                 </tbody>
@@ -600,19 +600,10 @@ export const Dashboard = () => {
         );
 
       case 'Acheter des crédits':
-        return (
-          <Card className="max-w-md space-y-6 text-center py-12">
-            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
-              <CreditCard size={40} />
-            </div>
-            <h2 className="text-2xl font-black italic">Besoin de crédits ?</h2>
-            <p className="text-zinc-500">Rechargez votre compte pour continuer à activer des appareils pour vos clients.</p>
-            <div className="grid gap-4">
-              <Button onClick={() => navigate('/payment')} fullWidth size="lg">Acheter des crédits</Button>
-              <Button variant="outline" fullWidth onClick={() => setActiveTab('Support')}>Contacter un agent</Button>
-            </div>
-          </Card>
-        );
+        return <YabetooShop user={user} onPaymentSuccess={() => {
+          fetchUserData(user.uid, user);
+          setActiveTab('Aperçu du solde');
+        }} />;
 
       case 'Télécharger APK':
         return (
@@ -1459,5 +1450,157 @@ export const Dashboard = () => {
         </div>
       )}
     </div>
+  );
+};
+
+const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: () => void }) => {
+  const [step, setStep] = useState<'packages' | 'details' | 'waiting'>('packages');
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [phone, setPhone] = useState('');
+  const [network, setNetwork] = useState('AIRTEL');
+  const [loading, setLoading] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const packages = [
+    { credits: 10, price: 14999, label: 'Pack Débutant', color: 'from-blue-500/20 to-blue-600/20' },
+    { credits: 20, price: 23999, label: 'Pack Standard', color: 'from-primary/20 to-primary-dark/20', popular: true },
+    { credits: 50, price: 46999, label: 'Pack Master', color: 'from-amber-500/20 to-amber-600/20' },
+  ];
+
+  const handleInitPayment = async () => {
+    if (!phone || !selectedPackage) return;
+    setLoading(true);
+    try {
+      const result = await api.initYabetooPayment({
+        userId: user.uid,
+        amount: selectedPackage.price,
+        credits: selectedPackage.credits,
+        phone,
+        network,
+        description: `Achat de ${selectedPackage.credits} crédits`
+      });
+      setPaymentId(result.paymentId);
+      setStep('waiting');
+      setStatusMessage("En attente de validation sur votre téléphone...");
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let interval: any;
+    if (step === 'waiting' && paymentId) {
+      interval = setInterval(async () => {
+        try {
+          const result = await api.verifyYabetooPayment(paymentId);
+          if (result.status === 'SUCCESS') {
+            clearInterval(interval);
+            setStatusMessage("Paiement validé ! Vos crédits ont été ajoutés.");
+            setTimeout(() => onPaymentSuccess(), 2000);
+          } else if (result.status === 'FAILED') {
+            clearInterval(interval);
+            setStatusMessage("Le paiement a échoué ou a été annulé.");
+            setTimeout(() => setStep('details'), 3000);
+          }
+        } catch (e) {
+          console.error("Check status error", e);
+        }
+      }, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [step, paymentId, onPaymentSuccess]);
+
+  if (step === 'packages') {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="grid md:grid-cols-3 gap-6">
+          {packages.map((pkg) => (
+            <Card 
+              key={pkg.credits}
+              className={cn(
+                "relative group cursor-pointer border-zinc-800 hover:border-primary/50 transition-all p-8 flex flex-col items-center text-center gap-4",
+                pkg.popular && "border-primary/30 ring-1 ring-primary/20"
+              )}
+              onClick={() => { setSelectedPackage(pkg); setStep('details'); }}
+            >
+              {pkg.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ring-4 ring-black">
+                  Plus Populaire
+                </div>
+              )}
+              <div className={cn("w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center text-primary", pkg.color)}>
+                <Zap size={32} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black italic uppercase tracking-tight">{pkg.label}</h3>
+                <p className="text-zinc-500 text-xs font-bold">{pkg.credits} Crédits</p>
+              </div>
+              <div className="text-3xl font-black text-white">{pkg.price.toLocaleString()} <span className="text-xs text-zinc-500">XAF</span></div>
+              <Button fullWidth variant={pkg.popular ? 'primary' : 'outline'}>Choisir</Button>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'details') {
+    return (
+      <Card className="max-w-md mx-auto space-y-6 p-8 animate-in slide-in-from-bottom-4 duration-500">
+        <button onClick={() => setStep('packages')} className="text-zinc-500 hover:text-white flex items-center gap-2 text-xs transition-colors">
+          <ChevronLeft size={16} /> Retour aux packs
+        </button>
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-black italic">Finaliser l'achat</h2>
+          <p className="text-zinc-500 text-sm">{selectedPackage.credits} Crédits pour {selectedPackage.price} XAF</p>
+        </div>
+
+        <div className="space-y-4">
+          <Select label="Réseau Mobile" value={network} onChange={(e: any) => setNetwork(e.target.value)}>
+            <option value="AIRTEL">Airtel Money</option>
+            <option value="MOOV">Moov Money</option>
+          </Select>
+          <Input 
+            label="Numéro de téléphone" 
+            placeholder="077000000" 
+            value={phone} 
+            onChange={(e: any) => setPhone(e.target.value)} 
+          />
+          <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex gap-3 items-start">
+            <AlertCircle size={18} className="text-primary shrink-0 mt-0.5" />
+            <p className="text-[10px] text-zinc-400 leading-relaxed">
+              Une fois que vous aurez cliqué sur le bouton, vous recevrez une demande de confirmation de paiement sur votre téléphone. Saisissez votre code secret Mobile Money pour valider.
+            </p>
+          </div>
+          <Button fullWidth size="lg" loading={loading} onClick={handleInitPayment} icon={Zap}>
+            Payer {selectedPackage.price} XAF
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="max-w-md mx-auto text-center space-y-8 p-12 animate-in zoom-in-95 duration-500">
+      <div className="relative mx-auto w-24 h-24">
+        <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
+        <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center text-primary">
+          <Zap size={32} />
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h2 className="text-2xl font-black italic">Paiement en cours</h2>
+        <p className="text-zinc-400 text-sm">{statusMessage}</p>
+      </div>
+      <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col gap-2">
+        <p className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Transaction ID</p>
+        <p className="text-xs font-mono text-zinc-400">{paymentId}</p>
+      </div>
+      <Button variant="outline" onClick={() => setStep('details')}>Annuler et changer</Button>
+    </Card>
   );
 };
