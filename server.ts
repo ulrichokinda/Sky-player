@@ -25,7 +25,8 @@ try {
   console.error('Could not read firebase-applet-config.json', e);
 }
 
-const projectId = firebaseConfig.projectId || process.env.VITE_FIREBASE_PROJECT_ID || 'skyplayer-60634';
+// Resolution order: Config file > Environment Variable > Cloud Run Environment
+const projectId = firebaseConfig.projectId || process.env.VITE_FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
 const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
 
 // Initialize Firebase Admin
@@ -35,35 +36,26 @@ try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const saContent = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
     if (saContent.startsWith('{')) {
-      const serviceAccount = JSON.parse(saContent);
-      // Only use the service account if it matches the target project
-      if (!firebaseConfig.projectId || serviceAccount.project_id === firebaseConfig.projectId) {
-        credential = admin.credential.cert(serviceAccount);
-        console.log('Using Firebase Service Account JSON for authentication');
-      } else {
-        console.warn(`Warning: Service Account project_id (${serviceAccount.project_id}) does not match target project (${projectId}). Falling back to Application Default Credentials.`);
-        credential = admin.credential.applicationDefault();
-      }
-    } else {
-      console.error('CRITICAL: FIREBASE_SERVICE_ACCOUNT appears to be a legacy Database Secret (string).');
-      credential = admin.credential.applicationDefault();
+      credential = admin.credential.cert(JSON.parse(saContent));
+      console.log('Using FIREBASE_SERVICE_ACCOUNT from Secrets for authentication');
     }
-  } else {
-    credential = admin.credential.applicationDefault();
   }
 
-  admin.initializeApp({
-    credential,
-    projectId: projectId
-  });
-  console.log(`Firebase Admin initialized for project: ${projectId}`);
-} catch (error) {
-  console.error('Error initializing Firebase Admin:', error);
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      projectId: projectId
-    });
+  const options: admin.AppOptions = {};
+  if (credential) {
+    options.credential = credential;
   }
+  
+  if (projectId) {
+    options.projectId = projectId;
+  }
+
+  if (admin.apps.length === 0) {
+    admin.initializeApp(options);
+    console.log(`Firebase Admin initialized. Target Project: ${projectId || 'detected-by-adc'}. Target DB: ${databaseId}`);
+  }
+} catch (error) {
+  console.error('CRITICAL: Firebase Admin initialization failed:', error);
 }
 
 async function startServer() {
