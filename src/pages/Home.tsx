@@ -28,6 +28,9 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
+      {/* Hidden link for Google OAuth bot verification */}
+      <a href="https://skyplayerapp.xyz/#/privacy" rel="privacy-policy" style={{ opacity: 0, position: 'absolute', zIndex: -1 }}>Politique de Confidentialité SkyPlayer</a>
+      
       <nav className="flex items-center justify-between py-6 px-4 md:px-8 sticky top-0 bg-black/80 backdrop-blur-md z-50 border-b border-white/5">
         <Logo size={40} />
         
