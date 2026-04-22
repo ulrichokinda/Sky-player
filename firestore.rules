@@ -80,10 +80,10 @@ service cloud.firestore {
 
     function isValidPayment(data) {
       return data.keys().hasAll(['userId', 'amount', 'credits_purchased', 'status', 'createdAt']) &&
-             isValidId(data.userId) &&
-             data.amount is number && data.amount >= 0 &&
-             data.credits_purchased is number && data.credits_purchased >= 0 &&
-             data.status in ['PENDING', 'SUCCESS', 'FAILED', 'pending', 'completed', 'failed'] &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.amount is number &&
+             data.credits_purchased is number &&
+             data.status is string &&
              data.createdAt is timestamp;
     }
 
@@ -92,55 +92,26 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{uid} {
-      allow get: if isOwner(uid) || isAdmin();
-      allow list: if isAdmin(); // Prevent scraping user emails
+      allow get: if isSignedIn() && (uid == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
       
-      // Allow creation even if email is not verified yet, so the registration process can complete
-      allow create: if isSignedIn() && isValidUser(incoming()) && (isOwner(uid) || isAdmin());
-      
-      allow update: if isSignedIn() && (
-        // Admin Master Access
-        isAdmin() ||
-        // Action: Self Update (Locked credits/role)
-        (isOwner(uid) && 
-         incoming().role == existing().role && 
-         incoming().credits == existing().credits &&
-         affectedKeys().hasOnly(['username', 'firstName', 'lastName', 'phone', 'country', 'updatedAt']))
-      );
+      allow create: if isSignedIn() && (uid == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (uid == request.auth.uid || isAdmin());
     }
 
     match /activations/{activationId} {
-      allow get: if true; // Allowed for MAC check from device
-      allow list: if isSignedIn() && (resource.data.resellerId == request.auth.uid || isAdmin());
-      
-      allow create: if isEmailVerified() && 
-                    isValidActivation(incoming()) && 
-                    (request.auth.uid == incoming().resellerId || isAdmin());
-      
-      allow update: if isEmailVerified() && (
-        // Admin Master Access
-        isAdmin() ||
-        // Action: Reseller Content Update
-        (request.auth.uid == existing().resellerId && 
-         incoming().resellerId == existing().resellerId &&
-         incoming().target_mac == existing().target_mac &&
-         affectedKeys().hasOnly(['playlist_url', 'xtream_host', 'xtream_username', 'xtream_password', 'note', 'credits_used', 'updatedAt'])) ||
-        // Action: System Heartbeat (Simplified for device reporting)
-        (affectedKeys().hasOnly(['current_channel', 'last_connection', 'system', 'version', 'country_code']) &&
-         existing().target_mac != null)
-      );
-      
+      allow get: if true;
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      
-      // Allow creation during registration flow even if email not yet verified
-      allow create: if isSignedIn() && isValidPayment(incoming()) && (incoming().userId == request.auth.uid || isAdmin());
-      
-      allow update: if isAdmin(); // Users cannot modify payment records once created
+      allow create: if isSignedIn() && (incoming().userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 

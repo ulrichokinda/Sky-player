@@ -529,9 +529,8 @@ async function startServer() {
     });
   }
 
-  // Use process.env.PORT for external Cloud Run deployments where it dynamically assigns a port (e.g., 8080)
-  // Fall back to 3000 for local development and AI Studio
-  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  // Strictly use port 3000 as per environment constraints for AI Studio
+  const PORT = 3000;
   
   console.log(`Server starting on port: ${PORT}`);
   

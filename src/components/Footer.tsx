@@ -6,8 +6,8 @@ export const Footer = () => (
     <div className="flex flex-wrap justify-center gap-6 mb-4">
       <Link to="/about" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">À propos</Link>
       <Link to="/contact" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">Contact</Link>
-      <Link to="/privacy" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">Confidentialité</Link>
-      <Link to="/terms" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">Conditions</Link>
+      <Link to="/privacy" rel="privacy-policy" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">Politique de Confidentialité</Link>
+      <Link to="/terms" rel="terms-of-service" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">Conditions Générales</Link>
       <Link to="/faq" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">FAQ</Link>
       <Link to="/assets" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg px-2">Kit Média</Link>
     </div>

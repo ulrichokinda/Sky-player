@@ -109,7 +109,19 @@ export const Register = () => {
         alert("La fenêtre de connexion Google a été bloquée par votre navigateur. Veuillez autoriser les popups pour ce site ou ouvrir l'application dans un nouvel onglet.");
       } else if (error.code === 'auth/unauthorized-domain') {
         const domain = window.location.hostname;
-        alert(`Erreur de domaine : Le domaine "${domain}" n'est pas autorisé dans votre console Firebase. \n\nAction requise : Allez dans Firebase Console > Authentification > Paramètres > Domaines Autorisés et ajoutez "${domain}".`);
+        const redirectUri = `https://${domain}/__/auth/handler`;
+        alert(`ERREUR DE DOMAINE NON AUTORISÉ :
+        
+1. Allez dans Firebase Console > Authentification > Paramètres > Domaines Autorisés.
+2. Ajoutez le domaine : "${domain}"
+3. Ajoutez aussi votre domaine personnalisé : "skyplayerapp.xyz"
+
+ÉGALEMENT (Très Important pour Google OAuth) :
+1. Allez dans Google Cloud Console > Identifiants.
+2. Modifiez votre Client OAuth 2.0 Web.
+3. Dans "URIs de redirection autorisées", ajoutez :
+   - ${redirectUri}
+   - https://skyplayerapp.xyz/__/auth/handler`);
       } else {
         alert("Erreur Google Login: " + error.message);
       }
