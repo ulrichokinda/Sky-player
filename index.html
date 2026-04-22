@@ -1,6 +1,23 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('WebSocket')) return;
+        var errDiv = document.createElement('div');
+        errDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; padding: 20px; background: red; color: white; z-index: 999999;';
+        errDiv.innerHTML = '<h1>Global Error Caught</h1><p>' + e.message + '</p><pre>' + (e.error ? e.error.stack : '') + '</pre><button onclick="this.parentElement.remove()">Close</button>';
+        document.body.appendChild(errDiv);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        var reason = e.reason ? e.reason.toString() : '';
+        if (reason.includes('WebSocket') || reason.includes('websocket')) return; // Ignore benign Vite HMR errors
+        var errDiv = document.createElement('div');
+        errDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; padding: 20px; background: red; color: white; z-index: 999999;';
+        errDiv.innerHTML = '<h1>Unhandled Rejection Caught</h1><p>' + reason + '</p><button onclick="this.parentElement.remove()">Close</button>';
+        document.body.appendChild(errDiv);
+      });
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Sky Player - Reseller Panel</title>
@@ -24,16 +41,20 @@
       }
       
       // Check for version mismatch and force reload if needed
-      const CURRENT_VERSION = '4.0.0-ULTRA';
-      const storedVersion = localStorage.getItem('app_version');
-      if (storedVersion && storedVersion !== CURRENT_VERSION) {
-        console.log('Version mismatch detected, clearing cache and reloading...');
-        localStorage.clear();
-        sessionStorage.clear();
-        localStorage.setItem('app_version', CURRENT_VERSION);
-        window.location.reload(true);
-      } else {
-        localStorage.setItem('app_version', CURRENT_VERSION);
+      try {
+        const CURRENT_VERSION = '4.0.0-ULTRA';
+        const storedVersion = localStorage.getItem('app_version');
+        if (storedVersion && storedVersion !== CURRENT_VERSION) {
+          console.log('Version mismatch detected, clearing cache and reloading...');
+          localStorage.clear();
+          sessionStorage.clear();
+          localStorage.setItem('app_version', CURRENT_VERSION);
+          window.location.reload(true);
+        } else {
+          localStorage.setItem('app_version', CURRENT_VERSION);
+        }
+      } catch (err) {
+        console.warn('Could not access localStorage for version check', err);
       }
     </script>
     
