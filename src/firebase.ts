@@ -9,7 +9,10 @@ import {
   GoogleAuthProvider,
   signInWithPopup as firebaseSignInWithPopup,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
-  sendEmailVerification as firebaseSendEmailVerification
+  sendEmailVerification as firebaseSendEmailVerification,
+  updatePassword as firebaseUpdatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -68,6 +71,8 @@ export const signOut = firebaseSignOut;
 export const signInWithPopup = firebaseSignInWithPopup;
 export const sendPasswordResetEmail = firebaseSendPasswordResetEmail;
 export const sendEmailVerification = firebaseSendEmailVerification;
+export const updatePassword = firebaseUpdatePassword;
+export { EmailAuthProvider, reauthenticateWithCredential };
 
 // Firestore Helpers
 export const collection = firestoreCollection;

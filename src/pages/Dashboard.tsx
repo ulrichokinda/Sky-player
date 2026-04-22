@@ -51,7 +51,42 @@ export const Dashboard = () => {
   const [newXtreamPassword, setNewXtreamPassword] = useState('');
   const [serverType, setServerType] = useState<'playlist' | 'xtream'>('playlist');
   const [branding, setBranding] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const navigate = useNavigate();
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      showToast("Veuillez remplir les deux champs de mot de passe", "error");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast("Les mots de passe ne correspondent pas", "error");
+      return;
+    }
+    if (newPassword.length < 6) {
+      showToast("Le mot de passe doit faire au moins 6 caractères", "error");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (auth.currentUser) {
+        await api.updateUserPassword(auth.currentUser, newPassword);
+        showToast("Mot de passe mis à jour avec succès !", "success");
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/requires-recent-login') {
+        showToast("Pour des raisons de sécurité, veuillez vous déconnecter et vous reconnecter avant de changer votre mot de passe.", "error");
+      } else {
+        showToast("Erreur : " + error.message, "error");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [editPlaylistUrl, setEditPlaylistUrl] = useState('');
   const [editXtreamHost, setEditXtreamHost] = useState('');
@@ -483,14 +518,26 @@ export const Dashboard = () => {
                 <Input label="Adresse Email" defaultValue={user?.email || ''} readOnly />
                 <Input label="Téléphone" defaultValue={dbUser?.phone || ''} />
                 <Input label="Pays" defaultValue={dbUser?.country || ''} />
-                <Input label="Nouveau mot de passe" type="password" placeholder="••••••••" />
-                <Input label="Confirmer le mot de passe" type="password" placeholder="••••••••" />
+                <Input 
+                  label="Nouveau mot de passe" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={newPassword}
+                  onChange={(e: any) => setNewPassword(e.target.value)}
+                />
+                <Input 
+                  label="Confirmer le mot de passe" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={confirmPassword}
+                  onChange={(e: any) => setConfirmPassword(e.target.value)}
+                />
               </div>
               <Button 
                 loading={loading} 
-                onClick={() => handleAction("Mise à jour du profil", async () => {})}
+                onClick={handlePasswordChange}
               >
-                Mettre à jour le profil
+                Mettre à jour le mot de passe
               </Button>
             </Card>
 

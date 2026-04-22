@@ -1,12 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, Select, Badge } from '../components/ui';
 import { Footer } from '../components/Footer';
 import { PAYMENT_METHODS } from '../constants';
 import { validatePhone } from '../lib/validation';
 import { api } from '../services/api';
-import { Globe, Smartphone, Zap, ArrowLeft, CreditCard } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Globe, Smartphone, Zap, ArrowLeft, CreditCard, ShieldCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+
+const COUNTRY_FLAGS: Record<string, string> = {
+  'Côte d\'Ivoire': '🇨🇮',
+  'Sénégal': '🇸🇳',
+  'Mali': '🇲🇱',
+  'Burkina Faso': '🇧🇫',
+  'Togo': '🇹🇬',
+  'Bénin': '🇧🇯',
+  'Guinée': '🇬🇳',
+  'Niger': '🇳🇪',
+  'Congo (Brazzaville)': '🇨🇬',
+  'Cameroun': '🇨🇲',
+  'Gabon': '🇬🇦',
+  'RDC (Kinshasa)': '🇨🇩',
+  'Tchad': '🇹🇩',
+  'Centrafrique': '🇨🇫',
+  'International (Visa / MasterCard)': '🌐'
+};
 
 export const Payment = () => {
   const [searchParams] = useSearchParams();
@@ -29,7 +47,7 @@ export const Payment = () => {
 
   const allPlans = [...resellerPlans, ...activationPlans];
 
-  React.useEffect(() => {
+  useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (user.country && PAYMENT_METHODS[user.country as keyof typeof PAYMENT_METHODS]) {
       setSelectedCountry(user.country);
@@ -65,22 +83,31 @@ export const Payment = () => {
     
     setLoading(true);
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      
+      if (!user || (!user.uid && !user.id)) {
+        alert("Session expirée. Veuillez vous reconnecter.");
+        window.location.href = '/login?redirect=/payment&plan=' + selectedPlan.id;
+        return;
+      }
+      
+      const userId = user.uid || user.id;
       const primaryProvider = providerInfo.provider;
 
       let result;
       // Paiement principal
       if (primaryProvider === 'bkapay') {
         result = await api.initiateBkaPay({
-          userId: user.uid || 'guest',
+          userId: userId,
           amount: selectedPlan.price,
-          phoneNumber,
+          phoneNumber: phoneNumber || 'N/A',
           credits_purchased: selectedPlan.credits,
           methodId: providerInfo.id
         });
       } else if (primaryProvider === 'moneyfusion') {
         result = await api.initiateMoneyFusion({
-          userId: user.uid || 'guest',
+          userId: userId,
           amount: selectedPlan.price,
           phoneNumber,
           credits_purchased: selectedPlan.credits,
@@ -88,7 +115,7 @@ export const Payment = () => {
         });
       } else {
         result = await api.initiateYabetooPay({
-          userId: user.uid || 'guest',
+          userId: userId,
           amount: selectedPlan.price,
           phoneNumber,
           credits_purchased: selectedPlan.credits,
@@ -155,7 +182,7 @@ export const Payment = () => {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="max-w-2xl mx-auto space-y-6"
+            className="max-w-4xl mx-auto space-y-6"
           >
             <div className="flex items-center justify-between p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
               <div className="flex items-center gap-4">
@@ -178,79 +205,93 @@ export const Payment = () => {
               </div>
             </div>
 
-            <Card className="p-8 md:p-12 space-y-10 border-zinc-800/50 bg-zinc-900/30 backdrop-blur-xl shadow-2xl shadow-primary/5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-xl text-primary">
-                  <Globe size={24} />
+            <div className="grid md:grid-cols-2 gap-6 items-start">
+              {/* Étape 1: Sélection du Pays */}
+              <Card className="p-6 space-y-6 border-zinc-800 bg-zinc-900/30 backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+                    <Globe size={18} />
+                  </div>
+                  <h2 className="text-xl font-black tracking-tighter uppercase">1. Votre Pays</h2>
                 </div>
-                <h2 className="text-3xl font-black tracking-tighter">Paiement Sécurisé</h2>
-              </div>
+                <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  {Object.keys(PAYMENT_METHODS).map(country => (
+                    <button 
+                      key={country}
+                      onClick={() => {
+                        setSelectedCountry(country);
+                        setSelectedProviderId('');
+                      }}
+                      className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${selectedCountry === country ? 'bg-primary/10 border-primary text-primary' : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'}`}
+                    >
+                      <span className="text-lg">{COUNTRY_FLAGS[country] || '🌍'}</span>
+                      <span className="font-black text-[10px] uppercase tracking-wider text-left line-clamp-1">{country}</span>
+                    </button>
+                  ))}
+                </div>
+              </Card>
 
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Select 
-                    label="Votre Pays"
-                    value={selectedCountry}
-                    onChange={(e: any) => {
-                      setSelectedCountry(e.target.value);
-                      setSelectedProviderId('');
-                    }}
-                  >
-                    {Object.keys(PAYMENT_METHODS).map(country => (
-                      <option key={country} value={country}>{country}</option>
-                    ))}
-                  </Select>
+              {/* Étape 2: Paiement */}
+              <Card className="p-6 space-y-6 border-zinc-800 bg-zinc-900/30 backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+                    <CreditCard size={18} />
+                  </div>
+                  <h2 className="text-xl font-black tracking-tighter uppercase">2. Paiement Sécurisé</h2>
+                </div>
 
+                <div className="space-y-6">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Opérateur / Méthode</label>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Opérateur / Méthode</label>
                     <div className="grid grid-cols-2 gap-2">
                       {PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.map((p) => (
                         <button 
                           key={p.id}
                           onClick={() => setSelectedProviderId(p.id)}
-                          className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${selectedProviderId === p.id ? 'bg-primary/10 border-primary text-primary' : 'bg-zinc-950 text-zinc-500 border-zinc-800 hover:border-zinc-700'}`}
+                          className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${selectedProviderId === p.id ? 'bg-primary/10 border-primary text-primary' : 'bg-zinc-950 text-zinc-500 border-zinc-800 hover:border-zinc-700'}`}
                         >
-                          {p.id === 'card' ? <CreditCard size={16} /> : <Smartphone size={16} />}
-                          <span className="font-black text-[8px] uppercase tracking-widest text-center">{p.name}</span>
+                          {p.id === 'card' ? <CreditCard size={20} /> : <Smartphone size={20} />}
+                          <span className="font-black text-[9px] uppercase tracking-widest text-center">{p.name}</span>
                         </button>
                       ))}
                     </div>
                   </div>
-                </div>
 
-                {!selectedProviderId || PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId)?.id !== 'card' ? (
-                  <Input 
-                    label="Numéro de téléphone Mobile Money" 
-                    value={phoneNumber} 
-                    onChange={(e: any) => setPhoneNumber(e.target.value)} 
-                    placeholder="Ex: +242..." 
-                    error={phoneNumber && !validatePhone(phoneNumber) ? "Numéro invalide" : null}
-                  />
-                ) : (
-                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                      <CreditCard size={20} />
+                  {!selectedProviderId || PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId)?.id !== 'card' ? (
+                    <Input 
+                      label="Numéro de téléphone" 
+                      value={phoneNumber} 
+                      onChange={(e: any) => setPhoneNumber(e.target.value)} 
+                      placeholder="Ex: +242 06 123 45 67" 
+                      error={phoneNumber && !validatePhone(phoneNumber) ? "Numéro invalide" : null}
+                    />
+                  ) : (
+                    <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary shrink-0">
+                        <ShieldCheck size={20} />
+                      </div>
+                      <p className="text-[10px] text-zinc-400 leading-tight">Paiement sécurisé par Carte Bancaire. Vous serez redirigé vers la plateforme sécurisée.</p>
                     </div>
-                    <p className="text-xs text-zinc-400">Paiement sécurisé par Carte Bancaire (Visa/MasterCard). Vous serez redirigé vers la page de paiement.</p>
-                  </div>
-                )}
+                  )}
 
-                <Button 
-                  fullWidth 
-                  size="lg"
-                  loading={loading}
-                  onClick={handlePayment}
-                  className="py-6 text-base"
-                >
-                  Payer {selectedPlan.price.toLocaleString()} FCFA
-                </Button>
+                  <Button 
+                    fullWidth 
+                    size="lg"
+                    loading={loading}
+                    disabled={!selectedProviderId}
+                    onClick={handlePayment}
+                    className="py-6 text-base shadow-xl shadow-primary/20"
+                  >
+                    Payer {selectedPlan.price.toLocaleString()} FCFA
+                  </Button>
 
-                <p className="text-[10px] text-zinc-500 font-medium text-center leading-relaxed">
-                  En cliquant sur payer, vous acceptez nos conditions générales de vente. <br />
-                  Une demande de confirmation sera envoyée sur votre téléphone.
-                </p>
-              </div>
-            </Card>
+                  <p className="text-[10px] text-zinc-500 font-medium text-center leading-relaxed">
+                    Transactions protégées par cryptage 256bits.<br />
+                    SkyPlayer ne stocke aucune donnée bancaire.
+                  </p>
+                </div>
+              </Card>
+            </div>
           </motion.div>
         )}
       </div>

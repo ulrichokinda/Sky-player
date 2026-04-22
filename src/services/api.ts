@@ -289,6 +289,11 @@ export const api = {
     return this.initiatePayment({ ...data, provider: 'bkapay' });
   },
 
+  async updateUserPassword(user: any, newPassword: string) {
+    const { updatePassword } = await import('../firebase');
+    return updatePassword(user, newPassword);
+  },
+
   async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
     try {
       const normalizedMac = mac.toUpperCase().trim();

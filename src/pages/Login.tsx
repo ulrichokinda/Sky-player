@@ -67,6 +67,9 @@ export const Login = () => {
     } catch (error: any) {
       if (error.code === 'auth/popup-blocked') {
         alert("La fenêtre de connexion Google a été bloquée par votre navigateur. Veuillez autoriser les popups pour ce site ou ouvrir l'application dans un nouvel onglet.");
+      } else if (error.code === 'auth/unauthorized-domain') {
+        const domain = window.location.hostname;
+        alert(`Erreur de domaine : Le domaine "${domain}" n'est pas autorisé dans votre console Firebase. \n\nAction requise : Allez dans Firebase Console > Authentification > Paramètres > Domaines Autorisés et ajoutez "${domain}".`);
       } else {
         alert("Erreur Google Login: " + error.message);
       }
