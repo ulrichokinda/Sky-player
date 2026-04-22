@@ -9,10 +9,9 @@ import { Mail, Lock, User, Phone, Globe, Chrome, ArrowRight, ShieldCheck, ArrowL
 import { motion } from 'motion/react';
 
 const COUNTRIES = [
-  'Bénin', 'Burkina Faso', 'Burundi', 'Cameroun', 'Centrafrique', 'Comores', 
-  'Congo-Brazzaville', 'RDC', 'Côte d\'Ivoire', 'Djibouti', 'Gabon', 'Guinée', 
-  'Guinée Équatoriale', 'Madagascar', 'Mali', 'Maroc', 'Maurice', 'Mauritanie', 
-  'Niger', 'Rwanda', 'Sénégal', 'Seychelles', 'Tchad', 'Togo', 'Tunisie', 'Autre'
+  'Bénin', 'Burkina Faso', 'Cameroun', 'Centrafrique', 'Congo (Brazzaville)', 
+  'Côte d\'Ivoire', 'Gabon', 'Guinée', 'Mali', 'Niger', 'RDC (Kinshasa)', 
+  'Sénégal', 'TCHAD', 'Togo', 'Autre'
 ];
 
 export const Register = () => {

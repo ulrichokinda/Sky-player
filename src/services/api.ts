@@ -285,6 +285,10 @@ export const api = {
     return this.initiatePayment({ ...data, phoneNumber: 'N/A', provider: 'stripe', methodId: 'card' });
   },
 
+  async initiateBkaPay(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number; methodId: string }) {
+    return this.initiatePayment({ ...data, provider: 'bkapay' });
+  },
+
   async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
     try {
       const normalizedMac = mac.toUpperCase().trim();

@@ -1,10 +1,5 @@
 export const PAYMENT_METHODS = {
-  // --- INTERNATIONAL (Cartes Bancaires) ---
-  'International': [
-    { id: 'visa_mastercard', name: 'Visa / MasterCard', provider: 'stripe' }
-  ],
-
-  // --- AFRIQUE CENTRALE (Yabetoo Pay) ---
+  // --- AFRIQUE CENTRALE (Priorité Yabetoo Pay) ---
   'Congo (Brazzaville)': [
     { id: 'mtn_cg', name: 'MTN Mobile Money', provider: 'yabetoo' },
     { id: 'airtel_cg', name: 'Airtel Money', provider: 'yabetoo' }
@@ -26,60 +21,50 @@ export const PAYMENT_METHODS = {
     { id: 'telecel_cf', name: 'Telecel Cash', provider: 'yabetoo' }
   ],
 
-  // --- AFRIQUE DE L'EST (Fusion Pay / MoneyFusion) ---
-  'Kenya': [
-    { id: 'mpesa_ke', name: 'M-Pesa', provider: 'moneyfusion' },
-    { id: 'airtel_ke', name: 'Airtel Money', provider: 'moneyfusion' }
-  ],
-  'Rwanda': [
-    { id: 'mtn_rw', name: 'MTN Mobile Money', provider: 'moneyfusion' },
-    { id: 'airtel_rw', name: 'Airtel Money', provider: 'moneyfusion' }
-  ],
-  'Ouganda': [
-    { id: 'mtn_ug', name: 'MTN Mobile Money', provider: 'moneyfusion' },
-    { id: 'airtel_ug', name: 'Airtel Money', provider: 'moneyfusion' }
-  ],
-
-  // --- AFRIQUE DE L'OUEST (MoneyFusion) ---
+  // --- AUTRES PAYS AFRIQUE (BkaPay) ---
   'Côte d\'Ivoire': [
-    { id: 'orange_ci', name: 'Orange Money', provider: 'moneyfusion' },
-    { id: 'mtn_ci', name: 'MTN Mobile Money', provider: 'moneyfusion' },
-    { id: 'moov_ci', name: 'Moov Money', provider: 'moneyfusion' },
-    { id: 'wave_ci', name: 'Wave', provider: 'moneyfusion' }
+    { id: 'orange_ci', name: 'Orange Money', provider: 'bkapay' },
+    { id: 'mtn_ci', name: 'MTN Mobile Money', provider: 'bkapay' },
+    { id: 'moov_ci', name: 'Moov Money', provider: 'bkapay' },
+    { id: 'wave_ci', name: 'Wave', provider: 'bkapay' }
   ],
   'Sénégal': [
-    { id: 'orange_sn', name: 'Orange Money', provider: 'moneyfusion' },
-    { id: 'free_sn', name: 'Free Money', provider: 'moneyfusion' },
-    { id: 'wave_sn', name: 'Wave', provider: 'moneyfusion' },
-    { id: 'wizall_sn', name: 'Wizall Money', provider: 'moneyfusion' }
-  ],
-  'RDC (Kinshasa)': [
-    { id: 'mpesa_cd', name: 'M-Pesa', provider: 'moneyfusion' },
-    { id: 'airtel_cd', name: 'Airtel Money', provider: 'moneyfusion' },
-    { id: 'orange_cd', name: 'Orange Money', provider: 'moneyfusion' }
+    { id: 'orange_sn', name: 'Orange Money', provider: 'bkapay' },
+    { id: 'wave_sn', name: 'Wave', provider: 'bkapay' },
+    { id: 'free_sn', name: 'Free Money', provider: 'bkapay' }
   ],
   'Bénin': [
-    { id: 'mtn_bj', name: 'MTN Mobile Money', provider: 'moneyfusion' },
-    { id: 'moov_bj', name: 'Moov Money', provider: 'moneyfusion' }
-  ],
-  'Togo': [
-    { id: 'tmoney_tg', name: 'TMoney', provider: 'moneyfusion' },
-    { id: 'moov_tg', name: 'Moov Money', provider: 'moneyfusion' }
+    { id: 'mtn_bj', name: 'MTN Mobile Money', provider: 'bkapay' },
+    { id: 'moov_bj', name: 'Moov Money', provider: 'bkapay' }
   ],
   'Burkina Faso': [
-    { id: 'orange_bf', name: 'Orange Money', provider: 'moneyfusion' },
-    { id: 'moov_bf', name: 'Moov Money', provider: 'moneyfusion' }
+    { id: 'orange_bf', name: 'Orange Money', provider: 'bkapay' },
+    { id: 'moov_bf', name: 'Moov Money', provider: 'bkapay' }
   ],
   'Mali': [
-    { id: 'orange_ml', name: 'Orange Money', provider: 'moneyfusion' },
-    { id: 'moov_ml', name: 'Moov Money', provider: 'moneyfusion' }
+    { id: 'orange_ml', name: 'Orange Money', provider: 'bkapay' },
+    { id: 'moov_ml', name: 'Moov Money', provider: 'bkapay' }
   ],
-  'Guinée': [
-    { id: 'orange_gn', name: 'Orange Money', provider: 'moneyfusion' },
-    { id: 'mtn_gn', name: 'MTN Mobile Money', provider: 'moneyfusion' }
+  'Togo': [
+    { id: 'tmoney_tg', name: 'TMoney', provider: 'bkapay' },
+    { id: 'moov_tg', name: 'Moov Money', provider: 'bkapay' }
+  ],
+  'RDC (Kinshasa)': [
+    { id: 'mpesa_cd', name: 'M-Pesa', provider: 'bkapay' },
+    { id: 'airtel_cd', name: 'Airtel Money', provider: 'bkapay' },
+    { id: 'orange_cd', name: 'Orange Money', provider: 'bkapay' }
   ],
   'Niger': [
-    { id: 'airtel_ne', name: 'Airtel Money', provider: 'moneyfusion' },
-    { id: 'moov_ne', name: 'Moov Money', provider: 'moneyfusion' }
+    { id: 'airtel_ne', name: 'Airtel Money', provider: 'bkapay' },
+    { id: 'moov_ne', name: 'Moov Money', provider: 'bkapay' }
+  ],
+  'Guinée': [
+    { id: 'orange_gn', name: 'Orange Money', provider: 'bkapay' },
+    { id: 'mtn_gn', name: 'MTN Mobile Money', provider: 'bkapay' }
+  ],
+
+  // --- INTERNATIONAL (BkaPay Cards) ---
+  'International (Visa / MasterCard)': [
+    { id: 'card', name: 'Payer par Carte', provider: 'bkapay' }
   ]
 };

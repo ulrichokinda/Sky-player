@@ -447,6 +447,16 @@ async function startServer() {
         
         await firestore.collection('payments').add(paymentData);
 
+        if (provider === 'bkapay') {
+          // Bkapay uses a redirect flow
+          return res.json({
+            success: true,
+            provider: 'bkapay',
+            paymentUrl: `https://bkapay.com/pay?amount=${amount}&ref=${externalId}`, // Simulation du lien de paiement
+            message: "Redirection vers Bkapay..."
+          });
+        }
+
         // If Stripe, update credits immediately (for demo/test)
         if (provider === 'stripe') {
           const userRef = firestore.collection('users').doc(userId);

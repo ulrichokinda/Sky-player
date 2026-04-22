@@ -51,7 +51,7 @@ export const Payment = () => {
     const providerInfo = PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId);
     if (!providerInfo) throw new Error('Opérateur non trouvé');
 
-    const isCard = providerInfo.provider === 'stripe';
+    const isCard = providerInfo.id === 'card';
 
     if (!isCard && !phoneNumber) {
       alert('Veuillez entrer votre numéro de téléphone');
@@ -67,65 +67,43 @@ export const Payment = () => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const primaryProvider = providerInfo.provider;
-      const fallbackProvider = primaryProvider === 'moneyfusion' ? 'yabetoo' : (primaryProvider === 'stripe' ? 'stripe' : 'moneyfusion');
 
       let result;
-      try {
-        // Tentative avec le fournisseur principal
-        if (primaryProvider === 'moneyfusion') {
-          result = await api.initiateMoneyFusion({
-            userId: user.uid || 'guest',
-            amount: selectedPlan.price,
-            phoneNumber,
-            credits_purchased: selectedPlan.credits,
-            provider: providerInfo.id
-          });
-        } else if (primaryProvider === 'stripe') {
-          result = await api.initiateStripePayment({
-            userId: user.uid || 'guest',
-            amount: selectedPlan.price,
-            credits_purchased: selectedPlan.credits
-          });
-        } else {
-          result = await api.initiateYabetooPay({
-            userId: user.uid || 'guest',
-            amount: selectedPlan.price,
-            phoneNumber,
-            credits_purchased: selectedPlan.credits,
-            methodId: providerInfo.id
-          });
-        }
-
-        if (!result.success) throw new Error(result.error || 'Échec du fournisseur principal');
-      } catch (primaryError) {
-        if (primaryProvider === 'stripe') throw primaryError; // No fallback for stripe card yet
-
-        console.warn(`Échec de ${primaryProvider}, tentative avec le secours (${fallbackProvider})...`);
-        
-        // Tentative avec le fournisseur de secours
-        if (fallbackProvider === 'moneyfusion') {
-          result = await api.initiateMoneyFusion({
-            userId: user.uid || 'guest',
-            amount: selectedPlan.price,
-            phoneNumber,
-            credits_purchased: selectedPlan.credits,
-            provider: providerInfo.id
-          });
-        } else {
-          result = await api.initiateYabetooPay({
-            userId: user.uid || 'guest',
-            amount: selectedPlan.price,
-            phoneNumber,
-            credits_purchased: selectedPlan.credits,
-            methodId: providerInfo.id
-          });
-        }
+      // Paiement principal
+      if (primaryProvider === 'bkapay') {
+        result = await api.initiateBkaPay({
+          userId: user.uid || 'guest',
+          amount: selectedPlan.price,
+          phoneNumber,
+          credits_purchased: selectedPlan.credits,
+          methodId: providerInfo.id
+        });
+      } else if (primaryProvider === 'moneyfusion') {
+        result = await api.initiateMoneyFusion({
+          userId: user.uid || 'guest',
+          amount: selectedPlan.price,
+          phoneNumber,
+          credits_purchased: selectedPlan.credits,
+          provider: providerInfo.id
+        });
+      } else {
+        result = await api.initiateYabetooPay({
+          userId: user.uid || 'guest',
+          amount: selectedPlan.price,
+          phoneNumber,
+          credits_purchased: selectedPlan.credits,
+          methodId: providerInfo.id
+        });
       }
       
       if (result && result.success) {
-        alert(result.message);
+        if (result.paymentUrl) {
+          window.location.href = result.paymentUrl;
+        } else {
+          alert(result.message || "Demande de paiement envoyée. Suivez les instructions sur votre téléphone.");
+        }
       } else {
-        throw new Error(result?.error || 'Erreur lors du paiement après tentative de secours');
+        throw new Error(result?.error || 'Erreur lors de l\'initialisation du paiement');
       }
     } catch (error: any) {
       alert(error.message || 'Erreur lors du paiement');
@@ -205,7 +183,7 @@ export const Payment = () => {
                 <div className="p-3 bg-primary/10 rounded-xl text-primary">
                   <Globe size={24} />
                 </div>
-                <h2 className="text-3xl font-black tracking-tighter">Paiement Mobile Money</h2>
+                <h2 className="text-3xl font-black tracking-tighter">Paiement Sécurisé</h2>
               </div>
 
               <div className="space-y-8">
@@ -224,7 +202,7 @@ export const Payment = () => {
                   </Select>
 
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Opérateur</label>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2">Opérateur / Méthode</label>
                     <div className="grid grid-cols-2 gap-2">
                       {PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.map((p) => (
                         <button 
@@ -232,7 +210,7 @@ export const Payment = () => {
                           onClick={() => setSelectedProviderId(p.id)}
                           className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${selectedProviderId === p.id ? 'bg-primary/10 border-primary text-primary' : 'bg-zinc-950 text-zinc-500 border-zinc-800 hover:border-zinc-700'}`}
                         >
-                          <Smartphone size={16} />
+                          {p.id === 'card' ? <CreditCard size={16} /> : <Smartphone size={16} />}
                           <span className="font-black text-[8px] uppercase tracking-widest text-center">{p.name}</span>
                         </button>
                       ))}
@@ -240,7 +218,7 @@ export const Payment = () => {
                   </div>
                 </div>
 
-                {!selectedProviderId || PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId)?.provider !== 'stripe' ? (
+                {!selectedProviderId || PAYMENT_METHODS[selectedCountry as keyof typeof PAYMENT_METHODS]?.find(p => p.id === selectedProviderId)?.id !== 'card' ? (
                   <Input 
                     label="Numéro de téléphone Mobile Money" 
                     value={phoneNumber} 
