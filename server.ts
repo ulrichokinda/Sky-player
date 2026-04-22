@@ -11,6 +11,15 @@ console.log('--- SERVER STARTING UP ---');
 console.log('Node Version:', process.version);
 console.log('CWD:', process.cwd());
 
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -529,14 +538,15 @@ async function startServer() {
     });
   }
 
-  // Fallback to 8080 common for Cloud Run, or 3000 for local dev if PORT env is not set
-  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  // Robust port detection for Cloud Run and local dev
+  const rawPort = process.env.PORT || '3000';
+  const PORT = parseInt(rawPort, 10);
   
-  console.log(`Server starting on port: ${PORT}`);
-  
+  console.log(`Port configuration: detected=${rawPort}, parsed=${PORT}`);
+
   const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server successfully listening on 0.0.0.0:${PORT}`);
-    console.log(`Ready to serve traffic.`);
+    console.log(`>>> SERVER IS READY AND LISTENING ON http://0.0.0.0:${PORT} <<<`);
+    console.log('Environment:', isProd ? 'PRODUCTION' : 'DEVELOPMENT');
   });
 
   server.on('error', (err) => {

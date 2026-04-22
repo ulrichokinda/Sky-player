@@ -7,8 +7,11 @@ import {
   FileText, HelpCircle, AlertCircle, LogOut, Plus, 
   CheckCircle2, Copy, ExternalLink, MessageSquare, FileSpreadsheet,
   RotateCcw, Filter, Edit2, Trash2, CalendarPlus, MoreVertical, RefreshCw,
-  Menu, X, List, Tv, Settings, ChevronLeft, ChevronRight, ShieldCheck, Zap, Activity
+  Menu, X, List, Tv, Settings, ChevronLeft, ChevronRight, ShieldCheck, Zap, Activity,
+  BarChart as ChartIcon, FileUp, Image as ImageIcon
 } from 'lucide-react';
+import { DashboardStats } from '../components/DashboardStats';
+import { aiReceiptService } from '../services/aiReceiptService';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -22,7 +25,7 @@ import { useBranding } from '../components/BrandingProvider';
 
 export const Dashboard = () => {
   const { branding: globalBranding } = useBranding();
-  const [activeTab, setActiveTab] = useState('Clients');
+  const [activeTab, setActiveTab] = useState('Statistiques');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Tous');
   const [systemFilter, setSystemFilter] = useState('Tous');
@@ -273,6 +276,7 @@ export const Dashboard = () => {
   const isAdminUser = user?.email === 'koutoudivine@gmail.com' || user?.email === 'inestaulrichokinda@gmail.com';
 
   const menuItems = [
+    { name: 'Statistiques', icon: ChartIcon },
     { name: 'Clients', icon: Users },
     ...(isAdminUser ? [
       { name: 'Activités Globales', icon: Activity },
@@ -334,6 +338,15 @@ export const Dashboard = () => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'Statistiques':
+        return (
+          <DashboardStats 
+            activations={isAdminUser ? allActivations : activations}
+            payments={isAdminUser ? allTransactions : transactions}
+            users={isAdminUser ? allUsers : [dbUser]}
+            isAdmin={isAdminUser}
+          />
+        );
       case 'Clients':
         const displayActivations = activations.length > 0 ? activations : CUSTOMERS;
         const filteredCustomers = displayActivations.filter(c => {
@@ -1604,7 +1617,7 @@ export const Dashboard = () => {
 };
 
 const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: () => void }) => {
-  const [step, setStep] = useState<'packages' | 'details' | 'waiting'>('packages');
+  const [step, setStep] = useState<'packages' | 'details' | 'waiting' | 'receipt'>('packages');
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('GA');
@@ -1612,6 +1625,7 @@ const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: 
   const [loading, setLoading] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [analyzedData, setAnalyzedData] = useState<any>(null);
 
   const countries = [
     { code: 'GA', name: 'Gabon', prefix: '+241', networks: ['AIRTEL', 'MOOV'] },
@@ -1684,9 +1698,93 @@ const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: 
     return () => clearInterval(interval);
   }, [step, paymentId, onPaymentSuccess]);
 
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        try {
+          const result = await aiReceiptService.validateReceipt(base64, file.type);
+          setAnalyzedData(result);
+          setStep('receipt');
+        } catch (err: any) {
+          alert(err.message || "Erreur lors de l'analyse du reçu.");
+        } finally {
+          setLoading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      setLoading(false);
+      alert("Erreur lors de la lecture du fichier.");
+    }
+  };
+
+  const handleConfirmAIReceipt = async () => {
+    if (!analyzedData || !analyzedData.isValid) return;
+    
+    setLoading(true);
+    try {
+      // Find matching package
+      const matchedPackage = packages.find(p => Math.abs(p.price - analyzedData.amount) < 100);
+      const creditsToAdd = matchedPackage ? matchedPackage.credits : Math.floor(analyzedData.amount / 1500);
+
+      // Create a payment record
+      await api.createPayment({
+        userId: user.uid,
+        amount: analyzedData.amount,
+        credits_purchased: creditsToAdd,
+        payment_method: 'AI_RECEIPT',
+        provider: analyzedData.provider,
+        status: 'completed',
+        external_id: analyzedData.transactionId,
+      });
+
+      // Add credits
+      await api.generateCredits(user.uid, creditsToAdd);
+      
+      onPaymentSuccess();
+    } catch (error: any) {
+      alert("Erreur lors de l'ajout des crédits : " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (step === 'packages') {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-1">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              <Zap className="text-primary" size={20} />
+              Validation Instantanée par IA
+            </h3>
+            <p className="text-sm text-zinc-500">Vous avez déjà payé par Mobile Money ? Envoyez une capture d'écran du reçu pour être crédité instantanément.</p>
+          </div>
+          <div className="flex gap-2">
+            <input 
+              type="file" 
+              id="ai-receipt-upload" 
+              className="hidden" 
+              accept="image/*"
+              onChange={handleReceiptUpload}
+            />
+            <Button 
+              variant="outline" 
+              icon={FileUp} 
+              loading={loading}
+              onClick={() => document.getElementById('ai-receipt-upload')?.click()}
+            >
+              Envoyer un reçu
+            </Button>
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-3 gap-6">
           {packages.map((pkg) => (
             <Card 
@@ -1715,6 +1813,68 @@ const YabetooShop = ({ user, onPaymentSuccess }: { user: any; onPaymentSuccess: 
           ))}
         </div>
       </div>
+    );
+  }
+
+  if (step === 'receipt') {
+    return (
+      <Card className="max-w-md mx-auto space-y-6 p-8 animate-in slide-in-from-bottom-4 duration-500">
+        <button onClick={() => setStep('packages')} className="text-zinc-500 hover:text-white flex items-center gap-2 text-xs transition-colors">
+          <ChevronLeft size={16} /> Retour
+        </button>
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-black italic">Validation du reçu par IA</h2>
+          <p className="text-zinc-500 text-sm">Gemini a analysé votre reçu</p>
+        </div>
+
+        {analyzedData?.isValid ? (
+          <div className="space-y-6">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-3">
+              <div className="flex items-center gap-2 text-emerald-500">
+                <CheckCircle2 size={18} />
+                <span className="font-bold text-xs uppercase tracking-widest">Reçu Validé</span>
+              </div>
+              <div className="grid grid-cols-2 gap-y-2 text-sm">
+                <span className="text-zinc-500">Montant :</span>
+                <span className="font-bold text-white text-right">{analyzedData.amount.toLocaleString()} {analyzedData.currency}</span>
+                <span className="text-zinc-500">Opérateur :</span>
+                <span className="font-bold text-white text-right">{analyzedData.provider}</span>
+                <span className="text-zinc-500">ID Transaction :</span>
+                <span className="font-mono text-zinc-400 text-[10px] text-right">{analyzedData.transactionId}</span>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
+              <p className="text-center text-zinc-400 text-xs">
+                En confirmant, <span className="text-primary font-bold">{
+                  packages.find(p => Math.abs(p.price - analyzedData.amount) < 100)?.credits || Math.floor(analyzedData.amount / 1500)
+                } crédits</span> seront ajoutés à votre compte.
+              </p>
+            </div>
+
+            <Button fullWidth size="lg" loading={loading} onClick={handleConfirmAIReceipt} icon={Zap}>
+              Confirmer et créditer
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-3">
+              <div className="flex items-center gap-2 text-red-500">
+                <AlertCircle size={18} />
+                <span className="font-bold text-xs uppercase tracking-widest">Reçu non reconnu</span>
+              </div>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                L'IA n'a pas pu confirmer ce reçu comme un paiement valide : {analyzedData?.reason || 'Données incomplètes ou illisibles'}.
+              </p>
+            </div>
+            <Button fullWidth variant="outline" onClick={() => setStep('packages')}>Réessayer avec une autre photo</Button>
+          </div>
+        )}
+        
+        <p className="text-[10px] text-zinc-600 text-center italic">
+          Note: Toute tentative de fraude (faux reçu) entraînera le bannissement définitif de votre compte revendeur.
+        </p>
+      </Card>
     );
   }
 
