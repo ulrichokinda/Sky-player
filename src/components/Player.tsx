@@ -119,22 +119,45 @@ export const Player: React.FC<PlayerProps> = ({
 
     let hls: Hls | null = null;
     setIsLoading(true);
+    
+    // Auto-convert Xtream Codes .ts links to .m3u8 for web compatibility
+    let finalUrl = url;
+    if (finalUrl.endsWith('.ts') && finalUrl.includes('/live/')) {
+      finalUrl = finalUrl.replace('.ts', '.m3u8');
+    }
 
-    if (url.includes('.m3u8') || url.includes('playlist.m3u8') || url.includes('type=m3u8') || url.includes('/hls/')) {
+    if (finalUrl.includes('.m3u8') || finalUrl.includes('playlist.m3u8') || finalUrl.includes('type=m3u8') || finalUrl.includes('/hls/')) {
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
         });
-        hls.loadSource(url);
+        hls.loadSource(finalUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.play().catch(() => setIsPlaying(false));
           setIsPlaying(true);
           setIsLoading(false);
         });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch(data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                setError("Erreur réseau: Impossible de charger le flux vidéo.");
+                hls?.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls?.recoverMediaError();
+                break;
+              default:
+                hls?.destroy();
+                setError("Erreur fatale: Le format n'est pas supporté par votre navigateur.");
+                break;
+            }
+          }
+        });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
+        video.src = finalUrl;
         video.addEventListener('loadedmetadata', () => {
           video.play().catch(() => setIsPlaying(false));
           setIsPlaying(true);
@@ -143,10 +166,10 @@ export const Player: React.FC<PlayerProps> = ({
       }
     } else {
       // Direct MP4/TS/MKV link
-      video.src = url;
+      video.src = finalUrl;
       video.play().catch((err) => {
         setIsPlaying(false);
-        setError("Impossible de charger ce flux. Le lien est peut-être expiré ou invalide.");
+        setError("Impossible de charger ce flux. Le format ou le lien est invalide.");
       });
       setIsPlaying(true);
       setIsLoading(false);

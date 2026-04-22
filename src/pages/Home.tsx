@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 import { Button, Badge } from '../components/ui';
 import { Footer } from '../components/Footer';
-import { CheckCircle2, Menu, X, LayoutDashboard, UserPlus, Download, LogIn, Zap, Shield, Cpu, Monitor, Activity, Sliders, Calendar, Grid, RotateCw, Lock, ChevronRight, Store, CreditCard } from 'lucide-react';
+import { CheckCircle2, Menu, X, LayoutDashboard, UserPlus, Download, LogIn, Zap, Shield, Cpu, Monitor, Activity, Sliders, Calendar, Grid, RotateCw, Lock, ChevronRight, Store, CreditCard, ShieldCheck, Wallet, Smartphone, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, onAuthStateChanged } from '../firebase';
 
@@ -212,31 +212,51 @@ export const Home = () => {
         {/* Pourquoi nous choisir ? */}
         <div className="py-16 md:py-24 space-y-16">
           <div className="space-y-4">
-            <Badge variant="primary">L'Excellence Technologique</Badge>
+            <Badge variant="primary">L'Excellence Technologique & Pratique</Badge>
             <h2 className="text-3xl md:text-6xl font-black tracking-tighter">Pourquoi choisir <span className="text-primary">Sky Player</span> ?</h2>
-            <p className="text-zinc-500 max-w-2xl mx-auto">Nous ne sommes pas juste un autre lecteur. Nous sommes la référence du streaming premium.</p>
+            <p className="text-zinc-500 max-w-2xl mx-auto">Nous offrons bien plus qu'un simple lecteur. Découvrez les avantages exclusifs qui font de Sky Player le choix numéro 1.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
-            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4">
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4 hover:bg-zinc-800/40 transition-colors">
               <Monitor className="text-primary" size={32} />
               <h4 className="text-xl font-bold">Qualité HDR+</h4>
-              <p className="text-zinc-500 text-sm leading-relaxed">Ajustez la luminosité, le contraste et la saturation directement dans le lecteur pour une image parfaite.</p>
+              <p className="text-zinc-500 text-sm leading-relaxed">Profitez de vos contenus avec une clarté absolue. Ajustez lumière et contraste pour une qualité visuelle irréprochable.</p>
             </div>
-            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4">
-              <Activity className="text-primary" size={32} />
-              <h4 className="text-xl font-bold">Stats Temps Réel</h4>
-              <p className="text-zinc-500 text-sm leading-relaxed">Surveillez votre débit, votre résolution et la santé de votre connexion avec nos outils de diagnostic intégrés.</p>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4 hover:bg-zinc-800/40 transition-colors">
+              <ShieldCheck className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">FIabilité Anti-Coupure</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Notre système de cache intelligent garantit un flux vidéo continu, même avec des connexions internet capricieuses ou instables.</p>
             </div>
-            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4">
-              <Sliders className="text-primary" size={32} />
-              <h4 className="text-xl font-bold">Contrôle Total</h4>
-              <p className="text-zinc-500 text-sm leading-relaxed">Vitesse de lecture ajustable, mode Picture-in-Picture et sélection manuelle de la qualité vidéo.</p>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4 hover:bg-zinc-800/40 transition-colors">
+              <Smartphone className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Multi-Plateforme</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Une expérience fluide et uniformisée que vous soyez sur Android TV, Box Internet, Tablette ou Smartphone.</p>
             </div>
-            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4">
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4 hover:bg-zinc-800/40 transition-colors">
               <Download className="text-primary" size={32} />
               <h4 className="text-xl font-bold">Mode Éco-Data</h4>
-              <p className="text-zinc-500 text-sm leading-relaxed">Réduisez votre consommation de données mobiles tout en gardant une fluidité exceptionnelle.</p>
+              <p className="text-zinc-500 text-sm leading-relaxed">Stoppez le gaspillage ! Notre compression limite la consommation de données mobiles sans sacrifier la qualité visuelle.</p>
+            </div>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4 hover:bg-zinc-800/40 transition-colors">
+              <Sliders className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Contrôle Total</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Picture-in-Picture, vitesse de lecture ajustable, changement de piste audio et sous-titres à la volée.</p>
+            </div>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4 hover:bg-zinc-800/40 transition-colors">
+              <Activity className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Stats Temps Réel</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Analysez votre débit, votre latence et la résolution diffusée grâce à nos outils de diagnostic de pointe.</p>
+            </div>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4 hover:bg-zinc-800/40 transition-colors">
+              <Wallet className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Paiements Locaux</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Activation instantanée via vos moyens de Mobile Money locaux (Wave, MTN, Orange, Moov, Airtel). Fini la carte bancaire !</p>
+            </div>
+            <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-[2.5rem] space-y-4 hover:bg-zinc-800/40 transition-colors">
+              <Users className="text-primary" size={32} />
+              <h4 className="text-xl font-bold">Panel Revendeur</h4>
+              <p className="text-zinc-500 text-sm leading-relaxed">Vendez des activations. Une plateforme intégrée pour générer des revenus en devenant l'administrateur de votre propre réseau client.</p>
             </div>
           </div>
 

@@ -95,9 +95,10 @@ service cloud.firestore {
       allow get: if isOwner(uid) || isAdmin();
       allow list: if isAdmin(); // Prevent scraping user emails
       
-      allow create: if isEmailVerified() && isValidUser(incoming()) && (isOwner(uid) || isAdmin());
+      // Allow creation even if email is not verified yet, so the registration process can complete
+      allow create: if isSignedIn() && isValidUser(incoming()) && (isOwner(uid) || isAdmin());
       
-      allow update: if isEmailVerified() && (
+      allow update: if isSignedIn() && (
         // Admin Master Access
         isAdmin() ||
         // Action: Self Update (Locked credits/role)

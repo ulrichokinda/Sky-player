@@ -94,7 +94,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
           
           if (!targetUrl && data.activation?.xtream_host && data.activation?.xtream_username && data.activation?.xtream_password) {
             const host = data.activation.xtream_host.endsWith('/') ? data.activation.xtream_host.slice(0, -1) : data.activation.xtream_host;
-            targetUrl = `${host}/get.php?username=${data.activation.xtream_username}&password=${data.activation.xtream_password}&type=m3u_plus&output=ts`;
+            targetUrl = `${host}/get.php?username=${data.activation.xtream_username}&password=${data.activation.xtream_password}&type=m3u_plus&output=m3u8`;
           }
 
           if (targetUrl && targetUrl !== playlistUrl) {
