@@ -529,8 +529,8 @@ async function startServer() {
     });
   }
 
-  // Strictly use port 3000 as per environment constraints for AI Studio
-  const PORT = 3000;
+  // Fallback to 8080 common for Cloud Run, or 3000 for local dev if PORT env is not set
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   
   console.log(`Server starting on port: ${PORT}`);
   
