@@ -8,6 +8,7 @@ import {
   doc, 
   getDoc, 
   getDocs, 
+  getDocsFromServer,
   setDoc, 
   addDoc, 
   updateDoc, 
@@ -298,7 +299,7 @@ export const api = {
     try {
       const normalizedMac = mac.toUpperCase().trim();
       const q = query(collection(db, 'activations'), where('target_mac', '==', normalizedMac));
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocsFromServer(q);
       
       if (snapshot.empty) {
         return { 

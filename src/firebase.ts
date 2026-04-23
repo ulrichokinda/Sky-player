@@ -28,6 +28,7 @@ import {
   where as firestoreWhere,
   onSnapshot as firestoreOnSnapshot,
   getDocFromServer,
+  getDocsFromServer,
   Timestamp,
   initializeFirestore,
   persistentLocalCache,
@@ -79,6 +80,7 @@ export const collection = firestoreCollection;
 export const doc = firestoreDoc;
 export const getDoc = firestoreGetDoc;
 export const getDocs = firestoreGetDocs;
+export { getDocsFromServer };
 export const setDoc = firestoreSetDoc;
 export const addDoc = firestoreAddDoc;
 export const updateDoc = firestoreUpdateDoc;
