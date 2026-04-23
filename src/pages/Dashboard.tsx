@@ -1104,30 +1104,28 @@ export const Dashboard = () => {
       {/* Simple Modal Overlay */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <Card className="w-full max-w-lg space-y-6 relative border-zinc-700 shadow-2xl">
+          <Card className="w-full max-w-lg max-h-[90vh] flex flex-col relative border-zinc-700 shadow-2xl p-0 overflow-hidden">
             <button 
               disabled={loading}
               onClick={() => setShowModal(null)}
-              className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full transition-colors disabled:opacity-50"
+              className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full transition-colors z-50 disabled:opacity-50"
             >
               <Plus className="rotate-45" size={20} />
             </button>
             
-            {showModal === 'activate' ? (
-              <>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-black italic">Activer l'appareil</h2>
-                  <button onClick={() => setShowModal(null)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-                    <X size={20} />
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  <Input 
-                    label="Adresse MAC" 
-                    placeholder="00:00:00:00:00:00" 
-                    value={newMac}
-                    onChange={(e: any) => setNewMac(e.target.value)}
-                  />
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+              {showModal === 'activate' ? (
+                <>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-black italic">Activer l'appareil</h2>
+                  </div>
+                  <div className="space-y-4">
+                    <Input 
+                      label="Adresse MAC" 
+                      placeholder="00:00:00:00:00:00" 
+                      value={newMac}
+                      onChange={(e: any) => setNewMac(e.target.value)}
+                    />
 
                   {/* Server Type Selector */}
                   <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
@@ -1611,6 +1609,7 @@ export const Dashboard = () => {
                 </div>
               </>
             )}
+            </div>
           </Card>
         </div>
       )}
