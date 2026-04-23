@@ -105,11 +105,11 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
             // Add safety timeout for loading
             const timeout = setTimeout(() => {
               if (channels.length === 0) {
-                setError("Le chargement de la liste de lecture prend trop de temps. L'hôte Xtream est peut-être inaccessible ou bloque l'application.");
+                setError("Le chargement de la liste de lecture prend trop de temps (30s). L'hôte Xtream est trop lent ou bloque l'accès.");
                 setIsPlaylistError(true);
                 setIsChecking(false);
               }
-            }, 10000);
+            }, 30000);
             
             try {
               const parsedChannels = await fetchAndParsePlaylist(targetUrl);

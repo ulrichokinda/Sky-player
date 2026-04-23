@@ -67,8 +67,10 @@ export const fetchAndParsePlaylist = async (url: string): Promise<Channel[]> => 
   try {
     let content = '';
     const headers = {
-      'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
-      'Accept': '*/* spielte'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Referer': url.split('/').slice(0, 3).join('/') + '/',
+      'Origin': url.split('/').slice(0, 3).join('/'),
+      'Accept': '*/*'
     };
     
     if (Capacitor.isNativePlatform()) {
