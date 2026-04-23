@@ -8,7 +8,6 @@ import {
   doc, 
   getDoc, 
   getDocs, 
-  getDocsFromServer,
   setDoc, 
   addDoc, 
   updateDoc, 
@@ -298,13 +297,31 @@ export const api = {
   async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
     try {
       const normalizedMac = mac.toUpperCase().trim();
+      let response;
+
+      try {
+        // Option 1: Try hitting the server API which has Admin SDK and bypasses local Capacitor network blocks
+        // The URL must be absolute because Capacitor runs on localhost inside the phone
+        const hostUrl = import.meta.env.VITE_API_URL || 'https://ais-dev-lfwiazz5uklpv2b4uunzg7-511075437969.europe-west2.run.app';
+        response = await fetch(`${hostUrl}/api/mac/check/${encodeURIComponent(normalizedMac)}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          // The server proxy handles the empty check
+          return data;
+        }
+      } catch (proxyError) {
+        console.warn("Proxy check failed, falling back to direct Firebase:", proxyError);
+      }
+
+      // Option 2: Fallback to direct firebase
       const q = query(collection(db, 'activations'), where('target_mac', '==', normalizedMac));
-      const snapshot = await getDocsFromServer(q);
+      const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
         return { 
           active: false, 
-          error: "MAC non activée. Veuillez l'ajouter dans votre panel revendeur." 
+          error: "MAC non activée. Veuillez l'ajouter." 
         };
       }
       

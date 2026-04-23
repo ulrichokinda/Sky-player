@@ -48,11 +48,9 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with settings for better connectivity
+// Initialize Firestore with standard settings. experimentalForceLongPolling causes 'unavailable' bugs on Capacitor.
 const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-}, databaseId);
+export const db = getFirestore(app, databaseId);
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
