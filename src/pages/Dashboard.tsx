@@ -987,12 +987,13 @@ export const Dashboard = () => {
         )}>
           <button 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="absolute -right-3 top-8 bg-zinc-900 border border-zinc-800 rounded-full p-1 text-zinc-400 hover:text-white"
+            className="absolute -right-4 top-10 bg-primary border border-primary/20 rounded-full p-1.5 text-black hover:scale-110 transition-all shadow-lg z-50 flex items-center justify-center"
+            title={isSidebarCollapsed ? "Développer" : "Réduire"}
           >
-            {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {isSidebarCollapsed ? <ChevronRight size={14} strokeWidth={3} /> : <ChevronLeft size={14} strokeWidth={3} />}
           </button>
           
-          <div className={cn("space-y-1", isSidebarCollapsed && "hidden")}>
+          <div className={cn("space-y-1 transition-opacity duration-300", isSidebarCollapsed ? "hidden opacity-0" : "block opacity-100")}>
             <h2 className="font-bold text-lg truncate">{dbUser?.username || user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}</h2>
             <p className="text-zinc-500 text-sm truncate">{user?.email}</p>
           </div>

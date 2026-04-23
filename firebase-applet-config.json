@@ -1,10 +1,9 @@
 {
-  "projectId": "gen-lang-client-0499401696",
-  "appId": "1:636194284103:web:4a9b9a1af37590ebe40762",
-  "apiKey": "AIzaSyBpyFnPZgk5ie6i5e14LmJ9kvVZ2porwxU",
-  "authDomain": "gen-lang-client-0499401696.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-cfc5e440-30ab-49e5-b1ac-adeaedf1db9a",
-  "storageBucket": "gen-lang-client-0499401696.firebasestorage.app",
-  "messagingSenderId": "636194284103",
-  "measurementId": ""
+  "apiKey": "AIzaSyCx3NV7zoZpazgMTABspe6fnteuYrJskp8",
+  "authDomain": "skyplayer-60634.firebaseapp.com",
+  "projectId": "skyplayer-60634",
+  "storageBucket": "skyplayer-60634.firebasestorage.app",
+  "messagingSenderId": "135679941797",
+  "appId": "1:135679941797:web:1a042cbf5b93fae44c814c",
+  "measurementId": "G-YR7NLPQDQS"
 }
