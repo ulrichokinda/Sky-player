@@ -47,7 +47,7 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with settings for better connectivity in restricted environments
+// Initialize Firestore with settings for better connectivity
 const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,

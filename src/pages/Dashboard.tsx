@@ -985,6 +985,13 @@ export const Dashboard = () => {
           "flex items-center justify-between mb-8 md:block",
           isSidebarCollapsed && "md:flex md:justify-center"
         )}>
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="absolute -right-3 top-8 bg-zinc-900 border border-zinc-800 rounded-full p-1 text-zinc-400 hover:text-white"
+          >
+            {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+          
           <div className={cn("space-y-1", isSidebarCollapsed && "hidden")}>
             <h2 className="font-bold text-lg truncate">{dbUser?.username || user?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}</h2>
             <p className="text-zinc-500 text-sm truncate">{user?.email}</p>

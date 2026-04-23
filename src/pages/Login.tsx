@@ -63,9 +63,9 @@ export const Login = () => {
       const plan = searchParams.get('plan');
       
       if (redirect) {
-        navigate(`${redirect}${plan ? `?plan=${plan}` : ''}`);
+        window.location.href = `${window.location.origin}/#${redirect}${plan ? `?plan=${plan}` : ''}`;
       } else {
-        navigate('/dashboard');
+        window.location.href = `${window.location.origin}/#/dashboard`;
       }
     } catch (error: any) {
       if (error.code === 'auth/popup-blocked') {
