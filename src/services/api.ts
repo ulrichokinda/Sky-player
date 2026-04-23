@@ -327,7 +327,14 @@ export const api = {
       };
     } catch (error: any) {
       console.error('Check MAC error:', error);
-      return { active: false, error: "Erreur de permission ou de connexion Firebase. Vérifiez vos règles Firestore." };
+      let errorMsg = "Erreur de connexion Firebase.";
+      if (error && error.code) {
+        errorMsg += ` Code: ${error.code}.`;
+      }
+      if (error && error.message) {
+        errorMsg += ` Détail: ${error.message}`;
+      }
+      return { active: false, error: errorMsg };
     }
   },
 

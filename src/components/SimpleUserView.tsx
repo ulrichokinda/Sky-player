@@ -83,6 +83,8 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   const [isEditingMac, setIsEditingMac] = useState(false);
   const [newMacInput, setNewMacInput] = useState('');
 
+  const [isPlaylistError, setIsPlaylistError] = useState(false);
+
   useEffect(() => {
     if (macAddress === '00:00:00:00:00:00') return;
 
@@ -103,7 +105,8 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
             // Add safety timeout for loading
             const timeout = setTimeout(() => {
               if (channels.length === 0) {
-                setError("Le chargement de la liste de lecture prend trop de temps. Vérifiez votre connexion.");
+                setError("Le chargement de la liste de lecture prend trop de temps. L'hôte Xtream est peut-être inaccessible ou bloque l'application.");
+                setIsPlaylistError(true);
                 setIsChecking(false);
               }
             }, 10000);
@@ -115,23 +118,30 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
                 setChannels(parsedChannels);
                 setCurrentChannelIndex(0);
                 setError(null);
+                setIsPlaylistError(false);
               } else {
-                setError("La liste de lecture est vide ou invalide.");
+                setError("La liste de lecture est vide, invalide, ou l'accès a été refusé par le serveur cible.");
+                setIsPlaylistError(true);
               }
             } catch (err) {
               clearTimeout(timeout);
-              setError("Erreur lors du téléchargement de la liste.");
+              setError("Erreur réseau lors du téléchargement de la liste. Le serveur cible bloque peut-être la connexion.");
+              setIsPlaylistError(true);
             }
           }
         } else if (data.error) {
           setError(data.error);
+          setIsPlaylistError(false);
         }
       } catch (err) {
         console.error('Erreur lors de la vérification de l\'activation:', err);
+        setError("Erreur fatale lors de la connexion.");
+        setIsPlaylistError(false);
       } finally {
         setIsChecking(false);
       }
     };
+
 
     const updateDeviceInfo = async () => {
       try {
@@ -313,42 +323,62 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500">
                 <ShieldAlert size={32} />
               </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold text-white">Appareil non activé</h3>
-                <p className="text-sm text-zinc-400 max-w-md">
-                  Votre adresse MAC <span className="text-primary font-mono">{macAddress}</span> n'est pas encore enregistrée dans notre système.
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold text-white">
+                  {isPlaylistError ? "Erreur Serveur Distant" : "Problème d'Activation"}
+                </h3>
+                {isPlaylistError && <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest bg-emerald-400/10 py-1 px-3 rounded-full mb-2">✅ Appareil bien activé sur votre panel</p>}
+                <p className="text-sm text-zinc-400 max-w-md mx-auto">
+                  Détails : <span className="text-red-400 font-bold">{error}</span>
+                </p>
+                <p className="text-xs text-zinc-500 max-w-md mx-auto bg-zinc-900 p-2 rounded">
+                  Votre adresse MAC en cours de vérification est : <strong className="text-white">{macAddress}</strong>
                 </p>
               </div>
-              <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl text-left w-full">
-                <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mb-2">Comment activer ?</p>
-                <ol className="text-xs text-zinc-400 space-y-2 list-decimal list-inside">
-                  <li>Notez votre adresse MAC ci-dessus</li>
-                  <li>Connectez-vous à votre <a href="/dashboard" className="text-primary hover:underline">Panel Revendeur</a></li>
-                  <li>Allez dans la section "Activations"</li>
-                  <li>Entrez votre MAC et validez</li>
-                </ol>
-              </div>
               
-              <div className="flex flex-col gap-2 w-full">
-                <Button 
-                  onClick={async () => {
-                    try {
-                      setIsChecking(true);
-                      await api.activateTrial(macAddress);
-                      onNotify('Essai gratuit activé !', 'success');
-                      window.location.reload();
-                    } catch (err) {
-                      onNotify('Erreur lors de l\'activation de l\'essai', 'error');
-                    } finally {
-                      setIsChecking(false);
-                    }
-                  }} 
-                  variant="primary" 
-                  fullWidth
-                  icon={Gift}
-                >
-                  Activer l'essai gratuit (14 jours)
-                </Button>
+              {!isPlaylistError ? (
+                <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl text-left w-full mt-4">
+                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mb-2">Comment activer ?</p>
+                  <ol className="text-xs text-zinc-400 space-y-2 list-decimal list-inside">
+                    <li>Notez votre adresse MAC ci-dessus</li>
+                    <li>Connectez-vous à votre <a href="/dashboard" className="text-primary hover:underline">Panel Revendeur</a></li>
+                    <li>Allez dans la section "Activations"</li>
+                    <li>Entrez votre MAC et validez</li>
+                  </ol>
+                </div>
+              ) : (
+                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl text-left w-full mt-4">
+                  <p className="text-xs text-amber-500 font-bold uppercase tracking-widest mb-2">Le serveur de chaînes bloque l'accès</p>
+                  <p className="text-xs text-amber-500/80 mb-2">L'adresse de votre playlist/Xtream est soit erronée, soit votre fournisseur IPTV bloque cette application.</p>
+                  <ol className="text-xs text-amber-500/70 space-y-1 list-decimal list-inside">
+                    <li>Vérifiez l'URL, l'utilisateur et le mot de passe dans votre panel.</li>
+                    <li>Contactez votre fournisseur IPTV pour autoriser le lecteur.</li>
+                  </ol>
+                </div>
+              )}
+              
+              <div className="flex flex-col gap-2 w-full mt-4">
+                {!isPlaylistError && (
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        setIsChecking(true);
+                        await api.activateTrial(macAddress);
+                        onNotify('Essai gratuit activé !', 'success');
+                        window.location.reload();
+                      } catch (err) {
+                        onNotify('Erreur lors de l\'activation de l\'essai', 'error');
+                      } finally {
+                        setIsChecking(false);
+                      }
+                    }} 
+                    variant="primary" 
+                    fullWidth
+                    icon={Gift}
+                  >
+                    Activer l'essai gratuit (14 jours)
+                  </Button>
+                )}
                 <Button onClick={() => window.location.reload()} variant="outline" size="sm" icon={RotateCcw} fullWidth>
                   Réessayer la vérification
                 </Button>
