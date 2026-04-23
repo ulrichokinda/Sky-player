@@ -297,20 +297,37 @@ export const api = {
   async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
     try {
       const normalizedMac = mac.toUpperCase().trim();
-      const response = await fetch(`/api/mac/check/${encodeURIComponent(normalizedMac)}`);
+      const q = query(collection(db, 'activations'), where('target_mac', '==', normalizedMac));
+      const snapshot = await getDocs(q);
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      if (snapshot.empty) {
         return { 
           active: false, 
-          error: errorData.error || "MAC non activée ou erreur serveur." 
+          error: "MAC non activée. Veuillez l'ajouter dans votre panel revendeur." 
         };
       }
       
-      return await response.json();
+      const docData = snapshot.docs[0];
+      const data = docData.data();
+      
+      // Check for expiry locally
+      if (data.expiryDate) {
+        const expiry = new Date(data.expiryDate);
+        if (expiry < new Date()) {
+          return { 
+            active: false, 
+            error: "Abonnement expiré. Veuillez le prolonger." 
+          };
+        }
+      }
+      
+      return { 
+        active: true, 
+        activation: { id: docData.id, ...data } 
+      };
     } catch (error: any) {
       console.error('Check MAC error:', error);
-      return { active: false, error: "Erreur de connexion au serveur d'activation." };
+      return { active: false, error: "Erreur de permission ou de connexion Firebase. Vérifiez vos règles Firestore." };
     }
   },
 
