@@ -1,21 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr" translate="no">
   <head>
     <script>
       window.addEventListener('error', function(e) {
-        if (e.message && e.message.includes('WebSocket')) return;
-        var errDiv = document.createElement('div');
-        errDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; padding: 20px; background: red; color: white; z-index: 999999;';
-        errDiv.innerHTML = '<h1>Global Error Caught</h1><p>' + e.message + '</p><pre>' + (e.error ? e.error.stack : '') + '</pre><button onclick="this.parentElement.remove()">Close</button>';
-        document.body.appendChild(errDiv);
+        if (e.message && (e.message.includes('WebSocket') || e.message.includes('HMR'))) return;
+        console.error('GLOBAL ERROR:', e);
       });
       window.addEventListener('unhandledrejection', function(e) {
         var reason = e.reason ? e.reason.toString() : '';
-        if (reason.includes('WebSocket') || reason.includes('websocket')) return; // Ignore benign Vite HMR errors
-        var errDiv = document.createElement('div');
-        errDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; padding: 20px; background: red; color: white; z-index: 999999;';
-        errDiv.innerHTML = '<h1>Unhandled Rejection Caught</h1><p>' + reason + '</p><button onclick="this.parentElement.remove()">Close</button>';
-        document.body.appendChild(errDiv);
+        if (reason.includes('WebSocket') || reason.includes('websocket')) return;
+        console.error('UNHANDLED REJECTION:', e);
       });
     </script>
     <meta charset="UTF-8" />

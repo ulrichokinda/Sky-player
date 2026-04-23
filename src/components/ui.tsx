@@ -85,8 +85,10 @@ export const Button = ({
     )}
     {...props}
   >
-    {loading ? <RotateCcw className="animate-spin" size={size === 'sm' ? 14 : 18} /> : Icon && <Icon size={size === 'sm' ? 14 : 18} />}
-    {children}
+    <span className="flex items-center gap-2 pointer-events-none">
+      {loading ? <RotateCcw className="animate-spin" size={size === 'sm' ? 14 : 18} /> : Icon && <Icon size={size === 'sm' ? 14 : 18} />}
+      <span className="truncate">{children}</span>
+    </span>
   </button>
 );
 

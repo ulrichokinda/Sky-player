@@ -149,8 +149,8 @@ export const Register = () => {
             <Logo size={60} className="mx-auto" />
             <div className="space-y-2">
               <Badge variant="primary">Rejoindre le Réseau</Badge>
-              <h1 className="text-4xl font-black tracking-tighter">Créer un compte</h1>
-              <p className="text-zinc-500 text-sm font-medium">Devenez revendeur officiel et commencez à gagner.</p>
+              <h1 className="text-4xl font-black tracking-tighter"><span>Créer un compte</span></h1>
+              <p className="text-zinc-500 text-sm font-medium"><span>Devenez revendeur officiel et commencez à gagner.</span></p>
             </div>
           </header>
 
@@ -230,7 +230,7 @@ export const Register = () => {
             </div>
 
             <Button type="submit" fullWidth size="lg" loading={loading} className="py-6 text-base group">
-              S'inscrire Maintenant
+              <span>S'inscrire Maintenant</span>
               <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </form>
@@ -248,10 +248,11 @@ export const Register = () => {
             variant="outline" 
             fullWidth 
             onClick={handleGoogleLogin}
+            loading={loading}
             className="border-zinc-800 hover:bg-white hover:text-black py-4"
           >
             <Chrome size={18} className="mr-2" />
-            S'inscrire avec Google
+            <span>S'inscrire avec Google</span>
           </Button>
 
           <footer className="text-center space-y-4">

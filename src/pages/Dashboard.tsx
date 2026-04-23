@@ -1023,7 +1023,7 @@ export const Dashboard = () => {
               title={isSidebarCollapsed ? item.name : undefined}
             >
               <item.icon size={18} className="shrink-0" />
-              {!isSidebarCollapsed && <span>{item.name}</span>}
+              {!isSidebarCollapsed && <span><span>{item.name}</span></span>}
             </button>
           ))}
         </nav>

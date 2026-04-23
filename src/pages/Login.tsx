@@ -127,8 +127,8 @@ export const Login = () => {
             </div>
             <div className="space-y-2">
               <Badge variant="primary">Espace Revendeur</Badge>
-              <h1 className="text-4xl font-black tracking-tighter">Connexion</h1>
-              <p className="text-zinc-500 text-sm font-medium">Accédez à votre console d'administration.</p>
+              <h1 className="text-4xl font-black tracking-tighter"><span>Connexion</span></h1>
+              <p className="text-zinc-500 text-sm font-medium"><span>Accédez à votre console d'administration.</span></p>
             </div>
           </header>
 
@@ -164,16 +164,16 @@ export const Login = () => {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              fullWidth 
-              size="lg" 
-              loading={loading}
-              className="py-6 text-base group"
-            >
-              Se Connecter
-              <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
+              <Button 
+                type="submit" 
+                fullWidth 
+                size="lg" 
+                loading={loading}
+                className="py-6 text-base group"
+              >
+                <span>Se Connecter</span>
+                <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
           </form>
 
           <div className="relative">
@@ -181,7 +181,7 @@ export const Login = () => {
               <div className="w-full border-t border-zinc-800"></div>
             </div>
             <div className="relative flex justify-center text-[10px] uppercase tracking-[0.3em] font-black text-zinc-600">
-              <span className="bg-zinc-950 px-4">OU</span>
+              <span className="bg-zinc-950 px-4"><span>OU</span></span>
             </div>
           </div>
 
@@ -189,22 +189,23 @@ export const Login = () => {
             variant="outline" 
             fullWidth 
             onClick={handleGoogleLogin}
+            loading={loading}
             className="border-zinc-800 hover:bg-white hover:text-black py-4"
           >
             <Chrome size={18} className="mr-2" />
-            Continuer avec Google
+            <span>Continuer avec Google</span>
           </Button>
 
           <footer className="text-center space-y-4">
             <p className="text-zinc-500 text-xs font-medium">
-              Pas encore de compte ?{' '}
+              <span>Pas encore de compte ?</span>{' '}
               <Link to="/register" className="text-primary font-black hover:underline">
-                Créer un compte
+                <span>Créer un compte</span>
               </Link>
             </p>
             <div className="flex items-center justify-center gap-2 text-zinc-700">
               <ShieldCheck size={12} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Sécurisé par Sky Player</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest"><span>Sécurisé par Sky Player</span></span>
             </div>
           </footer>
         </Card>
