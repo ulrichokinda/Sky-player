@@ -24,10 +24,16 @@ export default defineConfig(({mode}) => {
     },
     build: {
       target: ['es2015', 'edge88', 'firefox78', 'chrome87', 'safari14'], // Force compatibilité pour Smart TV
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
-          manualChunks: undefined
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+            'vendor-player': ['video.js', 'hls.js', 'shaka-player'],
+            'vendor-charts': ['recharts'],
+            'vendor-ui': ['lucide-react', 'motion/react']
+          }
         }
       }
     }
