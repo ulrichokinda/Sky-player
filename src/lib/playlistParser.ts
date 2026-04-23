@@ -1,3 +1,5 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
+
 export interface Channel {
   name: string;
   url: string;
@@ -63,19 +65,53 @@ export const parseJSONPlaylist = (content: string): Channel[] => {
 
 export const fetchAndParsePlaylist = async (url: string): Promise<Channel[]> => {
   try {
-    const response = await fetch(url);
-    const content = await response.text();
+    let content = '';
+    const headers = {
+      'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+      'Accept': '*/* spielte'
+    };
     
+    if (Capacitor.isNativePlatform()) {
+      // Use CapacitorHttp to bypass CORS on mobile
+      const options = { url, headers };
+      const response = await CapacitorHttp.get(options);
+      
+      if (response.status !== 200) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      content = response.data;
+    } else {
+      // Use standard fetch for web
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      content = await response.text();
+    }
+    
+    if (!content) throw new Error("Contenu vide reçu du serveur");
+
     if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
       return parseJSONPlaylist(content);
     } else if (content.includes('#EXTM3U')) {
       return parseM3U(content);
     } else {
+      // If none matches, check if it's an API link
+      if (url.includes('username=') && url.includes('password=')) {
+        console.error("Format de playlist invalide ou accès refusé par le fournisseur.");
+        return [];
+      }
       // If it's a direct stream link
       return [{ name: 'Flux Direct', url }];
     }
-  } catch (e) {
-    console.error('Error fetching playlist', e);
+  } catch (e: any) {
+    console.error('Error fetching playlist (CORS, network error, or blocked by provider):', e);
+    
+    if (url.includes('username=') && url.includes('password=')) {
+      console.error("Ceci est un lien d'API Xtream qui a échoué. Détails:", e.message);
+      return []; // Return empty array to trigger actual error in SimpleUserView
+    }
     return [{ name: 'Flux Direct', url }];
   }
 };

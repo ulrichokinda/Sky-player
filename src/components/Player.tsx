@@ -122,11 +122,22 @@ export const Player: React.FC<PlayerProps> = ({
     
     // Auto-convert Xtream Codes .ts links to .m3u8 for web compatibility
     let finalUrl = url;
+    
+    // Auto-convert Xtream Codes .ts links to .m3u8 for web compatibility
     if (finalUrl.endsWith('.ts') && finalUrl.includes('/live/')) {
       finalUrl = finalUrl.replace('.ts', '.m3u8');
     }
+    
+    // Detect Xtream API stream URLs that might lack an extension but need HLS
+    const isXtreamStream = finalUrl.includes('/live/') || finalUrl.includes('/movie/') || finalUrl.includes('/series/');
+    const forceHls = finalUrl.includes('.m3u8') || finalUrl.includes('type=m3u8') || finalUrl.includes('/hls/') || (isXtreamStream && !finalUrl.includes('.mp4') && !finalUrl.includes('.mkv'));
 
-    if (finalUrl.includes('.m3u8') || finalUrl.includes('playlist.m3u8') || finalUrl.includes('type=m3u8') || finalUrl.includes('/hls/')) {
+    if (forceHls) {
+      if (!finalUrl.includes('.m3u8') && isXtreamStream && !finalUrl.includes('?')) {
+        // Many Xtream servers require explicitly appending .m3u8 if missing
+        finalUrl = `${finalUrl}.m3u8`;
+      }
+      
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
