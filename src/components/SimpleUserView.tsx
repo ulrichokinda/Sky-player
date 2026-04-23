@@ -244,24 +244,60 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
         {/* Mac Address Section */}
         <div className="flex justify-center shrink-0">
           <div className="flex flex-col items-center gap-3 bg-zinc-900/50 px-8 py-6 rounded-2xl border border-zinc-800 w-full max-w-md relative group">
-            <button 
-              onClick={() => window.location.reload()} 
-              className="absolute -top-3 -right-3 p-2 bg-zinc-800 hover:bg-primary text-zinc-400 hover:text-black rounded-full border border-zinc-700 transition-all shadow-lg"
-              title="Rafraîchir"
-            >
-              <RotateCcw size={14} />
-            </button>
-            <span className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em]">Votre Adresse MAC</span>
-            <div className="flex items-center gap-3 w-full justify-center">
-              <span className="text-xl md:text-2xl font-mono font-bold text-white tracking-widest">{macAddress}</span>
+            <div className="absolute -top-3 -right-3 flex gap-2">
               <button 
-                onClick={() => { navigator.clipboard.writeText(macAddress); onNotify('MAC copiée !', 'success'); }} 
-                className="text-zinc-500 hover:text-primary p-2 hover:bg-zinc-800 rounded-lg transition-colors bg-zinc-900"
-                title="Copier"
+                onClick={() => setIsEditingMac(!isEditingMac)} 
+                className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-full border border-zinc-700 transition-all shadow-lg"
+                title="Modifier l'ID"
               >
-                <Copy size={16} />
+                <Edit2 size={14} />
+              </button>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="p-2 bg-zinc-800 hover:bg-primary text-zinc-400 hover:text-black rounded-full border border-zinc-700 transition-all shadow-lg"
+                title="Rafraîchir"
+              >
+                <RotateCcw size={14} />
               </button>
             </div>
+            
+            <span className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em]">Votre Adresse MAC</span>
+            
+            {isEditingMac ? (
+              <div className="flex items-center gap-2 w-full">
+                <input 
+                  type="text"
+                  value={newMacInput}
+                  onChange={(e) => setNewMacInput(e.target.value.toUpperCase())}
+                  placeholder="FF:FF:FF:FF:FF:FF"
+                  className="bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono w-full focus:border-primary outline-none"
+                />
+                <button 
+                  onClick={() => {
+                    if (newMacInput.length >= 1) {
+                      setMacAddress(newMacInput);
+                      localStorage.setItem('sky_player_device_id', newMacInput);
+                      setIsEditingMac(false);
+                      window.location.reload();
+                    }
+                  }}
+                  className="p-2 bg-primary text-black rounded-lg hover:bg-primary/80"
+                >
+                  <Check size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 w-full justify-center">
+                <span className="text-xl md:text-2xl font-mono font-bold text-white tracking-widest">{macAddress}</span>
+                <button 
+                  onClick={() => { navigator.clipboard.writeText(macAddress); onNotify('MAC copiée !', 'success'); }} 
+                  className="text-zinc-500 hover:text-primary p-2 hover:bg-zinc-800 rounded-lg transition-colors bg-zinc-900"
+                  title="Copier"
+                >
+                  <Copy size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

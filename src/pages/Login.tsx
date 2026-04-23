@@ -85,8 +85,14 @@ export const Login = () => {
 3. Dans "URIs de redirection autorisées", ajoutez :
    - ${redirectUri}
    - https://skyplayerapp.xyz/__/auth/handler`);
+      } else if (error.code === 'auth/invalid-credential' || error.message.includes('auth/invalid-credential')) {
+        alert(`ERREUR D'IDENTIFICATION (PROBLÈME DE CLÉ) : 
+        
+1. Allez dans votre Console Firebase > Authentification > Google.
+2. Cliquez sur 'Enregistrer' sans rien changer (cela rafraîchit la liaison avec Google Cloud).
+3. Vérifiez que votre Projet ID est bien correct dans le fichier de config.`);
       } else {
-        alert("Erreur Google Login: " + error.message);
+        alert("Erreur de connexion: " + error.message);
       }
     } finally {
       setLoading(false);

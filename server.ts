@@ -367,6 +367,9 @@ async function startServer() {
       }
 
       // 2. Create Activation
+      const now = new Date();
+      const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      
       const activationData = {
         resellerId,
         target_mac: normalizedMac,
@@ -377,11 +380,13 @@ async function startServer() {
         xtream_username: xtream_username || '',
         xtream_password: xtream_password || '',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiryDate: oneYearLater.toISOString(),
         last_connection: admin.firestore.FieldValue.serverTimestamp(),
         system: 'N/A',
         version: 'N/A',
         country_code: 'N/A',
-        current_channel: 'Hors-ligne'
+        current_channel: 'Hors-ligne',
+        status: 'ACTIF'
       };
       
       const docRef = await firestore.collection('activations').add(activationData);

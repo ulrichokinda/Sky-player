@@ -150,11 +150,12 @@ async function testConnection() {
     await getDocFromServer(firestoreDoc(db, 'test', 'connection'));
     console.log("Firebase connection successful");
   } catch (error: any) {
-    console.error("Firebase Connection Error Details:", error);
-    if(error?.message?.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration. The client is offline.");
-    } else if (error?.code === 'permission-denied') {
-      console.log("Firestore connection acknowledged (Permission denied is normal for test doc)");
+    // If it's a permission error, it means we ARE talking to Firebase, 
+    // but the test doc isn't public (which is fine).
+    if (error?.code === 'permission-denied') {
+      console.log("Firebase: Connection established (Auth verified)");
+    } else {
+      console.error("Firebase Connection Error Details:", error.message);
     }
   }
 }

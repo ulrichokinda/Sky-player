@@ -468,7 +468,11 @@ export const Dashboard = () => {
                         <td className="p-4">
                           <Badge variant={(c.status || 'ACTIF') === 'ACTIF' ? 'success' : 'error'}>{c.status || 'ACTIF'}</Badge>
                         </td>
-                        <td className="p-4 text-zinc-400">{c.expiry || new Date(new Date(c.createdAt).getTime() + 365*24*60*60*1000).toLocaleDateString('fr-FR')}</td>
+                        <td className="p-4 text-zinc-400">
+                          {c.expiryDate ? new Date(c.expiryDate).toLocaleDateString('fr-FR') : 
+                           c.createdAt ? new Date(typeof c.createdAt === 'string' ? c.createdAt : (c.createdAt.seconds * 1000 || c.createdAt)).toLocaleDateString('fr-FR') : 
+                           'N/A'}
+                        </td>
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-2">
                             <button 
