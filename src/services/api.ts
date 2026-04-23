@@ -8,6 +8,7 @@ import {
   doc, 
   getDoc, 
   getDocs, 
+  getDocsFromServer,
   setDoc, 
   addDoc, 
   updateDoc, 
@@ -297,40 +298,84 @@ export const api = {
   async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
     try {
       const normalizedMac = mac.toUpperCase().trim();
-      let response;
-
+      const q = query(collection(db, 'activations'), where('target_mac', '==', normalizedMac));
+      
+      // We use getDocs first
+      let snapshot;
       try {
-        // Option 1: Try hitting the server API which has Admin SDK and bypasses local Capacitor network blocks
-        // The URL must be absolute because Capacitor runs on localhost inside the phone
-        const hostUrl = import.meta.env.VITE_API_URL || 'https://ais-dev-lfwiazz5uklpv2b4uunzg7-511075437969.europe-west2.run.app';
-        response = await fetch(`${hostUrl}/api/mac/check/${encodeURIComponent(normalizedMac)}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          // The server proxy handles the empty check
-          return data;
+        snapshot = await getDocs(q);
+      } catch (e) {
+        console.warn("getDocs failed, falling back to REST");
+      }
+      
+      let foundData = null;
+      let foundId = null;
+
+      if (snapshot && !snapshot.empty) {
+        foundData = snapshot.docs[0].data();
+        foundId = snapshot.docs[0].id;
+      } else {
+        // IF EMPTY, bypass Capacitor WebSocket/Cache entirely using pure HTTPS REST API
+        try {
+          const restUrl = `https://firestore.googleapis.com/v1/projects/skyplayer-60634/databases/(default)/documents:runQuery`;
+          const restBody = {
+            structuredQuery: {
+              from: [{ collectionId: 'activations' }],
+              where: {
+                fieldFilter: {
+                  field: { fieldPath: 'target_mac' },
+                  op: 'EQUAL',
+                  value: { stringValue: normalizedMac }
+                }
+              }
+            }
+          };
+          
+          const restResponse = await fetch(restUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(restBody)
+          });
+          
+          if (restResponse.ok) {
+            const restData = await restResponse.json();
+            // runQuery returns an array of objects. If empty, it returns [{}] or 1 item with just readTime
+            if (restData && restData.length > 0 && restData[0].document) {
+              const doc = restData[0].document;
+              foundId = doc.name.split('/').pop();
+              
+              // Map REST API types to normal JS types
+              const mapFields = (fields: any) => {
+                const res: any = {};
+                for (const key in fields) {
+                  const valObj = fields[key];
+                  if ('stringValue' in valObj) res[key] = valObj.stringValue;
+                  else if ('integerValue' in valObj) res[key] = parseInt(valObj.integerValue);
+                  else if ('booleanValue' in valObj) res[key] = valObj.booleanValue;
+                  else if ('timestampValue' in valObj) res[key] = valObj.timestampValue;
+                  else res[key] = valObj;
+                }
+                return res;
+              };
+              
+              foundData = mapFields(doc.fields);
+            }
+          }
+        } catch (restErr) {
+          console.error("REST API fallback failed:", restErr);
         }
-      } catch (proxyError) {
-        console.warn("Proxy check failed, falling back to direct Firebase:", proxyError);
       }
 
-      // Option 2: Fallback to direct firebase
-      const q = query(collection(db, 'activations'), where('target_mac', '==', normalizedMac));
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
+      if (!foundData) {
         return { 
           active: false, 
           error: "MAC non activée. Veuillez l'ajouter." 
         };
       }
       
-      const docData = snapshot.docs[0];
-      const data = docData.data();
-      
       // Check for expiry locally
-      if (data.expiryDate) {
-        const expiry = new Date(data.expiryDate);
+      if (foundData.expiryDate) {
+        const expiry = new Date(foundData.expiryDate);
         if (expiry < new Date()) {
           return { 
             active: false, 
@@ -341,7 +386,7 @@ export const api = {
       
       return { 
         active: true, 
-        activation: { id: docData.id, ...data } 
+        activation: { id: foundId, ...foundData } 
       };
     } catch (error: any) {
       console.error('Check MAC error:', error);
