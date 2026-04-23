@@ -42,7 +42,10 @@ export const Login = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -188,7 +191,7 @@ export const Login = () => {
           <Button 
             variant="outline" 
             fullWidth 
-            onClick={handleGoogleLogin}
+            onClick={() => handleGoogleLogin({} as React.FormEvent)}
             loading={loading}
             className="border-zinc-800 hover:bg-white hover:text-black py-4"
           >

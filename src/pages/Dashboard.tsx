@@ -1072,16 +1072,6 @@ export const Dashboard = () => {
                   >
                     Générer 10 Crédits
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    icon={RefreshCw}
-                    onClick={handleForceUpdate}
-                    className="h-[46px] border-zinc-800 text-zinc-500 hover:text-white"
-                    title="Forcer la mise à jour"
-                  >
-                    MAJ
-                  </Button>
                 </div>
               )}
               <Card className="bg-primary/10 border-primary/20 p-4 py-2 flex items-center gap-3 shrink-0 whitespace-nowrap">
