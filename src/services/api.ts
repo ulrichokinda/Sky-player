@@ -297,24 +297,20 @@ export const api = {
   async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
     try {
       const normalizedMac = mac.toUpperCase().trim();
-      const q = query(collection(db, 'activations'), where('target_mac', '==', normalizedMac));
-      const snapshot = await getDocs(q);
+      const response = await fetch(`/api/mac/check/${encodeURIComponent(normalizedMac)}`);
       
-      if (snapshot.empty) {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
         return { 
           active: false, 
-          error: "MAC non activée. Veuillez l'ajouter dans votre panel revendeur." 
+          error: errorData.error || "MAC non activée ou erreur serveur." 
         };
       }
       
-      const data = snapshot.docs[0].data();
-      return { 
-        active: true, 
-        activation: { id: snapshot.docs[0].id, ...data } 
-      };
+      return await response.json();
     } catch (error: any) {
       console.error('Check MAC error:', error);
-      return { active: false, error: "Erreur de connexion au serveur." };
+      return { active: false, error: "Erreur de connexion au serveur d'activation." };
     }
   },
 

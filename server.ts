@@ -399,6 +399,51 @@ async function startServer() {
     }
   });
 
+  // Check MAC Status (Server-side proxy to bypass Firestore rules for devices)
+  app.get("/api/mac/check/:mac", async (req, res) => {
+    const { mac } = req.params;
+    
+    try {
+      const firestore = getDb();
+      if (!firestore) throw new Error("Base de données non accessible");
+      
+      const normalizedMac = mac.toUpperCase().trim();
+      console.log(`[API] Checking status for MAC: ${normalizedMac}`);
+      
+      const q = firestore.collection('activations').where('target_mac', '==', normalizedMac);
+      const snapshot = await q.get();
+      
+      if (snapshot.empty) {
+        return res.json({ 
+          active: false, 
+          error: "MAC non activée. Veuillez l'ajouter dans votre panel revendeur." 
+        });
+      }
+      
+      const doc = snapshot.docs[0];
+      const data = doc.data();
+      
+      // Check for expiry
+      if (data.expiryDate) {
+        const expiry = new Date(data.expiryDate);
+        if (expiry < new Date()) {
+          return res.json({ 
+            active: false, 
+            error: "Abonnement expiré. Veuillez le prolonger." 
+          });
+        }
+      }
+
+      res.json({ 
+        active: true, 
+        activation: { id: doc.id, ...data } 
+      });
+    } catch (error: any) {
+      console.error('MAC Check Error:', error);
+      res.status(500).json({ error: 'Erreur serveur lors de la vérification' });
+    }
+  });
+
   // Heartbeat / Device Info Update
   app.post("/api/activations/heartbeat", async (req, res) => {
     const { mac, system, version, country, channel } = req.body;
