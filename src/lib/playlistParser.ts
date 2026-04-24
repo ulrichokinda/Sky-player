@@ -76,8 +76,10 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
     
     if (Capacitor.isNativePlatform()) {
       // Use CapacitorHttp to bypass CORS on mobile
-      if (onProgress) onProgress('Connexion initiale native...');
-      const options = { url: urlWithCacheBuster, headers };
+      if (onProgress) onProgress('Connexion initiale native (via proxy)...');
+      const hostUrl = 'https://ais-dev-lfwiazz5uklpv2b4uunzg7-511075437969.europe-west2.run.app';
+      const proxyUrl = `${hostUrl}/api/proxy/playlist?url=${encodeURIComponent(urlWithCacheBuster)}`;
+      const options = { url: proxyUrl, headers: { 'Accept': '*/*' } };
       const response = await CapacitorHttp.get(options);
       
       if (response.status !== 200) {
@@ -87,9 +89,10 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
       if (onProgress) onProgress('Lecture des données natives...');
       content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
     } else {
-      // Use standard fetch for web
-      if (onProgress) onProgress('Connexion au serveur cible...');
-      const response = await fetch(urlWithCacheBuster, { headers });
+    // Use standard fetch for web with proxy
+      if (onProgress) onProgress('Connexion au serveur cible (via proxy)...');
+      const proxyUrl = `/api/proxy/playlist?url=${encodeURIComponent(urlWithCacheBuster)}`;
+      const response = await fetch(proxyUrl, { headers: { 'Accept': '*/*' } });
       if (!response.ok) {
         throw new Error(`Erreur HTTP: ${response.status}`);
       }

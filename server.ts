@@ -325,6 +325,27 @@ async function startServer() {
   });
   // --- END MONEYFUSION ---
 
+  // Proxy for playlist fetching to bypass blockages
+  app.get("/api/proxy/playlist", async (req, res) => {
+    const targetUrl = req.query.url as string;
+    if (!targetUrl) return res.status(400).json({ error: "Missing URL" });
+
+    try {
+      const response = await fetch(targetUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*'
+        }
+      });
+      const text = await response.text();
+      res.send(text);
+    } catch (e: any) {
+      console.error("Proxy error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+
   // Create Activation with Credit Deduction (Secure)
   app.post("/api/activations/create", async (req, res) => {
     const { resellerId, target_mac, credits_used, note, playlist_url, xtream_host, xtream_username, xtream_password } = req.body;
