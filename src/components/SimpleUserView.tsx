@@ -103,23 +103,27 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
 
           if (targetUrl && targetUrl !== playlistUrl) {
             setPlaylistUrl(targetUrl);
-            setLoadingState('Téléchargement de la liste des chaînes...');
+            setLoadingState('Connexion à votre serveur Xtream IPTV...');
+            setIsChecking(true);
             
-            // Add safety timeout for loading
+            // Extends safety timeout for loading to 45 seconds explicitly for heavy servers
             const timeout = setTimeout(() => {
               if (channels.length === 0) {
-                setError("Le chargement de la liste de lecture prend trop de temps (30s). L'hôte Xtream est trop lent ou bloque l'accès.");
+                setError("Le chargement de la liste de lecture prend trop de temps, l'hôte Xtream est trop lent ou bloque l'accès.");
                 setIsPlaylistError(true);
                 setIsChecking(false);
                 setLoadingState('');
               }
-            }, 30000);
+            }, 45000);
             
             try {
-              const parsedChannels = await fetchAndParsePlaylist(targetUrl);
-              setLoadingState('Analyse et extraction des chaînes...');
+              setLoadingState('Téléchargement de la base de données IPTV (cela peut prendre du temps)...');
+              const parsedChannels = await fetchAndParsePlaylist(targetUrl, (msg) => {
+                setLoadingState(msg);
+              });
               clearTimeout(timeout);
-              if (parsedChannels.length > 0) {
+              
+              if (parsedChannels && parsedChannels.length > 0) {
                 setChannels(parsedChannels);
                 setCurrentChannelIndex(0);
                 setError(null);
@@ -128,8 +132,9 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
                 setError("La liste de lecture est vide, invalide, ou l'accès a été refusé par le serveur cible.");
                 setIsPlaylistError(true);
               }
-            } catch (err) {
+            } catch (err: any) {
               clearTimeout(timeout);
+              console.error("SimpleUserView parsing error", err);
               setError("Erreur réseau lors du téléchargement de la liste. Le serveur cible bloque peut-être la connexion.");
               setIsPlaylistError(true);
             }
@@ -311,8 +316,8 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
             <div className="flex flex-col items-center gap-6 py-12">
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
               <div className="flex flex-col items-center gap-2">
-                <p className="text-lg text-white font-medium">{loadingState || "Vérification de l'activation..."}</p>
-                <div className="w-48 h-1 bg-zinc-800 rounded-full overflow-hidden mt-2">
+                <p className="text-lg text-white font-medium text-center">{loadingState || "Vérification de l'activation..."}</p>
+                <div className="w-48 h-1 bg-zinc-800 rounded-full overflow-hidden mt-4">
                   <div className="h-full bg-primary animate-pulse w-full"></div>
                 </div>
               </div>

@@ -63,7 +63,7 @@ export const parseJSONPlaylist = (content: string): Channel[] => {
   }
 };
 
-export const fetchAndParsePlaylist = async (url: string): Promise<Channel[]> => {
+export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: string) => void): Promise<Channel[]> => {
   try {
     let content = '';
     const headers = {
@@ -73,6 +73,7 @@ export const fetchAndParsePlaylist = async (url: string): Promise<Channel[]> => 
     
     if (Capacitor.isNativePlatform()) {
       // Use CapacitorHttp to bypass CORS on mobile
+      if (onProgress) onProgress('Connexion initiale native...');
       const options = { url, headers };
       const response = await CapacitorHttp.get(options);
       
@@ -80,45 +81,60 @@ export const fetchAndParsePlaylist = async (url: string): Promise<Channel[]> => 
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
       
+      if (onProgress) onProgress('Lecture des données natives...');
       content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
     } else {
       // Use standard fetch for web
+      if (onProgress) onProgress('Connexion au serveur cible...');
       const response = await fetch(url, { headers });
       if (!response.ok) {
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
+      
+      // We could use Response.body reader for precise progression on web, but text() is safer for now
+      if (onProgress) onProgress('Téléchargement du fichier...');
       content = await response.text();
     }
     
     if (!content) throw new Error("Contenu vide reçu du serveur");
 
     // Force string matching
+    if (onProgress) onProgress('Analyse du document (' + Math.round(content.length / 1024) + ' KB)...');
     const contentStr = String(content).trim();
 
+    let channels: Channel[] = [];
     if (contentStr.startsWith('{') || contentStr.startsWith('[')) {
-      return parseJSONPlaylist(contentStr);
+      channels = parseJSONPlaylist(contentStr);
     } else if (contentStr.includes('#EXTM3U') || contentStr.includes('#EXTINF')) {
-      return parseM3U(contentStr);
+      channels = parseM3U(contentStr);
     } else {
       // If none matches, check if it's an API link
       if (url.includes('username=') && url.includes('password=')) {
         // Fallback: try parsing it as M3U anyway just in case it lacks headers
+        if (onProgress) onProgress('Tentative de secours M3U...');
         const fallBackChannels = parseM3U(contentStr);
-        if (fallBackChannels.length > 0) return fallBackChannels;
-        
-        console.error("Format de playlist invalide ou accès refusé par le fournisseur.");
-        return [];
+        if (fallBackChannels.length > 0) channels = fallBackChannels;
+        else {
+          console.error("Format de playlist invalide ou accès refusé par le fournisseur.");
+          return [];
+        }
+      } else {
+        // If it's a direct stream link
+        channels = [{ name: 'Flux Direct', url }];
       }
-      // If it's a direct stream link
-      return [{ name: 'Flux Direct', url }];
     }
+    
+    if (onProgress) onProgress('Extraction terminée (' + channels.length + ' chaînes).');
+    return channels;
   } catch (e: any) {
     console.error('Error fetching playlist (CORS, network error, or blocked by provider):', e);
     
     if (url.includes('username=') && url.includes('password=')) {
       console.error("Ceci est un lien d'API Xtream qui a échoué. Détails:", e.message);
-      return []; // Return empty array to trigger actual error in SimpleUserView
+      // Throw the error so the UI catch block can display the exact failure to the user instead of generic "empty list"
+      throw e;
     }
-    return [{ name: 'Flux Direct', url }];
+    // Also throw for other standard failures so it hits the catch block
+    throw e;
   }
 };
