@@ -84,12 +84,14 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   const [newMacInput, setNewMacInput] = useState('');
 
   const [isPlaylistError, setIsPlaylistError] = useState(false);
+  const [loadingState, setLoadingState] = useState(''); // Text for the loading step
 
   useEffect(() => {
     if (macAddress === '00:00:00:00:00:00') return;
 
     const checkActivation = async () => {
       try {
+        setLoadingState('Connexion au serveur SkyPlayer...');
         const data = await api.checkMacStatus(macAddress);
         if (data.active) {
           let targetUrl = data.activation?.playlist_url;
@@ -101,6 +103,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
 
           if (targetUrl && targetUrl !== playlistUrl) {
             setPlaylistUrl(targetUrl);
+            setLoadingState('Téléchargement de la liste des chaînes...');
             
             // Add safety timeout for loading
             const timeout = setTimeout(() => {
@@ -108,11 +111,13 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
                 setError("Le chargement de la liste de lecture prend trop de temps (30s). L'hôte Xtream est trop lent ou bloque l'accès.");
                 setIsPlaylistError(true);
                 setIsChecking(false);
+                setLoadingState('');
               }
             }, 30000);
             
             try {
               const parsedChannels = await fetchAndParsePlaylist(targetUrl);
+              setLoadingState('Analyse et extraction des chaînes...');
               clearTimeout(timeout);
               if (parsedChannels.length > 0) {
                 setChannels(parsedChannels);
@@ -139,6 +144,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
         setIsPlaylistError(false);
       } finally {
         setIsChecking(false);
+        setLoadingState('');
       }
     };
 
@@ -205,19 +211,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col overflow-y-auto custom-scrollbar w-full pb-8">
-      {/* Top Marquee */}
-      <div className="w-full bg-primary/20 border-b border-primary/30 py-1.5 overflow-hidden whitespace-nowrap shrink-0">
-        <div className="inline-block animate-marquee shrink-0">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-8">
-            🎁 ESSAI GRATUIT DE 14 JOURS DISPONIBLE APRÈS INSTALLATION — PROFITEZ DE TOUTES LES FONCTIONNALITÉS PREMIUM SANS FRAIS — SKY PLAYER PRO : LA RÉFÉRENCE DU STREAMING 🎁
-          </span>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-8">
-            🎁 ESSAI GRATUIT DE 14 JOURS DISPONIBLE APRÈS INSTALLATION — PROFITEZ DE TOUTES LES FONCTIONNALITÉS PREMIUM SANS FRAIS — SKY PLAYER PRO : LA RÉFÉRENCE DU STREAMING 🎁
-          </span>
-        </div>
-      </div>
-
-      <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-4 md:p-8">
+      <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-4 md:p-8 mt-10">
         
         {/* Header Section */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 shrink-0 bg-zinc-900/30 p-6 rounded-3xl border border-white/5">
@@ -313,10 +307,15 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
 
         {/* Content Section */}
         <div className="flex flex-col gap-6 max-w-2xl mx-auto w-full shrink-0">
-          {isChecking ? (
-            <div className="flex flex-col items-center gap-4 py-8">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <p className="text-sm text-zinc-500 font-medium">Vérification de l'activation en cours...</p>
+          {isChecking || loadingState ? (
+            <div className="flex flex-col items-center gap-6 py-12">
+              <Loader2 className="w-12 h-12 text-primary animate-spin" />
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-lg text-white font-medium">{loadingState || "Vérification de l'activation..."}</p>
+                <div className="w-48 h-1 bg-zinc-800 rounded-full overflow-hidden mt-2">
+                  <div className="h-full bg-primary animate-pulse w-full"></div>
+                </div>
+              </div>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center gap-6 py-8 text-center">
@@ -358,29 +357,8 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               )}
               
               <div className="flex flex-col gap-2 w-full mt-4">
-                {!isPlaylistError && (
-                  <Button 
-                    onClick={async () => {
-                      try {
-                        setIsChecking(true);
-                        await api.activateTrial(macAddress);
-                        onNotify('Essai gratuit activé !', 'success');
-                        window.location.reload();
-                      } catch (err) {
-                        onNotify('Erreur lors de l\'activation de l\'essai', 'error');
-                      } finally {
-                        setIsChecking(false);
-                      }
-                    }} 
-                    variant="primary" 
-                    fullWidth
-                    icon={Gift}
-                  >
-                    Activer l'essai gratuit (14 jours)
-                  </Button>
-                )}
                 <Button onClick={() => window.location.reload()} variant="outline" size="sm" icon={RotateCcw} fullWidth>
-                  Réessayer la vérification
+                  Rafraîchir
                 </Button>
               </div>
             </div>
@@ -389,22 +367,8 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-primary/10 border border-primary/20 p-4 rounded-2xl flex items-center gap-4"
-              >
-                <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0">
-                  <Gift size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-primary">Essai Gratuit de 14 Jours</h4>
-                  <p className="text-xs text-zinc-400">Profitez de toutes les fonctionnalités premium gratuitement pendant 14 jours après l'installation.</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4"
+                className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4 mt-4"
               >
                 <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 shrink-0">
                   <ShieldAlert size={20} />

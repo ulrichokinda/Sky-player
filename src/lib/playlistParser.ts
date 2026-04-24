@@ -67,10 +67,8 @@ export const fetchAndParsePlaylist = async (url: string): Promise<Channel[]> => 
   try {
     let content = '';
     const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': url.split('/').slice(0, 3).join('/') + '/',
-      'Origin': url.split('/').slice(0, 3).join('/'),
-      'Accept': '*/*'
+      'User-Agent': 'IPTVSmartersPro',
+      'Accept': '*/* spielte'
     };
     
     if (Capacitor.isNativePlatform()) {
@@ -82,7 +80,7 @@ export const fetchAndParsePlaylist = async (url: string): Promise<Channel[]> => 
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
       
-      content = response.data;
+      content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
     } else {
       // Use standard fetch for web
       const response = await fetch(url, { headers });
@@ -94,13 +92,20 @@ export const fetchAndParsePlaylist = async (url: string): Promise<Channel[]> => 
     
     if (!content) throw new Error("Contenu vide reçu du serveur");
 
-    if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
-      return parseJSONPlaylist(content);
-    } else if (content.includes('#EXTM3U')) {
-      return parseM3U(content);
+    // Force string matching
+    const contentStr = String(content).trim();
+
+    if (contentStr.startsWith('{') || contentStr.startsWith('[')) {
+      return parseJSONPlaylist(contentStr);
+    } else if (contentStr.includes('#EXTM3U') || contentStr.includes('#EXTINF')) {
+      return parseM3U(contentStr);
     } else {
       // If none matches, check if it's an API link
       if (url.includes('username=') && url.includes('password=')) {
+        // Fallback: try parsing it as M3U anyway just in case it lacks headers
+        const fallBackChannels = parseM3U(contentStr);
+        if (fallBackChannels.length > 0) return fallBackChannels;
+        
         console.error("Format de playlist invalide ou accès refusé par le fournisseur.");
         return [];
       }
