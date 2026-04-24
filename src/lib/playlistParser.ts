@@ -65,16 +65,19 @@ export const parseJSONPlaylist = (content: string): Channel[] => {
 
 export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: string) => void): Promise<Channel[]> => {
   try {
+    const urlWithCacheBuster = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
     let content = '';
     const headers = {
-      'User-Agent': 'IPTVSmartersPro',
-      'Accept': '*/* spielte'
+      'User-Agent': 'Mozilla/5.0 (Android 8.0; Mobile; rv:60.0) Gecko/60.0 Firefox/60.0',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'fr-FR,fr;q=0.8,en-US;q=0.5,en;q=0.3',
+      'Connection': 'keep-alive'
     };
     
     if (Capacitor.isNativePlatform()) {
       // Use CapacitorHttp to bypass CORS on mobile
       if (onProgress) onProgress('Connexion initiale native...');
-      const options = { url, headers };
+      const options = { url: urlWithCacheBuster, headers };
       const response = await CapacitorHttp.get(options);
       
       if (response.status !== 200) {
@@ -86,7 +89,7 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
     } else {
       // Use standard fetch for web
       if (onProgress) onProgress('Connexion au serveur cible...');
-      const response = await fetch(url, { headers });
+      const response = await fetch(urlWithCacheBuster, { headers });
       if (!response.ok) {
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
