@@ -8,18 +8,17 @@ import {
   doc, 
   getDoc, 
   getDocs, 
-  getDocsFromServer,
   setDoc, 
   addDoc, 
   updateDoc, 
   deleteDoc,
   query, 
   where, 
-  onSnapshot,
   OperationType,
   handleFirestoreError
 } from '../firebase';
 import { serverTimestamp, Timestamp } from 'firebase/firestore';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 export interface UserProfile {
   uid: string;
@@ -52,6 +51,7 @@ export interface Activation {
   xtream_password?: string;
   createdAt: any;
   current_channel?: string;
+  expiryDate?: any;
 }
 
 export interface Payment {
@@ -71,6 +71,38 @@ export const isTrialExpired = (trialStartedAt?: any) => {
   const trialDate = trialStartedAt instanceof Timestamp ? trialStartedAt.toDate() : new Date(trialStartedAt);
   const trialDuration = 21 * 24 * 60 * 60 * 1000;
   return new Date().getTime() - trialDate.getTime() > trialDuration;
+};
+
+const nativeFetch = async (url: string, options: any = {}) => {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const response = await CapacitorHttp.request({
+        url: url.startsWith('/') ? `${window.location.origin}${url}` : url,
+        method: options.method || 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        },
+        data: options.body ? JSON.parse(options.body) : undefined,
+        connectTimeout: 30000,
+        readTimeout: 30000
+      });
+      
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        headers: {
+          get: (name: string) => response.headers[name] || response.headers[name.toLowerCase()]
+        },
+        json: async () => response.data,
+        text: async () => typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+      };
+    } catch (e) {
+      console.error('Native fetch error:', e);
+      throw e;
+    }
+  }
+  return fetch(url, options);
 };
 
 export const api = {
@@ -164,18 +196,11 @@ export const api = {
 
   async createActivation(activation: Partial<Activation>) {
     try {
-      const response = await fetch('/api/activations/create', {
+      const response = await nativeFetch('/api/activations/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(activation)
       });
-      
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Expected JSON but got:', text.substring(0, 100));
-        throw new Error('Le serveur a renvoyé une réponse invalide (HTML au lieu de JSON). Veuillez vérifier la configuration Firebase dans les réglages.');
-      }
       
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erreur lors de l\'activation');
@@ -224,24 +249,6 @@ export const api = {
     }
   },
 
-  async initYabetooPayment(data: { userId: string; amount: number; credits: number; phone: string; network: string; description?: string }) {
-    const response = await fetch('/api/payments/yabetoo/init', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Erreur lors de l\'initialisation du paiement');
-    return result;
-  },
-
-  async verifyYabetooPayment(paymentId: string) {
-    const response = await fetch(`/api/payments/yabetoo/status/${paymentId}`);
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Erreur lors de la vérification');
-    return result;
-  },
-
   async getPayments(userId: string): Promise<Payment[]> {
     try {
       const q = query(collection(db, 'payments'), where('userId', '==', userId));
@@ -266,7 +273,7 @@ export const api = {
   },
 
   async initiatePayment(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number; provider: string; methodId: string }) {
-    const response = await fetch('/api/payments/initiate', {
+    const response = await nativeFetch('/api/payments/initiate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -282,12 +289,27 @@ export const api = {
     return this.initiatePayment({ ...data, provider: 'yabetoo' });
   },
 
-  async initiateStripePayment(data: { userId: string; amount: number; credits_purchased: number }) {
-    return this.initiatePayment({ ...data, phoneNumber: 'N/A', provider: 'stripe', methodId: 'card' });
-  },
-
   async initiateBkaPay(data: { userId: string; amount: number; phoneNumber: string; credits_purchased: number; methodId: string }) {
     return this.initiatePayment({ ...data, provider: 'bkapay' });
+  },
+
+  async initYabetooPayment(data: any) {
+    return this.nativeApiCall('/api/payments/yabetoo/init', 'POST', data);
+  },
+
+  async verifyYabetooPayment(paymentId: string) {
+    return this.nativeApiCall(`/api/payments/yabetoo/status/${paymentId}`, 'GET');
+  },
+
+  async nativeApiCall(url: string, method: string, body?: any) {
+    const response = await nativeFetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API Error');
+    return data;
   },
 
   async updateUserPassword(user: any, newPassword: string) {
@@ -295,12 +317,25 @@ export const api = {
     return updatePassword(user, newPassword);
   },
 
+  async generateCredits(uid: string, amount: number) {
+    try {
+      const userDoc = doc(db, 'users', uid);
+      const snapshot = await getDoc(userDoc);
+      if (!snapshot.exists()) throw new Error('User not found');
+      const currentCredits = snapshot.data().credits || 0;
+      await updateDoc(userDoc, { credits: currentCredits + amount });
+      return currentCredits + amount;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+    }
+  },
+
   async checkMacStatus(mac: string): Promise<{ active: boolean; activation?: any; error?: string }> {
     try {
       const normalizedMac = mac.toUpperCase().trim();
-      const q = query(collection(db, 'activations'), where('target_mac', '==', normalizedMac));
+      const activationsRef = collection(db, 'activations');
+      const q = query(activationsRef, where('target_mac', '==', normalizedMac));
       
-      // We use getDocs first
       let snapshot;
       try {
         snapshot = await getDocs(q);
@@ -308,14 +343,14 @@ export const api = {
         console.warn("getDocs failed, falling back to REST");
       }
       
-      let foundData = null;
-      let foundId = null;
+      let foundData: any = null;
+      let foundId: string | null = null;
 
       if (snapshot && !snapshot.empty) {
         foundData = snapshot.docs[0].data();
         foundId = snapshot.docs[0].id;
       } else {
-        // IF EMPTY, bypass Capacitor WebSocket/Cache entirely using pure HTTPS REST API
+        // REST Fallback for extreme cases
         try {
           const restUrl = `https://firestore.googleapis.com/v1/projects/skyplayer-60634/databases/(default)/documents:runQuery`;
           const restBody = {
@@ -331,20 +366,17 @@ export const api = {
             }
           };
           
-          const restResponse = await fetch(restUrl, {
+          const restResponse = await nativeFetch(restUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(restBody)
           });
           
           if (restResponse.ok) {
-            const restData = await restResponse.json();
-            // runQuery returns an array of objects. If empty, it returns [{}] or 1 item with just readTime
+            const restData: any = await restResponse.json();
             if (restData && restData.length > 0 && restData[0].document) {
               const doc = restData[0].document;
               foundId = doc.name.split('/').pop();
               
-              // Map REST API types to normal JS types
               const mapFields = (fields: any) => {
                 const res: any = {};
                 for (const key in fields) {
@@ -353,11 +385,9 @@ export const api = {
                   else if ('integerValue' in valObj) res[key] = parseInt(valObj.integerValue);
                   else if ('booleanValue' in valObj) res[key] = valObj.booleanValue;
                   else if ('timestampValue' in valObj) res[key] = valObj.timestampValue;
-                  else res[key] = valObj;
                 }
                 return res;
               };
-              
               foundData = mapFields(doc.fields);
             }
           }
@@ -367,43 +397,26 @@ export const api = {
       }
 
       if (!foundData) {
-        return { 
-          active: false, 
-          error: "MAC non activée. Veuillez l'ajouter." 
-        };
+        return { active: false, error: "MAC non activée. Veuillez l'ajouter." };
       }
       
-      // Check for expiry locally
       if (foundData.expiryDate) {
         const expiry = new Date(foundData.expiryDate);
         if (expiry < new Date()) {
-          return { 
-            active: false, 
-            error: "Abonnement expiré. Veuillez le prolonger." 
-          };
+          return { active: false, error: "Abonnement expiré. Veuillez le prolonger." };
         }
       }
       
-      return { 
-        active: true, 
-        activation: { id: foundId, ...foundData } 
-      };
+      return { active: true, activation: { id: foundId, ...foundData } };
     } catch (error: any) {
       console.error('Check MAC error:', error);
-      let errorMsg = "Erreur de connexion Firebase.";
-      if (error && error.code) {
-        errorMsg += ` Code: ${error.code}.`;
-      }
-      if (error && error.message) {
-        errorMsg += ` Détail: ${error.message}`;
-      }
-      return { active: false, error: errorMsg };
+      return { active: false, error: "Erreur de connexion Firebase." };
     }
   },
 
   async sendHeartbeat(data: { mac: string; system?: string; version?: string; country?: string; channel?: string }) {
     try {
-      await fetch('/api/activations/heartbeat', {
+      await nativeFetch('/api/activations/heartbeat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -415,23 +428,6 @@ export const api = {
 
   async updateCurrentChannel(mac: string, channelName: string) {
     return this.sendHeartbeat({ mac, channelName });
-  },
-
-  // Admin Functions
-  async generateCredits(uid: string, amount: number) {
-    try {
-      const userDoc = doc(db, 'users', uid);
-      const snapshot = await getDoc(userDoc);
-      if (!snapshot.exists()) throw new Error('User not found');
-      
-      const currentCredits = snapshot.data().credits || 0;
-      await updateDoc(userDoc, {
-        credits: currentCredits + amount
-      });
-      return currentCredits + amount;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
-    }
   },
 
   async getAllActivations(): Promise<Activation[]> {

@@ -65,54 +65,70 @@ export const parseJSONPlaylist = (content: string): Channel[] => {
 
 export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: string) => void): Promise<Channel[]> => {
   const urlWithCacheBuster = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
-  const hostUrl = 'https://ais-dev-lfwiazz5uklpv2b4uunzg7-511075437969.europe-west2.run.app';
+  const isNative = Capacitor.isNativePlatform();
   
-  const performFetch = async (targetUrl: string, useProxy: boolean): Promise<string> => {
-    const headers = {
-      'User-Agent': 'IPTVSmartersPro',
-      'Accept': '*/*'
-    };
-
-    if (useProxy) {
-      const pUrl = Capacitor.isNativePlatform() 
-        ? `${hostUrl}/api/proxy/playlist?url=${encodeURIComponent(targetUrl)}`
-        : `/api/proxy/playlist?url=${encodeURIComponent(targetUrl)}`;
-      
-      if (onProgress) onProgress('Utilisation du tunnel sécurisé...');
-      
-      if (Capacitor.isNativePlatform()) {
-        const response = await CapacitorHttp.get({ url: pUrl, headers: { 'Accept': '*/*' } });
-        if (response.status !== 200) throw new Error(`Proxy error ${response.status}`);
-        return typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-      } else {
-        const response = await fetch(pUrl);
-        if (!response.ok) throw new Error(`Proxy error ${response.status}`);
-        return await response.text();
-      }
-    } else {
-      if (onProgress) onProgress('Connexion directe au fournisseur...');
-      if (Capacitor.isNativePlatform()) {
-        const response = await CapacitorHttp.get({ url: targetUrl, headers });
-        if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
-        return typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-      } else {
-        // Direct fetch on web (often fails due to CORS, but we try as last resort)
-        const response = await fetch(targetUrl, { headers });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.text();
-      }
+  const NATIVE_FINGERPRINTS = [
+    {
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G981B) SmartersPlayer/3.0.0',
+      'X-Requested-With': 'com.nst.iptvsmarterstvbox'
+    },
+    {
+      'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+      'X-Requested-With': 'org.videolan.vlc'
+    },
+    {
+      'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) SmartersPlayer/1.0.0',
+      'X-Requested-With': 'com.samsung.tv.iptv'
     }
-  };
+  ];
 
   try {
     let content = '';
-    try {
-      // Step 1: Try Proxy
-      content = await performFetch(urlWithCacheBuster, true);
-    } catch (proxyError: any) {
-      console.warn("Proxy attempt failed, trying direct...", proxyError);
-      // Step 2: Try Direct
-      content = await performFetch(urlWithCacheBuster, false);
+
+    if (isNative) {
+      if (onProgress) onProgress('Initialisation de la pile réseau native...');
+      
+      let lastError = null;
+      
+      // Essayer chaque empreinte jusqu'à ce qu'une fonctionne
+      for (let i = 0; i < NATIVE_FINGERPRINTS.length; i++) {
+        const fingerprint = NATIVE_FINGERPRINTS[i];
+        if (onProgress) onProgress(`Optimisation du tunnel (Tentative ${i + 1}/${NATIVE_FINGERPRINTS.length})...`);
+        
+        try {
+          const response = await CapacitorHttp.get({ 
+            url: urlWithCacheBuster, 
+            headers: {
+              ...fingerprint,
+              'Accept': '*/*',
+              'Accept-Language': 'fr-FR',
+              'Connection': 'keep-alive'
+            },
+            connectTimeout: 30000,
+            readTimeout: 60000
+          });
+          
+          if (response.status === 200) {
+            content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+            if (content && content.length > 100) break; // Succès probable
+          }
+          lastError = `Erreur HTTP ${response.status}`;
+        } catch (e: any) {
+          lastError = e.message;
+          console.warn(`Fingerprint ${i} failed:`, e);
+        }
+      }
+
+      if (!content) {
+        throw new Error(`Échec de connexion après ${NATIVE_FINGERPRINTS.length} tentatives natives: ${lastError}`);
+      }
+    } else {
+      // WEB PREVIEW - Needs Proxy for CORS
+      if (onProgress) onProgress('Passage par tunnel web (Aperçu)...');
+      const proxyUrl = `/api/proxy/playlist?url=${encodeURIComponent(urlWithCacheBuster)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error(`Tunnel instable (${response.status})`);
+      content = await response.text();
     }
     
     if (!content) throw new Error("Réponse vide du serveur");

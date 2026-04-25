@@ -92,24 +92,31 @@ export const VideoPlayer: React.FC<PlayerProps> = ({ url, title }) => {
         enableWorker: true,
         lowLatencyMode: false,
         backBufferLength: 90,
-        maxBufferLength: isTurboStart ? 5 : (lowBandwidthMode ? 60 : 30),
-        maxMaxBufferLength: 120,
-        maxBufferSize: lowBandwidthMode ? 100 * 1000 * 1000 : 60 * 1000 * 1000,
-        manifestLoadingMaxRetry: 10,
-        manifestLoadingRetryDelay: 2000,
-        levelLoadingMaxRetry: 10,
-        fragLoadingMaxRetry: 20,
-        fragLoadingRetryDelay: 1000,
-        startLevel: 0, 
-        abrEwmaFastLive: lowBandwidthMode ? 1.0 : 2.0,
-        abrEwmaSlowLive: lowBandwidthMode ? 2.0 : 4.0,
+        maxBufferLength: isTurboStart ? 10 : (lowBandwidthMode ? 90 : 60),
+        maxMaxBufferLength: 180,
+        maxBufferSize: lowBandwidthMode ? 200 * 1000 * 1000 : 120 * 1000 * 1000,
+        manifestLoadingMaxRetry: 20,
+        manifestLoadingRetryDelay: 500,
+        manifestLoadingMaxRetryTimeout: 64000,
+        levelLoadingMaxRetry: 20,
+        levelLoadingRetryDelay: 500,
+        fragLoadingMaxRetry: 30,
+        fragLoadingRetryDelay: 500,
+        startLevel: -1, // Auto
+        abrEwmaFastLive: 1.0,
+        abrEwmaSlowLive: 3.0,
         capLevelToPlayerSize: true,
-        initialLiveManifestSize: 1,
-        maxLoadingDelay: 4,
-        manifestLoadingTimeOut: 10000,
-        fragLoadingTimeOut: 20000,
-        xhrSetup: (xhr: XMLHttpRequest) => {
-          xhr.timeout = 15000;
+        initialLiveManifestSize: 3,
+        maxLoadingDelay: 2,
+        manifestLoadingTimeOut: 30000,
+        fragLoadingTimeOut: 45000,
+        xhrSetup: (xhr: XMLHttpRequest, url: string) => {
+          xhr.timeout = 40000;
+          // EMPREINTE NATIVE AVANCÉE
+          xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (Linux; Android 10; SM-G981B) SmartersPlayer/3.0.0');
+          xhr.setRequestHeader('X-Requested-With', 'com.nst.iptvsmarterstvbox');
+          xhr.setRequestHeader('Accept', '*/*');
+          xhr.setRequestHeader('Connection', 'keep-alive');
         }
       });
       
