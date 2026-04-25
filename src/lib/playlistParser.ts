@@ -64,83 +64,85 @@ export const parseJSONPlaylist = (content: string): Channel[] => {
 };
 
 export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: string) => void): Promise<Channel[]> => {
-  try {
-    const urlWithCacheBuster = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
-    let content = '';
+  const urlWithCacheBuster = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+  const hostUrl = 'https://ais-dev-lfwiazz5uklpv2b4uunzg7-511075437969.europe-west2.run.app';
+  
+  const performFetch = async (targetUrl: string, useProxy: boolean): Promise<string> => {
     const headers = {
-      'User-Agent': 'Mozilla/5.0 (Android 8.0; Mobile; rv:60.0) Gecko/60.0 Firefox/60.0',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'fr-FR,fr;q=0.8,en-US;q=0.5,en;q=0.3',
-      'Connection': 'keep-alive'
+      'User-Agent': 'IPTVSmartersPro',
+      'Accept': '*/*'
     };
-    
-    if (Capacitor.isNativePlatform()) {
-      // Use CapacitorHttp to bypass CORS on mobile
-      if (onProgress) onProgress('Connexion initiale native (via proxy)...');
-      const hostUrl = 'https://ais-dev-lfwiazz5uklpv2b4uunzg7-511075437969.europe-west2.run.app';
-      const proxyUrl = `${hostUrl}/api/proxy/playlist?url=${encodeURIComponent(urlWithCacheBuster)}`;
-      const options = { url: proxyUrl, headers: { 'Accept': '*/*' } };
-      const response = await CapacitorHttp.get(options);
+
+    if (useProxy) {
+      const pUrl = Capacitor.isNativePlatform() 
+        ? `${hostUrl}/api/proxy/playlist?url=${encodeURIComponent(targetUrl)}`
+        : `/api/proxy/playlist?url=${encodeURIComponent(targetUrl)}`;
       
-      if (response.status !== 200) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      if (onProgress) onProgress('Utilisation du tunnel sécurisé...');
+      
+      if (Capacitor.isNativePlatform()) {
+        const response = await CapacitorHttp.get({ url: pUrl, headers: { 'Accept': '*/*' } });
+        if (response.status !== 200) throw new Error(`Proxy error ${response.status}`);
+        return typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+      } else {
+        const response = await fetch(pUrl);
+        if (!response.ok) throw new Error(`Proxy error ${response.status}`);
+        return await response.text();
       }
-      
-      if (onProgress) onProgress('Lecture des données natives...');
-      content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
     } else {
-    // Use standard fetch for web with proxy
-      if (onProgress) onProgress('Connexion au serveur cible (via proxy)...');
-      const proxyUrl = `/api/proxy/playlist?url=${encodeURIComponent(urlWithCacheBuster)}`;
-      const response = await fetch(proxyUrl, { headers: { 'Accept': '*/*' } });
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      if (onProgress) onProgress('Connexion directe au fournisseur...');
+      if (Capacitor.isNativePlatform()) {
+        const response = await CapacitorHttp.get({ url: targetUrl, headers });
+        if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
+        return typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+      } else {
+        // Direct fetch on web (often fails due to CORS, but we try as last resort)
+        const response = await fetch(targetUrl, { headers });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.text();
       }
-      
-      // We could use Response.body reader for precise progression on web, but text() is safer for now
-      if (onProgress) onProgress('Téléchargement du fichier...');
-      content = await response.text();
+    }
+  };
+
+  try {
+    let content = '';
+    try {
+      // Step 1: Try Proxy
+      content = await performFetch(urlWithCacheBuster, true);
+    } catch (proxyError: any) {
+      console.warn("Proxy attempt failed, trying direct...", proxyError);
+      // Step 2: Try Direct
+      content = await performFetch(urlWithCacheBuster, false);
     }
     
-    if (!content) throw new Error("Contenu vide reçu du serveur");
+    if (!content) throw new Error("Réponse vide du serveur");
 
     // Force string matching
-    if (onProgress) onProgress('Analyse du document (' + Math.round(content.length / 1024) + ' KB)...');
+    if (onProgress) onProgress('Décodage du flux (' + Math.round(content.length / 1024) + ' KB)...');
     const contentStr = String(content).trim();
 
     let channels: Channel[] = [];
     if (contentStr.startsWith('{') || contentStr.startsWith('[')) {
+      if (onProgress) onProgress('Analyse du JSON...');
       channels = parseJSONPlaylist(contentStr);
     } else if (contentStr.includes('#EXTM3U') || contentStr.includes('#EXTINF')) {
+      if (onProgress) onProgress('Analyse du M3U (Lecture des lignes)...');
       channels = parseM3U(contentStr);
     } else {
-      // If none matches, check if it's an API link
       if (url.includes('username=') && url.includes('password=')) {
-        // Fallback: try parsing it as M3U anyway just in case it lacks headers
         if (onProgress) onProgress('Tentative de secours M3U...');
         const fallBackChannels = parseM3U(contentStr);
         if (fallBackChannels.length > 0) channels = fallBackChannels;
-        else {
-          console.error("Format de playlist invalide ou accès refusé par le fournisseur.");
-          return [];
-        }
+        else throw new Error("Format de réponse non reconnu (ni M3U ni JSON)");
       } else {
-        // If it's a direct stream link
         channels = [{ name: 'Flux Direct', url }];
       }
     }
     
-    if (onProgress) onProgress('Extraction terminée (' + channels.length + ' chaînes).');
+    if (onProgress) onProgress(`${channels.length} chaînes chargées avec succès.`);
     return channels;
   } catch (e: any) {
-    console.error('Error fetching playlist (CORS, network error, or blocked by provider):', e);
-    
-    if (url.includes('username=') && url.includes('password=')) {
-      console.error("Ceci est un lien d'API Xtream qui a échoué. Détails:", e.message);
-      // Throw the error so the UI catch block can display the exact failure to the user instead of generic "empty list"
-      throw e;
-    }
-    // Also throw for other standard failures so it hits the catch block
+    console.error('Fetch error:', e);
     throw e;
   }
 };

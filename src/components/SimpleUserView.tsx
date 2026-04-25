@@ -10,6 +10,7 @@ import { api } from '../services/api';
 import { BrandingProvider, useBranding } from './BrandingProvider';
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
+import { getTVPlatform, isTV } from '../lib/TVUtils';
 
 interface SimpleUserViewProps {
   channels: any[];
@@ -21,6 +22,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lowDataMode, setLowDataMode] = useState(false);
   const [macAddress, setMacAddress] = useState('00:00:00:00:00:00');
+  const [platformName, setPlatformName] = useState(getTVPlatform());
   const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [currentChannelIndex, setCurrentChannelIndex] = useState(0);
@@ -38,23 +40,51 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
         try {
           const id = await Device.getId();
           if (id.identifier) {
-            // Keep it consistent. If it's already a MAC format in storage, keep it.
-            // If it's the first time on native, use the identifier.
+            // Priority 1: Use identifier but clean it
+            let cleanId = id.identifier.toUpperCase().replace(/[^A-F0-9]/g, '');
+            
+            // If it's a short ID (like Android ID usually 16 hex chars), format it as MAC-style for user familiarity
+            if (cleanId.length >= 12) {
+              cleanId = cleanId.substring(0, 12).match(/.{1,2}/g)?.join(':') || cleanId;
+            } else if (cleanId.length > 0) {
+              // Pad if too short
+              cleanId = cleanId.padEnd(12, '0').match(/.{1,2}/g)?.join(':') || cleanId;
+            }
+            
+            // On TV, we want maximal stability. 
             if (!devId || devId.startsWith('00:E4:55')) {
-              devId = id.identifier.toUpperCase().replace(/[^A-F0-9]/g, '');
-              // Format as MAC if it's 12 chars
-              if (devId.length >= 12) {
-                devId = devId.substring(0, 12).match(/.{1,2}/g)?.join(':') || devId;
-              }
+              devId = cleanId;
               localStorage.setItem('sky_player_device_id', devId);
             }
           }
         } catch (e) {
           console.error('Device ID error:', e);
         }
+      } else {
+        // Platform specific web detection for Samsung / LG
+        const tvPlat = getTVPlatform();
+        setPlatformName(tvPlat);
+
+        if (tvPlat === 'Tizen') {
+          try {
+            // @ts-ignore
+            const tizenId = window.tizen?.systeminfo?.getPropertyValue('ID');
+            if (tizenId) {
+              devId = tizenId.substring(0, 12).toUpperCase().match(/.{1,2}/g)?.join(':') || tizenId;
+              localStorage.setItem('sky_player_device_id', devId);
+            }
+          } catch (e) {}
+        } else if (tvPlat === 'webOS') {
+          try {
+            // @ts-ignore
+            const webosId = window.webOS?.deviceInfo?.modelName; // fallback if ID not available
+            // Usually we rely on localStorage for webOS as hardware ID access is restricted for non-priviledged apps
+          } catch (e) {}
+        }
       }
 
       if (!devId) {
+        // Fallback to random if no hardware ID available
         const chars = '0123456789ABCDEF';
         const prefix = '00:E4:55'; 
         const suffix = Array.from({ length: 3 }, () => 
@@ -85,6 +115,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
 
   const [isPlaylistError, setIsPlaylistError] = useState(false);
   const [loadingState, setLoadingState] = useState(''); // Text for the loading step
+  const [progressBytes, setProgressBytes] = useState(0);
 
   useEffect(() => {
     if (macAddress === '00:00:00:00:00:00') return;
@@ -105,21 +136,25 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
             setPlaylistUrl(targetUrl);
             setLoadingState('Connexion à votre serveur Xtream IPTV...');
             setIsChecking(true);
+            setProgressBytes(0);
             
-            // Extends safety timeout for loading to 45 seconds explicitly for heavy servers
+            // Extends safety timeout for loading to 90 seconds explicitly for heavy servers
             const timeout = setTimeout(() => {
               if (channels.length === 0) {
-                setError("Le chargement de la liste de lecture prend trop de temps, l'hôte Xtream est trop lent ou bloque l'accès.");
+                setError("Le chargement dépasse le délai (90s). Certains serveurs IPTV sont très lents ou saturent. Réessayez ou vérifiez votre lien.");
                 setIsPlaylistError(true);
                 setIsChecking(false);
                 setLoadingState('');
               }
-            }, 45000);
+            }, 90000);
             
             try {
-              setLoadingState('Téléchargement de la base de données IPTV (cela peut prendre du temps)...');
+              setLoadingState('Téléchargement des données (cela peut être volumineux)...');
               const parsedChannels = await fetchAndParsePlaylist(targetUrl, (msg) => {
                 setLoadingState(msg);
+                // Extract size if present in message for simple visual progress
+                const sizeMatch = msg.match(/(\d+)\s*KB/);
+                if (sizeMatch) setProgressBytes(parseInt(sizeMatch[1]) * 1024);
               });
               clearTimeout(timeout);
               
@@ -270,10 +305,10 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               </button>
             </div>
             
-            <span className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em]">Votre Adresse MAC</span>
-            
-            {isEditingMac ? (
-              <div className="flex items-center gap-2 w-full">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">ID Appareil ({platformName})</span>
+              {isEditingMac ? (
+                <div className="flex items-center gap-2 w-full">
                 <input 
                   type="text"
                   value={newMacInput}
@@ -309,6 +344,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
             )}
           </div>
         </div>
+      </div>
 
         {/* Content Section */}
         <div className="flex flex-col gap-6 max-w-2xl mx-auto w-full shrink-0">
@@ -317,6 +353,11 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
               <div className="flex flex-col items-center gap-2">
                 <p className="text-lg text-white font-medium text-center">{loadingState || "Vérification de l'activation..."}</p>
+                {progressBytes > 0 && (
+                  <p className="text-xs text-primary font-bold">
+                    {(progressBytes / 1024).toFixed(0)} KB téléchargés
+                  </p>
+                )}
                 <div className="w-48 h-1 bg-zinc-800 rounded-full overflow-hidden mt-4">
                   <div className="h-full bg-primary animate-pulse w-full"></div>
                 </div>
@@ -342,12 +383,12 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               
               {!isPlaylistError ? (
                 <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl text-left w-full mt-4">
-                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mb-2">Comment activer ?</p>
-                  <ol className="text-xs text-zinc-400 space-y-2 list-decimal list-inside">
-                    <li>Notez votre adresse MAC ci-dessus</li>
-                    <li>Connectez-vous à votre <a href="/dashboard" className="text-primary hover:underline">Panel Revendeur</a></li>
-                    <li>Allez dans la section "Activations"</li>
-                    <li>Entrez votre MAC et validez</li>
+                  <p className="text-xs text-primary font-bold uppercase tracking-widest mb-2">Comment activer sur {platformName} ?</p>
+                  <ol className="text-[10px] text-zinc-400 space-y-2 list-decimal list-inside leading-tight">
+                    <li>Copiez l'ID exact affiché ci-dessus : <strong className="text-white">{macAddress}</strong></li>
+                    <li>Ajoutez cet ID dans votre <a href="/dashboard" className="text-primary hover:underline font-bold">Panel Revendeur</a></li>
+                    <li>Assurez-vous d'avoir configuré soit un lien M3U, soit des codes Xtream</li>
+                    <li>Si l'ID change, utilisez le bouton ✎ en haut à droite pour le forcer</li>
                   </ol>
                 </div>
               ) : (

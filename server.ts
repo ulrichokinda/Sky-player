@@ -331,17 +331,48 @@ async function startServer() {
     if (!targetUrl) return res.status(400).json({ error: "Missing URL" });
 
     try {
+      console.log(`[Proxy] Fetching: ${targetUrl}`);
+      const userAgents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'VLC/3.0.18 LibVLC/3.0.18',
+        'IPTVSmartersPro',
+        'Mozilla/5.0 (Android 11; Mobile; rv:68.0) Gecko/68.0 Firefox/88.0',
+        'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0',
+        'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36 WebAppManager'
+      ];
+      const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+
       const response = await fetch(targetUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': '*/*'
-        }
+          'User-Agent': randomUA,
+          'Accept': '*/*',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive'
+        },
+        // Wait up to 30 seconds for the remote server
+        signal: AbortSignal.timeout(30000)
       });
+
+      if (!response.ok) {
+        console.error(`[Proxy] Target returned error: ${response.status} ${response.statusText}`);
+        return res.status(response.status).json({ 
+          error: `Le serveur IPTV a répondu avec l'erreur ${response.status}`,
+          details: response.statusText 
+        });
+      }
+
+      const contentType = response.headers.get('content-type');
       const text = await response.text();
+      
+      if (contentType) res.setHeader('Content-Type', contentType);
       res.send(text);
     } catch (e: any) {
-      console.error("Proxy error:", e);
-      res.status(500).json({ error: e.message });
+      console.error("[Proxy] Critical error:", e);
+      if (e.name === 'TimeoutError') {
+        res.status(504).json({ error: "Le serveur IPTV est trop lent à répondre (Délai dépassé)" });
+      } else {
+        res.status(500).json({ error: `Erreur de proxy: ${e.message}` });
+      }
     }
   });
 
