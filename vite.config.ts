@@ -28,7 +28,8 @@ export default defineConfig(({mode}) => {
       host: '0.0.0.0',
     },
     build: {
-      target: ['es2015', 'edge88', 'firefox78', 'chrome87', 'safari14'], // Force compatibilité pour Smart TV
+      target: 'es5', // Force ES5 for widest compatibility
+      cssTarget: 'chrome49',
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
