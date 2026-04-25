@@ -1,27 +1,12 @@
 import 'core-js/stable';
 import 'regenerator-runtime/runtime';
+import ResizeObserver from 'resize-observer-polyfill';
 
-// Basic polyfills for very old Smart TVs (Pre-ES6)
-if (typeof (Object as any).assign !== 'function') {
-  (Object as any).assign = function(target: any, ...sources: any[]) {
-    if (target == null) throw new TypeError('Cannot convert undefined or null to object');
-    const to = Object(target);
-    for (let index = 1; index < arguments.length; index++) {
-      const nextSource = arguments[index];
-      if (nextSource != null) {
-        for (const nextKey in nextSource) {
-          if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
-            to[nextKey] = nextSource[nextKey];
-          }
-        }
-      }
-    }
-    return to;
-  };
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  window.ResizeObserver = ResizeObserver;
 }
 
 if (typeof (window as any).Promise !== 'function') {
-  // If Promise is missing, we are in trouble, but core-js should have fixed it.
   console.warn("Promise is missing, hope core-js handles it");
 }
 
@@ -30,13 +15,6 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { FocusProvider } from './components/TVFocusManager';
-
-// Extra safety for queueMicrotask which React 18+ relies heavily on
-if (typeof (window as any).queueMicrotask !== 'function') {
-  (window as any).queueMicrotask = function (callback: () => void) {
-    Promise.resolve().then(callback).catch(e => setTimeout(() => { throw e; }));
-  };
-}
 
 class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: {children: ReactNode}) {

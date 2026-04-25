@@ -2,6 +2,35 @@
 <html lang="fr" translate="no">
   <head>
     <script>
+      // POLYFILLS FOR VERY OLD SMART TVS
+      if (typeof window.queueMicrotask !== 'function') {
+        window.queueMicrotask = function (callback) {
+          if (typeof Promise !== 'undefined' && Promise.resolve) {
+            Promise.resolve().then(callback).catch(function(e) { setTimeout(function() { throw e; }, 0); });
+          } else {
+            setTimeout(callback, 0);
+          }
+        };
+      }
+      if (typeof Object.assign !== 'function') {
+        Object.assign = function(target) {
+          if (target == null) throw new TypeError('Cannot convert undefined or null to object');
+          var to = Object(target);
+          for (var index = 1; index < arguments.length; index++) {
+            var nextSource = arguments[index];
+            if (nextSource != null) {
+              for (var nextKey in nextSource) {
+                if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
+                  to[nextKey] = nextSource[nextKey];
+                }
+              }
+            }
+          }
+          return to;
+        };
+      }
+    </script>
+    <script>
       window.addEventListener('error', function(e) {
         if (e.message && (e.message.includes('WebSocket') || e.message.includes('HMR'))) return;
         console.error('GLOBAL ERROR:', e);
