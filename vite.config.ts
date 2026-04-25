@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import legacy from '@vitejs/plugin-legacy';
 import * as path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
@@ -7,7 +8,11 @@ export default defineConfig(({mode}) => {
   return {
     base: '', // CRITICAL FOR TV APPS (APK, IPK, WGT) (Empty string for Capacitor)
     plugins: [
-      react()
+      react(),
+      legacy({
+        targets: ['chrome >= 49', 'edge >= 12', 'firefox >= 45', 'safari >= 10'],
+        additionalLegacyPolyfills: ['regenerator-runtime/runtime']
+      })
     ],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
