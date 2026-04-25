@@ -29,6 +29,9 @@
           return to;
         };
       }
+      if (!window.globalThis) {
+        window.globalThis = window;
+      }
     </script>
     <script>
       window.addEventListener('error', function(e) {

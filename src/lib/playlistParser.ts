@@ -104,8 +104,8 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
               'Accept-Language': 'fr-FR',
               'Connection': 'keep-alive'
             },
-            connectTimeout: 30000,
-            readTimeout: 60000
+            connectTimeout: 10000,
+            readTimeout: 20000
           });
           
           if (response.status === 200) {
