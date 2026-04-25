@@ -4,6 +4,13 @@ import App from './App.tsx';
 import './index.css';
 import { FocusProvider } from './components/TVFocusManager';
 
+// Polyfill pour les anciens navigateurs (Smart TV)
+if (typeof queueMicrotask !== 'function') {
+  (window as any).queueMicrotask = function (callback: () => void) {
+    Promise.resolve().then(callback).catch(e => setTimeout(() => { throw e; }));
+  };
+}
+
 class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: {children: ReactNode}) {
     super(props);
