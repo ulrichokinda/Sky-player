@@ -122,7 +122,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
 
     const checkActivation = async () => {
       try {
-        setLoadingState('Connexion au serveur SkyPlayer...');
+        setLoadingState('Connexion au serveur SkyPlayer (MAC: ' + macAddress + ')...');
         const data = await api.checkMacStatus(macAddress);
         if (data.active) {
           let targetUrl = data.activation?.playlist_url;

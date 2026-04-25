@@ -331,48 +331,46 @@ async function startServer() {
     if (!targetUrl) return res.status(400).json({ error: "Missing URL" });
 
     try {
-      console.log(`[Proxy] Fetching: ${targetUrl}`);
-      const userAgents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'VLC/3.0.18 LibVLC/3.0.18',
-        'IPTVSmartersPro',
-        'Mozilla/5.0 (Android 11; Mobile; rv:68.0) Gecko/68.0 Firefox/88.0',
-        'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0',
-        'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36 WebAppManager'
-      ];
-      const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+      console.log(`[Proxy] Fetching (retryable): ${targetUrl}`);
+      
+      const fetchWithRetry = async (url: string, retries: number = 2): Promise<Response> => {
+        const userAgents = [
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0'
+        ];
+        
+        for (let i = 0; i <= retries; i++) {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 20000);
+            
+            const response = await fetch(url, {
+              headers: {
+                'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)],
+                'Accept': '*/*',
+                'Connection': 'keep-alive'
+              },
+              signal: controller.signal
+            });
+            
+            clearTimeout(timeout);
+            if (response.ok) return response;
+            console.log(`[Proxy] Attempt ${i+1} failed with status: ${response.status}`);
+          } catch (e) {
+            console.log(`[Proxy] Attempt ${i+1} failed with error`);
+          }
+        }
+        throw new Error("Impossible de joindre le serveur après plusieurs tentatives");
+      };
 
-      const response = await fetch(targetUrl, {
-        headers: {
-          'User-Agent': randomUA,
-          'Accept': '*/*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive'
-        },
-        // Wait up to 30 seconds for the remote server
-        signal: AbortSignal.timeout(30000)
-      });
-
-      if (!response.ok) {
-        console.error(`[Proxy] Target returned error: ${response.status} ${response.statusText}`);
-        return res.status(response.status).json({ 
-          error: `Le serveur IPTV a répondu avec l'erreur ${response.status}`,
-          details: response.statusText 
-        });
-      }
-
-      const contentType = response.headers.get('content-type');
+      const response = await fetchWithRetry(targetUrl);
       const text = await response.text();
       
-      if (contentType) res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Type', response.headers.get('content-type') || 'text/plain');
       res.send(text);
     } catch (e: any) {
       console.error("[Proxy] Critical error:", e);
-      if (e.name === 'TimeoutError') {
-        res.status(504).json({ error: "Le serveur IPTV est trop lent à répondre (Délai dépassé)" });
-      } else {
-        res.status(500).json({ error: `Erreur de proxy: ${e.message}` });
-      }
+      res.status(502).json({ error: "Erreur de connexion IPTV persistante", details: e.message });
     }
   });
 
