@@ -28,7 +28,7 @@ export default defineConfig(({mode}) => {
       host: '0.0.0.0',
     },
     build: {
-      target: 'es5', // Force ES5 for widest compatibility
+      target: 'es2015', // esbuild doesn't support es5, so we use es2015 for the modern bundle
       cssTarget: 'chrome49',
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
