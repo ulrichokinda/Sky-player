@@ -335,40 +335,53 @@ async function startServer() {
       
       const userAgents = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0'
+        'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0',
+        'Dalvik/2.1.0 (Linux; U; Android 11; SM-G981B Build/RP1A.200720.012)',
+        'IPTVSmartersPlayer/3.0.0 (Linux; Android 11)',
+        'XCIPTV/6.0.0 (Linux; Android 11)'
       ];
 
+      // Use a stall timeout instead of a fixed duration timeout
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
+      let stallTimeout = setTimeout(() => controller.abort(), 60000); // 60s inactivity timeout
       
       const response = await fetch(targetUrl, {
         headers: {
           'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)],
           'Accept': '*/*',
-          'Connection': 'keep-alive'
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Cache-Control': 'no-cache'
         },
         signal: controller.signal
       });
       
-      clearTimeout(timeout);
-
       if (!response.ok) {
+        clearTimeout(stallTimeout);
         return res.status(response.status).json({ error: `Serveur IPTV a renvoyé une erreur ${response.status}` });
       }
 
       // Stream the response back to the client
       res.setHeader('Content-Type', response.headers.get('content-type') || 'text/plain');
-      const contentLength = response.headers.get('content-length');
-      if (contentLength) res.setHeader('Content-Length', contentLength);
-
+      res.setHeader('X-Content-Encoded', response.headers.get('content-encoding') || 'none');
+      
       if (response.body) {
         // @ts-ignore - response.body is a ReadableStream in node-fetch 3.x
         for await (const chunk of response.body) {
+          // Reset stall timeout on every chunk received
+          clearTimeout(stallTimeout);
+          stallTimeout = setTimeout(() => controller.abort(), 60000); 
+          
           res.write(chunk);
         }
       }
+      clearTimeout(stallTimeout);
       res.end();
     } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.error("[Proxy] Timeout: Server stopped sending data for 60s");
+        return res.status(504).json({ error: "Le serveur IPTV a cessé d'envoyer des données (Délai d'inactivité dépassé)" });
+      }
       console.error("[Proxy] Critical error:", e);
       res.status(502).json({ error: "Erreur de connexion IPTV", details: e.message });
     }

@@ -35,18 +35,35 @@ export const parseM3U = (content: string): Channel[] => {
   return channels;
 };
 
-export const parseJSONPlaylist = (content: string): Channel[] => {
+export const parseJSONPlaylist = (content: string, xtreamHost?: string, xtreamUser?: string, xtreamPass?: string): Channel[] => {
   try {
     const data = JSON.parse(content);
     
     // Support different JSON formats
     if (Array.isArray(data)) {
-      return data.map(item => ({
-        name: item.name || item.title || 'Sans nom',
-        url: item.url || item.link || item.file,
-        logo: item.logo || item.image || item.thumb,
-        group: item.group || item.category
-      })).filter(c => c.url);
+      return data.map(item => {
+        // Xtream Codes API formatting
+        let finalUrl = item.url || item.link || item.file;
+        if (!finalUrl && item.stream_id && xtreamHost) {
+          const type = item.stream_type === 'movie' ? 'movie' : (item.stream_type === 'series' ? 'series' : 'live');
+          let ext = 'ts';
+          if (type === 'movie' || type === 'series') ext = item.container_extension || 'mp4';
+          
+          if (type === 'live') {
+            finalUrl = `${xtreamHost}/${xtreamUser}/${xtreamPass}/${item.stream_id}`;
+          } else {
+            finalUrl = `${xtreamHost}/${type}/${xtreamUser}/${xtreamPass}/${item.stream_id}.${ext}`;
+          }
+        }
+
+        return {
+          name: item.name || item.title || 'Sans nom',
+          url: finalUrl,
+          logo: item.logo || item.image || item.thumb || item.stream_icon,
+          group: item.group || item.category || (item.category_id ? `Catégorie ${item.category_id}` : undefined),
+          epgId: item.epg_channel_id
+        };
+      }).filter(c => c.url);
     } else if (data.channels && Array.isArray(data.channels)) {
       return data.channels.map((item: any) => ({
         name: item.name || item.title || 'Sans nom',
@@ -63,9 +80,61 @@ export const parseJSONPlaylist = (content: string): Channel[] => {
   }
 };
 
+const fetchWithProxy = async (urlWithCacheBuster: string, onProgress?: (msg: string) => void): Promise<string> => {
+  const proxyUrl = `/api/proxy/playlist?url=${encodeURIComponent(urlWithCacheBuster)}`;
+  
+  const response = await fetch(proxyUrl);
+  if (!response.ok) throw new Error(`Tunnel instable (${response.status})`);
+  
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return await response.text();
+  } else {
+    const decoder = new TextDecoder();
+    let receivedBytes = 0;
+    let chunks: string[] = [];
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      receivedBytes += value.length;
+      const mb = (receivedBytes / (1024 * 1024)).toFixed(2);
+      if (onProgress) onProgress(`Chargement : ${mb} MB reçus...`);
+      
+      chunks.push(decoder.decode(value, { stream: true }));
+    }
+    return chunks.join('');
+  }
+};
+
 export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: string) => void): Promise<Channel[]> => {
-  const urlWithCacheBuster = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
   const isNative = Capacitor.isNativePlatform();
+  let urlToFetch = url;
+  
+  // Xtream Codes API optimization:
+  // Instead of downloading a massive M3U file, use the JSON API which is 10x smaller and faster
+  let isXtream = false;
+  let xtreamHost = '';
+  let xtreamUser = '';
+  let xtreamPass = '';
+  
+  if (url.includes('get.php?username=') && url.includes('password=')) {
+    isXtream = true;
+    try {
+      const urlObj = new URL(url);
+      xtreamUser = urlObj.searchParams.get('username') || '';
+      xtreamPass = urlObj.searchParams.get('password') || '';
+      xtreamHost = urlObj.origin;
+      // We are going to fetch live streams via JSON first
+      urlToFetch = `${xtreamHost}/player_api.php?username=${xtreamUser}&password=${xtreamPass}&action=get_live_streams`;
+      if (onProgress) onProgress('Mode Optimisé Xtream activé...');
+    } catch(e) {
+      isXtream = false;
+    }
+  }
+
+  const urlWithCacheBuster = `${urlToFetch}${urlToFetch.includes('?') ? '&' : '?'}t=${Date.now()}`;
   
   const NATIVE_FINGERPRINTS = [
     {
@@ -111,51 +180,24 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
           if (response.status === 200) {
             content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
             if (content && content.length > 50) break; 
-          } else if (response.status === 403 || response.status === 401) {
-            console.warn(`Fingerprint blocked (403/401), trying next...`);
+          } else {
+            console.warn(`Native fingerprint ${i} failed with status ${response.status}`);
+            lastError = `Statut ${response.status}`;
             continue;
           }
-          lastError = `Statut ${response.status}`;
         } catch (e: any) {
           lastError = e.message;
+          console.warn(`Native attempt ${i} failed:`, e);
         }
       }
 
       if (!content) {
-        throw new Error(`Échec de connexion après ${NATIVE_FINGERPRINTS.length} tentatives natives: ${lastError}`);
+        if (onProgress) onProgress('Passage au mode de secours stable...');
+        // Fallback to Proxy even on Native if CapacitorHttp fails
+        content = await fetchWithProxy(urlWithCacheBuster, onProgress);
       }
     } else {
-      // WEB PREVIEW or Native Fallback - Needs Proxy for CORS
-      const proxyUrl = `/api/proxy/playlist?url=${encodeURIComponent(urlWithCacheBuster)}`;
-      
-      try {
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error(`Tunnel instable (${response.status})`);
-        
-        const reader = response.body?.getReader();
-        if (!reader) {
-          content = await response.text();
-        } else {
-          const decoder = new TextDecoder();
-          let receivedBytes = 0;
-          let chunks: string[] = [];
-          
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            receivedBytes += value.length;
-            const mb = (receivedBytes / (1024 * 1024)).toFixed(2);
-            if (onProgress) onProgress(`Chargement : ${mb} MB reçus...`);
-            
-            chunks.push(decoder.decode(value, { stream: true }));
-          }
-          content = chunks.join('');
-        }
-      } catch (proxyError: any) {
-        if (isNative) throw proxyError; // If native and CapHttp failed and proxy failed, it's dead
-        else throw proxyError;
-      }
+      content = await fetchWithProxy(urlWithCacheBuster, onProgress);
     }
     
     if (!content) throw new Error("Réponse vide du serveur");
@@ -167,7 +209,7 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
     let channels: Channel[] = [];
     if (contentStr.startsWith('{') || contentStr.startsWith('[')) {
       if (onProgress) onProgress('Analyse du JSON...');
-      channels = parseJSONPlaylist(contentStr);
+      channels = parseJSONPlaylist(contentStr, isXtream ? xtreamHost : undefined, xtreamUser, xtreamPass);
     } else if (contentStr.includes('#EXTM3U') || contentStr.includes('#EXTINF')) {
       if (onProgress) onProgress('Analyse du M3U (Lecture des lignes)...');
       channels = parseM3U(contentStr);

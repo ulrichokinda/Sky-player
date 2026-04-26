@@ -138,18 +138,24 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
             setIsChecking(true);
             setProgressBytes(0);
             
-            // Extends safety timeout for loading to 120 seconds for very slow servers
+            // Safety timeout with warning - Extended for very low speed networks
+            let warningShown = false;
             const timeout = setTimeout(() => {
               if (channels.length === 0) {
-                setError("Délai dépassé (120s). Le serveur IPTV ne répond pas ou est trop lent. Contactez votre fournisseur.");
-                setIsPlaylistError(true);
-                setIsChecking(false);
-                setLoadingState('');
+                // Instead of failing immediately, we check if some bytes were received
+                if (progressBytes > 0) {
+                  setLoadingState('Serveur très lent... Téléchargement toujours en cours, patientez encore.');
+                } else {
+                  setError("Le serveur IPTV ne répond pas (Délai d'inactivité). Vérifiez votre connexion ou contactez votre fournisseur.");
+                  setIsPlaylistError(true);
+                  setIsChecking(false);
+                  setLoadingState('');
+                }
               }
-            }, 120000);
+            }, 180000); // 3 minutes total for huge playlists on edge/3G
             
             try {
-              setLoadingState('Téléchargement des chaînes... (Serveur lent ?)');
+              setLoadingState('Connexion au serveur IPTV...');
               const parsedChannels = await fetchAndParsePlaylist(targetUrl, (msg) => {
                 setLoadingState(msg);
                 
@@ -160,6 +166,11 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
                 } else {
                   const kbMatch = msg.match(/(\d+)\s*KB/);
                   if (kbMatch) setProgressBytes(parseInt(kbMatch[1]) * 1024);
+                }
+
+                // If it's been more than 40s and we are still downloading MB, update the user
+                if (!warningShown && msg.includes('MB reçus') && parseFloat(mbMatch?.[1] || '0') > 5) {
+                   warningShown = true;
                 }
               });
               clearTimeout(timeout);
