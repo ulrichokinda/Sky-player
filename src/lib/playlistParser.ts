@@ -191,7 +191,7 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
         }
       }
 
-      if (!content) {
+      if (!content || content.length < 50) {
         if (onProgress) onProgress('Passage au mode de secours stable...');
         // Fallback to Proxy even on Native if CapacitorHttp fails
         content = await fetchWithProxy(urlWithCacheBuster, onProgress);
@@ -224,6 +224,32 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
       }
     }
     
+    // Fallback if Xtream get_live_streams returned empty or failed
+    if (channels.length === 0 && isXtream) {
+      if (onProgress) onProgress('Le mode optimisé ne fonctionne pas. Téléchargement de la playlist M3U complète...');
+      const fallbackUrl = `${xtreamHost}/get.php?username=${xtreamUser}&password=${xtreamPass}&type=m3u_plus&output=ts`;
+      const fallbackUrlWithCacheBuster = `${fallbackUrl}&t=${Date.now()}`;
+      
+      let fallbackContent = '';
+      if (isNative) {
+         try {
+           const response = await CapacitorHttp.get({ 
+              url: fallbackUrlWithCacheBuster, 
+              headers: { 'Accept': '*/*' },
+              readTimeout: 60000 
+           });
+           if (response.status === 200) fallbackContent = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+         } catch(e) {}
+      }
+      
+      if (!fallbackContent || fallbackContent.length < 50) {
+        fallbackContent = await fetchWithProxy(fallbackUrlWithCacheBuster, onProgress);
+      }
+      
+      const fallbackContentStr = String(fallbackContent).trim();
+      channels = parseM3U(fallbackContentStr);
+    }
+
     if (onProgress) onProgress(`${channels.length} chaînes chargées avec succès.`);
     return channels;
   } catch (e: any) {
