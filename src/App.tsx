@@ -27,31 +27,66 @@ export default function App() {
   const isNative = Capacitor.isNativePlatform();
 
   return (
-    <BrandingProvider>
-      <HashRouter>
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
-            {/* If native app (APK/TV), show the MAC screen as home. Otherwise show the landing page. */}
-            <Route path="/" element={isNative ? <Navigate to="/app" replace /> : <Home />} />
-            
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/payment" element={<Payment />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/faq" element={<FAQ />} />
-            <Route path="/assets" element={<Assets />} />
-            <Route path="/terms" element={<Terms />} />
-            
-            {/* The specialized view for the APK/TV app */}
-            <Route path="/app" element={<SimpleUserView channels={[]} onNotify={() => {}} />} />
-          </Routes>
-        </Suspense>
-      </HashRouter>
-    </BrandingProvider>
+    <ErrorBoundary>
+      <BrandingProvider>
+        <HashRouter>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              {/* If native app (APK/TV), show the MAC screen as home. Otherwise show the landing page. */}
+              <Route path="/" element={isNative ? <Navigate to="/app" replace /> : <Home />} />
+              
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/payment" element={<Payment />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/assets" element={<Assets />} />
+              <Route path="/terms" element={<Terms />} />
+              
+              {/* The specialized view for the APK/TV app */}
+              <Route path="/app" element={<SimpleUserView channels={[]} onNotify={() => {}} />} />
+            </Routes>
+          </Suspense>
+        </HashRouter>
+      </BrandingProvider>
+    </ErrorBoundary>
   );
+}
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("APP CRASHED:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Une erreur est survenue lors du chargement.</h1>
+          <p className="text-zinc-500 mb-8 max-w-md">{this.state.error?.message || "Erreur de rendu sur ce modèle de TV."}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-primary text-black rounded-full font-bold"
+          >
+            Redémarrer l'application
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 interface NavItemProps {

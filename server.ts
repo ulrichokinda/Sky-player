@@ -333,44 +333,44 @@ async function startServer() {
     try {
       console.log(`[Proxy] Fetching (retryable): ${targetUrl}`);
       
-      const fetchWithRetry = async (url: string, retries: number = 2): Promise<Response> => {
-        const userAgents = [
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0'
-        ];
-        
-        for (let i = 0; i <= retries; i++) {
-          try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 20000);
-            
-            const response = await fetch(url, {
-              headers: {
-                'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)],
-                'Accept': '*/*',
-                'Connection': 'keep-alive'
-              },
-              signal: controller.signal
-            });
-            
-            clearTimeout(timeout);
-            if (response.ok) return response;
-            console.log(`[Proxy] Attempt ${i+1} failed with status: ${response.status}`);
-          } catch (e) {
-            console.log(`[Proxy] Attempt ${i+1} failed with error`);
-          }
-        }
-        throw new Error("Impossible de joindre le serveur après plusieurs tentatives");
-      };
+      const userAgents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0'
+      ];
 
-      const response = await fetchWithRetry(targetUrl);
-      const text = await response.text();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
       
+      const response = await fetch(targetUrl, {
+        headers: {
+          'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)],
+          'Accept': '*/*',
+          'Connection': 'keep-alive'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `Serveur IPTV a renvoyé une erreur ${response.status}` });
+      }
+
+      // Stream the response back to the client
       res.setHeader('Content-Type', response.headers.get('content-type') || 'text/plain');
-      res.send(text);
+      const contentLength = response.headers.get('content-length');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+
+      if (response.body) {
+        // @ts-ignore - response.body is a ReadableStream in node-fetch 3.x
+        for await (const chunk of response.body) {
+          res.write(chunk);
+        }
+      }
+      res.end();
     } catch (e: any) {
       console.error("[Proxy] Critical error:", e);
-      res.status(502).json({ error: "Erreur de connexion IPTV persistante", details: e.message });
+      res.status(502).json({ error: "Erreur de connexion IPTV", details: e.message });
     }
   });
 

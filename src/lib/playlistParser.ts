@@ -73,12 +73,12 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
       'X-Requested-With': 'com.nst.iptvsmarterstvbox'
     },
     {
-      'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
-      'X-Requested-With': 'org.videolan.vlc'
+      'User-Agent': 'IPTVSmartersPlayer/1.0.0 (iPhone; iOS 15.0; Scale/3.00)',
+      'X-Requested-With': 'com.nst.iptvsmarters'
     },
     {
-      'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; SamsungBrowser; Tizen 6.0) SmartersPlayer/1.0.0',
-      'X-Requested-With': 'com.samsung.tv.iptv'
+      'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+      'X-Requested-With': 'org.videolan.vlc'
     }
   ];
 
@@ -86,14 +86,13 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
     let content = '';
 
     if (isNative) {
-      if (onProgress) onProgress('Initialisation de la pile réseau native...');
+      if (onProgress) onProgress('Optimisation du tunnel réseau...');
       
       let lastError = null;
       
-      // Essayer chaque empreinte jusqu'à ce qu'une fonctionne
       for (let i = 0; i < NATIVE_FINGERPRINTS.length; i++) {
         const fingerprint = NATIVE_FINGERPRINTS[i];
-        if (onProgress) onProgress(`Optimisation du tunnel (Tentative ${i + 1}/${NATIVE_FINGERPRINTS.length})...`);
+        if (onProgress) onProgress(`Tentative de connexion ${i + 1}/${NATIVE_FINGERPRINTS.length}...`);
         
         try {
           const response = await CapacitorHttp.get({ 
@@ -102,20 +101,23 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
               ...fingerprint,
               'Accept': '*/*',
               'Accept-Language': 'fr-FR',
-              'Connection': 'keep-alive'
+              'Connection': 'keep-alive',
+              'Cache-Control': 'no-cache'
             },
-            connectTimeout: 10000,
-            readTimeout: 20000
+            connectTimeout: 30000,
+            readTimeout: 60000
           });
           
           if (response.status === 200) {
             content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-            if (content && content.length > 100) break; // Succès probable
+            if (content && content.length > 50) break; 
+          } else if (response.status === 403 || response.status === 401) {
+            console.warn(`Fingerprint blocked (403/401), trying next...`);
+            continue;
           }
-          lastError = `Erreur HTTP ${response.status}`;
+          lastError = `Statut ${response.status}`;
         } catch (e: any) {
           lastError = e.message;
-          console.warn(`Fingerprint ${i} failed:`, e);
         }
       }
 
@@ -123,12 +125,37 @@ export const fetchAndParsePlaylist = async (url: string, onProgress?: (status: s
         throw new Error(`Échec de connexion après ${NATIVE_FINGERPRINTS.length} tentatives natives: ${lastError}`);
       }
     } else {
-      // WEB PREVIEW - Needs Proxy for CORS
-      if (onProgress) onProgress('Passage par tunnel web (Aperçu)...');
+      // WEB PREVIEW or Native Fallback - Needs Proxy for CORS
       const proxyUrl = `/api/proxy/playlist?url=${encodeURIComponent(urlWithCacheBuster)}`;
-      const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error(`Tunnel instable (${response.status})`);
-      content = await response.text();
+      
+      try {
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`Tunnel instable (${response.status})`);
+        
+        const reader = response.body?.getReader();
+        if (!reader) {
+          content = await response.text();
+        } else {
+          const decoder = new TextDecoder();
+          let receivedBytes = 0;
+          let chunks: string[] = [];
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            receivedBytes += value.length;
+            const mb = (receivedBytes / (1024 * 1024)).toFixed(2);
+            if (onProgress) onProgress(`Chargement : ${mb} MB reçus...`);
+            
+            chunks.push(decoder.decode(value, { stream: true }));
+          }
+          content = chunks.join('');
+        }
+      } catch (proxyError: any) {
+        if (isNative) throw proxyError; // If native and CapHttp failed and proxy failed, it's dead
+        else throw proxyError;
+      }
     }
     
     if (!content) throw new Error("Réponse vide du serveur");

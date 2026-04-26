@@ -129,32 +129,38 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
           
           if (!targetUrl && data.activation?.xtream_host && data.activation?.xtream_username && data.activation?.xtream_password) {
             const host = data.activation.xtream_host.endsWith('/') ? data.activation.xtream_host.slice(0, -1) : data.activation.xtream_host;
-            targetUrl = `${host}/get.php?username=${data.activation.xtream_username}&password=${data.activation.xtream_password}&type=m3u&output=m3u8`;
+            targetUrl = `${host}/get.php?username=${data.activation.xtream_username}&password=${data.activation.xtream_password}&type=m3u_plus&output=ts`;
           }
 
-          if (targetUrl && targetUrl !== playlistUrl) {
+          if (targetUrl && (targetUrl !== playlistUrl || channels.length === 0)) {
             setPlaylistUrl(targetUrl);
-            setLoadingState('Connexion à votre serveur Xtream IPTV...');
+            setLoadingState('Accès à votre serveur IPTV (Patientez)...');
             setIsChecking(true);
             setProgressBytes(0);
             
-            // Extends safety timeout for loading to 90 seconds explicitly for heavy servers
+            // Extends safety timeout for loading to 120 seconds for very slow servers
             const timeout = setTimeout(() => {
               if (channels.length === 0) {
-                setError("Le chargement dépasse le délai (90s). Certains serveurs IPTV sont très lents ou saturent. Réessayez ou vérifiez votre lien.");
+                setError("Délai dépassé (120s). Le serveur IPTV ne répond pas ou est trop lent. Contactez votre fournisseur.");
                 setIsPlaylistError(true);
                 setIsChecking(false);
                 setLoadingState('');
               }
-            }, 90000);
+            }, 120000);
             
             try {
-              setLoadingState('Téléchargement des données (cela peut être volumineux)...');
+              setLoadingState('Téléchargement des chaînes... (Serveur lent ?)');
               const parsedChannels = await fetchAndParsePlaylist(targetUrl, (msg) => {
                 setLoadingState(msg);
-                // Extract size if present in message for simple visual progress
-                const sizeMatch = msg.match(/(\d+)\s*KB/);
-                if (sizeMatch) setProgressBytes(parseInt(sizeMatch[1]) * 1024);
+                
+                // Extract size if present for visual progress
+                const mbMatch = msg.match(/([\d.]+)\s*MB/);
+                if (mbMatch) {
+                  setProgressBytes(parseFloat(mbMatch[1]) * 1024 * 1024);
+                } else {
+                  const kbMatch = msg.match(/(\d+)\s*KB/);
+                  if (kbMatch) setProgressBytes(parseInt(kbMatch[1]) * 1024);
+                }
               });
               clearTimeout(timeout);
               
@@ -354,11 +360,17 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               <div className="flex flex-col items-center gap-2">
                 <p className="text-lg text-white font-medium text-center">{loadingState || "Vérification de l'activation..."}</p>
                 {progressBytes > 0 && (
-                  <p className="text-xs text-primary font-bold">
-                    {(progressBytes / 1024).toFixed(0)} KB téléchargés
-                  </p>
+                  <div className="flex flex-col items-center gap-1 mt-2">
+                    <div className="flex items-end gap-2">
+                      <span className="text-3xl font-black text-primary">
+                        {(progressBytes / (1024 * 1024)).toFixed(1)}
+                      </span>
+                      <span className="text-sm font-bold text-zinc-500 mb-1">MB</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Données reçues du serveur</p>
+                  </div>
                 )}
-                <div className="w-48 h-1 bg-zinc-800 rounded-full overflow-hidden mt-4">
+                <div className="w-48 h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-4">
                   <div className="h-full bg-primary animate-pulse w-full"></div>
                 </div>
               </div>
@@ -409,11 +421,8 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
               </div>
             </div>
           ) : (
-            <>
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
+            <div className="space-y-6 w-full">
+              <div
                 className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4 mt-4"
               >
                 <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 shrink-0">
@@ -422,12 +431,12 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
                 <div>
                   <h4 className="font-bold text-sm text-white">Lecteur Multimédia Uniquement</h4>
                   <p className="text-xs text-zinc-500 leading-relaxed">
-                    Sky Player ne fournit aucun contenu. Vous devez ajouter votre propre liste de lecture M3U, JSON ou vos codes Xtream pour regarder vos chaînes.
+                    Sky Player ne fournit aucun contenu. Vous devez ajouter votre propre liste de lecture M3U ou vos codes Xtream pour regarder vos chaînes.
                   </p>
                 </div>
-              </motion.div>
+              </div>
 
-              <div className="grid grid-cols-2 gap-4 mt-2">
+              <div className="grid grid-cols-2 gap-4">
                 <button 
                   onClick={startSpeedTest}
                   className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex flex-col items-center gap-2 hover:bg-primary/10 hover:border-primary/30 transition-all group"
@@ -452,7 +461,14 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
                   <span className="text-[10px] font-black uppercase tracking-widest">Mes Favoris</span>
                 </button>
               </div>
-            </>
+
+              {macAddress === '00:00:00:00:00:00' && !isChecking && (
+                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-center gap-4">
+                  <Loader2 className="animate-spin text-amber-500 shrink-0" size={20} />
+                  <p className="text-xs text-amber-500">Détection de l'ID en cours... Si cela reste ainsi, utilisez le bouton ✎ pour saisir votre identifiant manuellement.</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
