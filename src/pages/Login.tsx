@@ -116,108 +116,130 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent relative">
+    <div className="min-h-screen bg-black text-white font-sans flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background elements */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_20%,_rgba(244,197,10,0.08)_0%,_transparent_50%)] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_80%_80%,_rgba(244,197,10,0.08)_0%,_transparent_50%)] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+
       <Link 
         to="/" 
-        className="absolute top-8 left-8 p-3 bg-zinc-900/50 border border-zinc-800 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all z-50 group"
+        className="absolute top-8 left-8 p-3 bg-zinc-900/40 border border-zinc-800/50 backdrop-blur-xl rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all z-50 group"
         title="Retour à l'accueil"
       >
-        <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+        <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
       </Link>
+
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0, 0.71, 0.2, 1.01] }}
+        className="w-full max-w-[440px]"
       >
-        <Card className="p-8 md:p-12 space-y-8 border-zinc-800/50 bg-zinc-900/30 backdrop-blur-2xl shadow-2xl shadow-primary/5">
-          <header className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
-              <LogIn size={32} />
+        <Card className="p-8 md:p-10 space-y-8 border shadow-none border-zinc-800/80 bg-zinc-900/40 backdrop-blur-3xl relative overflow-hidden">
+          {/* Decorative line */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+          
+          <header className="text-center space-y-6">
+            <div className="mx-auto w-20 h-20 bg-zinc-800/50 rounded-3xl flex items-center justify-center text-primary border border-zinc-700/50 shadow-inner group transition-all duration-500 hover:scale-105">
+              <div className="relative">
+                <LogIn size={36} className="relative z-10" />
+                <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </div>
+            
             <div className="space-y-2">
-              <Badge variant="primary">Espace Revendeur</Badge>
-              <h1 className="text-4xl font-black tracking-tighter"><span>Connexion</span></h1>
-              <p className="text-zinc-500 text-sm font-medium"><span>Accédez à votre console d'administration.</span></p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                <ShieldCheck size={12} />
+                SKY PLAYER PRO
+              </div>
+              <h1 className="text-4xl font-black tracking-tighter uppercase italic"><span>Authentification</span></h1>
+              <p className="text-zinc-500 text-sm font-medium max-w-[280px] mx-auto"><span>Accédez à votre infrastructure de distribution média sécurisée.</span></p>
             </div>
           </header>
 
           <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-4">
-              <Input
-                label="Email Professionnel"
-                type="email"
-                value={email}
-                onChange={(e: any) => setEmail(e.target.value)}
-                placeholder="votre@email.com"
-                icon={Mail}
-                required
-              />
-              <div className="space-y-1">
+            <div className="space-y-5">
+              <div className="space-y-1.5 focus-within:z-20 relative">
                 <Input
-                  label="Mot de passe"
+                  label="IDENTIFIANT EMAIL"
+                  type="email"
+                  value={email}
+                  onChange={(e: any) => setEmail(e.target.value)}
+                  placeholder="votre@email.com"
+                  icon={Mail}
+                  required
+                  className="bg-zinc-950/50 border-zinc-800/50 focus:border-primary/50 h-14"
+                />
+              </div>
+              <div className="space-y-1.5 focus-within:z-20 relative">
+                <Input
+                  label="MOT DE PASSE"
                   type="password"
                   value={password}
                   onChange={(e: any) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   icon={Lock}
                   required
+                  className="bg-zinc-950/50 border-zinc-800/50 focus:border-primary/50 h-14"
                 />
-                <button 
-                  type="button"
-                  onClick={handleForgotPassword}
-                  disabled={resetLoading}
-                  className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/80 transition-colors ml-2"
-                >
-                  {resetLoading ? 'Envoi...' : 'Mot de passe oublié ?'}
-                </button>
+                <div className="flex justify-end pt-1">
+                  <button 
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={resetLoading}
+                    className="text-[10px] font-black text-zinc-500 uppercase tracking-widest hover:text-primary transition-colors pr-2"
+                  >
+                    {resetLoading ? 'Envoi en cours...' : 'Mot de passe oublié ?'}
+                  </button>
+                </div>
               </div>
             </div>
 
-              <Button 
-                type="submit" 
-                fullWidth 
-                size="lg" 
-                loading={loading}
-                className="py-6 text-base group"
-              >
-                <span>Se Connecter</span>
-                <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
+            <Button 
+              type="submit" 
+              fullWidth 
+              size="lg" 
+              loading={loading}
+              className="h-14 text-sm font-black uppercase tracking-widest group bg-primary hover:bg-primary/90 text-black border-none"
+            >
+              <span>Se Connecter</span>
+              <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
           </form>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-800"></div>
+              <div className="w-full border-t border-zinc-800/50"></div>
             </div>
-            <div className="relative flex justify-center text-[10px] uppercase tracking-[0.3em] font-black text-zinc-600">
-              <span className="bg-zinc-950 px-4"><span>OU</span></span>
+            <div className="relative flex justify-center text-[9px] uppercase tracking-[0.4em] font-black text-zinc-600">
+              <span className="bg-zinc-900/60 px-4 backdrop-blur-sm"><span>Connexion Alternative</span></span>
             </div>
           </div>
 
-          <Button 
-            variant="outline" 
-            fullWidth 
+          <button 
+            type="button"
             onClick={() => handleGoogleLogin({} as React.FormEvent)}
-            loading={loading}
-            className="border-zinc-800 hover:bg-white hover:text-black py-4"
+            disabled={loading}
+            className="w-full h-14 rounded-2xl border border-zinc-800 bg-zinc-950/50 hover:bg-white hover:text-black hover:border-white transition-all flex items-center justify-center gap-3 font-bold text-sm disabled:opacity-50 group"
           >
-            <Chrome size={18} className="mr-2" />
+            <Chrome size={20} className="group-hover:scale-110 transition-transform" />
             <span>Continuer avec Google</span>
-          </Button>
+          </button>
 
-          <footer className="text-center space-y-4">
+          <footer className="text-center pt-4">
             <p className="text-zinc-500 text-xs font-medium">
-              <span>Pas encore de compte ?</span>{' '}
-              <Link to="/register" className="text-primary font-black hover:underline">
-                <span>Créer un compte</span>
+              <span>Nouveau sur la plateforme ?</span>{' '}
+              <Link to="/register" className="text-primary font-black hover:underline underline-offset-4 decoration-2">
+                <span>Créer un compte pro</span>
               </Link>
             </p>
-            <div className="flex items-center justify-center gap-2 text-zinc-700">
-              <ShieldCheck size={12} />
-              <span className="text-[10px] font-bold uppercase tracking-widest"><span>Sécurisé par Sky Player</span></span>
-            </div>
           </footer>
         </Card>
+        
+        <div className="mt-8 flex items-center justify-center gap-2 text-zinc-600">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em]">SKY PLAYER INFRASTRUCTURE &bull; SECURE NODES</p>
+        </div>
       </motion.div>
     </div>
   );

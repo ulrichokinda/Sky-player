@@ -42,6 +42,9 @@ export const Home = () => {
           <Link to="/faq">
             <Button variant="ghost" size="sm" className="text-zinc-400">FAQ</Button>
           </Link>
+          <Link to="/documentation">
+             <Button variant="ghost" size="sm" className="text-zinc-400">Documentation</Button>
+          </Link>
           <div className="w-px h-6 bg-zinc-800 mx-2" />
           {user ? (
             <Link to="/dashboard">
@@ -86,6 +89,13 @@ export const Home = () => {
                   <p className="text-zinc-400 text-sm">FAQ</p>
                 </Link>
               </div>
+              <Link to="/documentation" onClick={() => setIsMenuOpen(false)} className="p-5 bg-zinc-900 rounded-2xl border border-zinc-800 flex items-center justify-between group">
+                <div className="text-left">
+                  <p className="font-bold text-zinc-300">Documentation Technique</p>
+                  <p className="text-xs text-zinc-500">Specs, API & Intégration</p>
+                </div>
+                <ChevronRight size={20} className="text-zinc-600 group-hover:text-primary transition-colors" />
+              </Link>
 
               {user ? (
                 <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}>
@@ -285,6 +295,51 @@ export const Home = () => {
                 <p className="text-zinc-500 text-sm leading-relaxed">
                   Agrégation automatique des guides de programmes depuis plusieurs sources (XMLTV, JSON API) avec rafraîchissement asynchrone en arrière-plan.
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Infrastructure & Compliance Details */}
+        <div className="py-20 border-t border-zinc-900">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-left">
+            <div className="space-y-6">
+              <Badge variant="primary" className="border-primary/20 bg-transparent">Compatibilité Protocoles</Badge>
+              <h3 className="text-2xl font-black uppercase italic">Standard Industrie</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { label: "MPEG-TS", desc: "Flux TransportStream" },
+                  { label: "H.264 / H.265", desc: "Compression HEVC" },
+                  { label: "AAC / AC3", desc: "Audio Haute Fidélité" },
+                  { label: "SSL / TLS 1.3", desc: "Protection Transport" },
+                  { label: "JSON API", desc: "Payloads Légers" },
+                  { label: "XMLTV", desc: "Parsing EPG Rapide" }
+                ].map((item, i) => (
+                  <div key={i} className="space-y-1">
+                    <p className="font-bold text-sm text-zinc-200 underline decoration-primary/50 underline-offset-4">{item.label}</p>
+                    <p className="text-xs text-zinc-500">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="space-y-6 p-8 bg-zinc-950 border border-zinc-900 rounded-3xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <ShieldCheck size={120} />
+              </div>
+              <Badge variant="default" className="border-zinc-500/20 bg-transparent text-zinc-500">SLA & Disponibilité</Badge>
+              <h3 className="text-2xl font-black uppercase italic">Architecture Edge</h3>
+              <p className="text-zinc-400 text-sm leading-relaxed">
+                Notre infrastructure est déployée sur des clusters <strong>Google Cloud</strong> et <strong>Cloudflare Edge</strong>, garantissant une latence minimale pour l'Afrique de l'Ouest et Centrale. 
+                Toutes les activations sont traitées par des workers asynchrones pour une disponibilité de 99.9%.
+              </p>
+              <div className="flex items-center gap-4 pt-4">
+                <div className="flex -space-x-2">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-zinc-800 flex items-center justify-center text-[10px] font-bold">SP</div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">+2500 Serveurs de distribution connectés</p>
               </div>
             </div>
           </div>

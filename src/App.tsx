@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Documentation } from './pages/Documentation';
 import { Home } from './pages/Home';
 import { SimpleUserView } from './components/SimpleUserView';
 import { Capacitor } from '@capacitor/core';
@@ -29,9 +30,8 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrandingProvider>
-        <HashRouter>
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
               {/* If native app (APK/TV), show the MAC screen as home. Otherwise show the landing page. */}
               <Route path="/" element={isNative ? <Navigate to="/app" replace /> : <Home />} />
               
@@ -45,12 +45,12 @@ export default function App() {
               <Route path="/faq" element={<FAQ />} />
               <Route path="/assets" element={<Assets />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/documentation" element={<Documentation />} />
               
               {/* The specialized view for the APK/TV app */}
               <Route path="/app" element={<SimpleUserView channels={[]} onNotify={() => {}} />} />
             </Routes>
           </Suspense>
-        </HashRouter>
       </BrandingProvider>
     </ErrorBoundary>
   );
