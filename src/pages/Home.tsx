@@ -36,19 +36,26 @@ export const Home = () => {
         
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-4">
+          <Link to="/about">
+            <Button variant="ghost" size="sm" className="text-zinc-400">À Propos</Button>
+          </Link>
+          <Link to="/faq">
+            <Button variant="ghost" size="sm" className="text-zinc-400">FAQ</Button>
+          </Link>
+          <div className="w-px h-6 bg-zinc-800 mx-2" />
           {user ? (
             <Link to="/dashboard">
-              <Button variant="ghost" icon={LayoutDashboard}>Tableau de Bord</Button>
+              <Button variant="ghost" icon={LayoutDashboard} size="sm">Tableau de Bord</Button>
             </Link>
           ) : (
-            <>
+            <div className="flex items-center gap-2">
               <Link to="/login">
-                <Button variant="ghost" icon={LogIn}>Connexion</Button>
+                <Button variant="ghost" icon={LogIn} size="sm">Connexion</Button>
               </Link>
               <Link to="/register">
-                <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary hover:text-black">S'inscrire</Button>
+                <Button variant="primary" size="sm" className="px-6">Espace Pro</Button>
               </Link>
-            </>
+            </div>
           )}
         </div>
 
@@ -65,27 +72,36 @@ export const Home = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div 
-            initial={{ opacity: 0, x: '100%' }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: '100%' }}
-            className="fixed inset-0 z-40 bg-black pt-24 px-6 md:hidden"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 z-40 bg-black pt-24 px-6 md:hidden overflow-y-auto"
           >
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-2 gap-3">
+                <Link to="/about" onClick={() => setIsMenuOpen(false)} className="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 text-center">
+                  <p className="text-zinc-400 text-sm">À Propos</p>
+                </Link>
+                <Link to="/faq" onClick={() => setIsMenuOpen(false)} className="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 text-center">
+                  <p className="text-zinc-400 text-sm">FAQ</p>
+                </Link>
+              </div>
+
               {user ? (
                 <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}>
-                  <div className="flex items-center gap-4 p-5 bg-zinc-900 rounded-2xl border border-zinc-800">
+                  <div className="flex items-center gap-4 p-5 bg-primary/10 rounded-2xl border border-primary/20">
                     <LayoutDashboard className="text-primary" />
                     <div className="text-left">
-                      <p className="font-bold">Tableau de Bord</p>
-                      <p className="text-xs text-zinc-500">Gérez vos clients et crédits</p>
+                      <p className="font-bold text-primary">Accès Dashboard</p>
+                      <p className="text-xs text-primary/60">Gérez vos clients et crédits</p>
                     </div>
                   </div>
                 </Link>
               ) : (
-                <>
+                <div className="space-y-4">
                   <Link to="/login" onClick={() => setIsMenuOpen(false)}>
                     <div className="flex items-center gap-4 p-5 bg-zinc-900 rounded-2xl border border-zinc-800">
-                      <LogIn className="text-primary" />
+                      <LogIn className="text-zinc-400" />
                       <div className="text-left">
                         <p className="font-bold">Connexion</p>
                         <p className="text-xs text-zinc-500">Accédez à votre compte</p>
@@ -93,36 +109,47 @@ export const Home = () => {
                     </div>
                   </Link>
                   <Link to="/register" onClick={() => setIsMenuOpen(false)}>
-                    <div className="flex items-center gap-4 p-5 bg-zinc-900 rounded-2xl border border-zinc-800">
-                      <UserPlus className="text-primary" />
+                    <div className="flex items-center gap-4 p-5 bg-primary rounded-2xl border border-primary/30">
+                      <UserPlus className="text-black" />
                       <div className="text-left">
-                        <p className="font-bold">S'inscrire</p>
-                        <p className="text-xs text-zinc-500">Créer un compte revendeur</p>
+                        <p className="font-bold text-black">Devenir Revendeur</p>
+                        <p className="text-xs text-black/60">Lancez votre business</p>
                       </div>
                     </div>
                   </Link>
-                </>
+                </div>
               )}
-              <Button fullWidth size="lg" icon={Download} className="mt-4" onClick={() => window.location.href = 'https://firebasestorage.googleapis.com/v0/b/skyplayer-60634.firebasestorage.app/o/SkyPlayer.apk?alt=media'}>Télécharger l'APK</Button>
+              
+              <div className="pt-6 border-t border-zinc-800">
+                <Button fullWidth size="lg" icon={Download} onClick={() => window.location.href = 'https://firebasestorage.googleapis.com/v0/b/skyplayer-60634.firebasestorage.app/o/SkyPlayer.apk?alt=media'}>Télécharger APK</Button>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <main className="max-w-5xl mx-auto mt-12 md:mt-20 text-center space-y-12 px-4 md:px-6">
+      <main className="max-w-6xl mx-auto mt-12 md:mt-24 text-center space-y-16 px-4 md:px-6">
         
         {/* Titre d'accroche */}
-        <div className="space-y-4">
-          <Badge variant="primary" className="mx-auto mb-4 px-4 py-1.5 text-[10px] uppercase font-black tracking-[0.2em] bg-primary/20 text-primary border-primary/30">L'Écosystème Multimédia n°1 en Afrique</Badge>
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter leading-[1.1]">
-            Gérez votre Business <br className="hidden sm:block"/>
-            <span className="text-primary">Multimédia</span> avec Sky Pro.
+        <div className="space-y-6">
+          <Badge variant="primary" className="mx-auto mb-4 px-5 py-2 text-[10px] uppercase font-black tracking-[0.3em] bg-primary/20 text-primary border-primary/30 animate-pulse">Technologie de Streaming de Pointe</Badge>
+          <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] uppercase italic">
+            Lecteur de <br className="hidden sm:block"/>
+            <span className="text-primary">Streaming</span> Pro.
           </h1>
-          <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-            La plateforme SaaS tout-en-un pour les professionnels de la distribution média. 
-            Gérez vos clients, automatisez vos activations et offrez le lecteur le plus puissant du marché.
+          <p className="text-zinc-400 text-lg md:text-2xl max-w-3xl mx-auto leading-relaxed">
+            Le moteur de lecture le plus avancé pour l'Afrique. 
+            Optimisé pour les réseaux instables, compatible nativement avec tous vos flux IPTV, Xtream et M3U.
           </p>
+          
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-8">
+            <Button size="lg" className="bg-primary hover:bg-primary-dark w-full sm:w-auto px-10 text-lg font-black h-16" onClick={() => window.location.href = 'https://firebasestorage.googleapis.com/v0/b/skyplayer-60634.firebasestorage.app/o/SkyPlayer.apk?alt=media'} icon={Download}>Télécharger APK</Button>
+            <Link to="/register" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full px-10 text-lg border-zinc-800 hover:border-primary/50 h-16">Panel Revendeur</Button>
+            </Link>
+          </div>
         </div>
+
 
         {/* Compatibility Badges */}
         <div className="flex flex-wrap justify-center items-center gap-3 md:gap-6 pt-4 pb-2">
@@ -179,6 +206,88 @@ export const Home = () => {
             <span>En savoir plus dans la FAQ</span>
             <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </Link>
+        </div>
+
+        {/* Technical Specs Section */}
+        <div className="py-20 space-y-12">
+          <div className="text-left space-y-4">
+            <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter">Spécifications <span className="text-primary">Techniques</span></h2>
+            <p className="text-zinc-500 max-w-2xl">Une ingénierie de précision pour une performance absolue sur tous les réseaux.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-[2rem] text-left space-y-6">
+              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center">
+                <Cpu className="text-primary" size={24} />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-lg font-bold uppercase tracking-tight">Moteur de Lecture Natif</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">
+                  Support complet de <strong>HLS (m3u8)</strong>, <strong>DASH</strong>, <strong>RTMP</strong> et <strong>RTSP</strong>. Décodage matériel <strong>4K HEVC (H.265)</strong> intégré pour une consommation CPU minimale.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-[2rem] text-left space-y-6">
+              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center">
+                <Activity className="text-primary" size={24} />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-lg font-bold uppercase tracking-tight">Adaptive Jitter Buffer</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">
+                  Algorithme propriétaire de mise en cache dynamique (<strong>Zero-Latency</strong>). S'adapte en temps réel aux micro-coupures des connexions 3G/4G et satellites.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-[2rem] text-left space-y-6">
+              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center">
+                <Zap className="text-primary" size={24} />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-lg font-bold uppercase tracking-tight">Connecteur Xtream API v2</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">
+                  Synchronisation ultra-rapide des catégories, EPG et métadonnées (TMDB). Capable de charger des bibliothèques de +50,000 items en moins de 3 secondes.
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-[2rem] text-left space-y-6">
+              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center">
+                <Lock className="text-primary" size={24} />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-lg font-bold uppercase tracking-tight">Proxy & Sécurité</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">
+                  Tunneling HTTP local pour contourner les restrictions <strong>CORS</strong> et obfuscation des streams pour protéger votre vie privée et vos accès.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-[2rem] text-left space-y-6">
+              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center">
+                <ShieldCheck className="text-primary" size={24} />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-lg font-bold uppercase tracking-tight">Certifié Widevine L1</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">
+                  Support DRM natif pour la lecture de contenus protégés en Haute Définition sur les appareils compatibles (Android TV certifiées).
+                </p>
+              </div>
+            </div>
+
+            <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-[2rem] text-left space-y-6">
+              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center">
+                <Grid className="text-primary" size={24} />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-lg font-bold uppercase tracking-tight">Multi-EPG Sync</h4>
+                <p className="text-zinc-500 text-sm leading-relaxed">
+                  Agrégation automatique des guides de programmes depuis plusieurs sources (XMLTV, JSON API) avec rafraîchissement asynchrone en arrière-plan.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Why Sky Pro Section */}
