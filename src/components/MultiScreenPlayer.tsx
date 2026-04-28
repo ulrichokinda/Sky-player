@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Grid, Layout, ChevronLeft } from 'lucide-react';
+import { X, Grid, Layout, ChevronLeft, Tv } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Channel } from '../lib/playlistParser';
 
@@ -64,26 +64,27 @@ export const MultiScreenPlayer: React.FC<MultiScreenPlayerProps> = ({ channels, 
                   onMouseOver={(e) => (e.currentTarget.muted = false)}
                   onMouseOut={(e) => (e.currentTarget.muted = true)}
                 />
-                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity text-white">
                   {channel.name}
                 </div>
                 <button 
                   onClick={() => handleChannelSelect(null as any, i)}
-                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 p-2 bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white rounded-full opacity-0 group-hover:opacity-100 transition-all border border-red-500/20"
                 >
                   <X size={14} />
                 </button>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-600">
-                  <Tv size={24} />
+              <div className="flex flex-col items-center gap-4 p-4 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center text-zinc-700">
+                  <Tv size={32} />
                 </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Choisir une chaîne</p>
                 <select 
-                  className="bg-zinc-800 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-primary"
+                  className="bg-zinc-800 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-primary text-white w-full max-w-[150px]"
                   onChange={(e) => handleChannelSelect(channels[parseInt(e.target.value)], i)}
                 >
-                  <option value="">Sélectionner une chaîne</option>
+                  <option value="">Sélectionner...</option>
                   {channels.map((c, idx) => (
                     <option key={idx} value={idx}>{c.name}</option>
                   ))}
@@ -96,5 +97,3 @@ export const MultiScreenPlayer: React.FC<MultiScreenPlayerProps> = ({ channels, 
     </div>
   );
 };
-
-import { Tv } from 'lucide-react';
