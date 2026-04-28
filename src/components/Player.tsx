@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
+import mpegts from 'mpegts.js';
 import { Play, Pause, Volume2, VolumeX, Maximize, ChevronLeft, List, Settings, SkipBack, SkipForward, Search, X, Star, Calendar, Grid } from 'lucide-react';
 import { EPGProgram, parseEPG, formatTime } from '../lib/epgParser';
 import { motion, AnimatePresence } from 'motion/react';
@@ -118,26 +119,18 @@ export const Player: React.FC<PlayerProps> = ({
     if (!video) return;
 
     let hls: Hls | null = null;
+    let mpegtsPlayer: any = null;
     setIsLoading(true);
+    setError(null);
     
-    // Auto-convert Xtream Codes .ts links to .m3u8 for web compatibility
     let finalUrl = url;
     
-    // Auto-convert Xtream Codes .ts links to .m3u8 for web compatibility
-    if (finalUrl.endsWith('.ts') && finalUrl.includes('/live/')) {
-      finalUrl = finalUrl.replace('.ts', '.m3u8');
-    }
-    
-    // Detect Xtream API stream URLs that might lack an extension but need HLS
     const isXtreamStream = finalUrl.includes('/live/') || finalUrl.includes('/movie/') || finalUrl.includes('/series/');
-    const forceHls = finalUrl.includes('.m3u8') || finalUrl.includes('type=m3u8') || finalUrl.includes('/hls/') || (isXtreamStream && !finalUrl.includes('.mp4') && !finalUrl.includes('.mkv'));
+    const isM3U8 = finalUrl.includes('.m3u8') || finalUrl.includes('type=m3u8') || finalUrl.includes('/hls/');
+    const isMP4 = finalUrl.includes('.mp4') || finalUrl.includes('.mkv');
+    const isTS = finalUrl.endsWith('.ts') || (!isM3U8 && !isMP4 && isXtreamStream);
 
-    if (forceHls) {
-      if (!finalUrl.includes('.m3u8') && isXtreamStream && !finalUrl.includes('?')) {
-        // Many Xtream servers require explicitly appending .m3u8 if missing
-        finalUrl = `${finalUrl}.m3u8`;
-      }
-      
+    if (isM3U8) {
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
@@ -175,14 +168,36 @@ export const Player: React.FC<PlayerProps> = ({
           setIsLoading(false);
         });
       }
-    } else {
-      // Direct MP4/TS/MKV link
-      video.src = finalUrl;
-      video.play().catch((err) => {
+    } else if (isTS && mpegts.isSupported()) {
+      mpegtsPlayer = mpegts.createPlayer({
+        type: 'mse',
+        isLive: finalUrl.includes('/live/'),
+        url: finalUrl
+      });
+      mpegtsPlayer.attachMediaElement(video);
+      mpegtsPlayer.load();
+      mpegtsPlayer.play().then(() => {
+        setIsPlaying(true);
+        setIsLoading(false);
+      }).catch((err: any) => {
         setIsPlaying(false);
         setError("Impossible de charger ce flux. Le format ou le lien est invalide.");
       });
-      setIsPlaying(true);
+      
+      mpegtsPlayer.on(mpegts.Events.ERROR, (errorType: any, errorDetail: any, errorInfo: any) => {
+        setError("Erreur de lecture: Impossible de charger ce flux.");
+        setIsLoading(false);
+      });
+    } else {
+      // Direct MP4/TS/MKV link
+      video.src = finalUrl;
+      video.play().then(() => {
+        setIsPlaying(true);
+        setIsLoading(false);
+      }).catch((err) => {
+        setIsPlaying(false);
+        setError("Impossible de charger ce flux. Le format ou le lien est invalide.");
+      });
       setIsLoading(false);
     }
 
@@ -195,6 +210,7 @@ export const Player: React.FC<PlayerProps> = ({
 
     return () => {
       if (hls) hls.destroy();
+      if (mpegtsPlayer) mpegtsPlayer.destroy();
       video.removeEventListener('error', handleError);
     };
   }, [url]);
