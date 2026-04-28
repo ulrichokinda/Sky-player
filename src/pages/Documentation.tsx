@@ -17,7 +17,9 @@ import {
   Clock,
   Layout,
   Terminal,
-  Server
+  Server,
+  Lock,
+  Scale
 } from 'lucide-react';
 import { Button, Badge, Card } from '../components/ui';
 
@@ -96,6 +98,29 @@ export function Documentation() {
         'Automatisation des activations via API.',
         'Stats d\'utilisation et monitoring des serveurs.'
       ]
+    },
+    {
+      id: 'privacy',
+      title: 'Confidentialité',
+      icon: Lock,
+      content: `Chez Sky Player, la protection de votre vie privée est notre priorité absolue. Nous collectons uniquement les informations strictement nécessaires au bon fonctionnement de nos services (Adresse MAC, Email, Transactions Mobile Money). Sky Player ne collecte jamais le contenu de vos listes de lecture IPTV.`
+    },
+    {
+      id: 'terms',
+      title: 'Conditions Générales',
+      icon: Scale,
+      content: `Sky Player Pro est exclusivement un lecteur multimédia. Nous ne fournissons, n'hébergeons, ne vendons et ne diffusons aucun contenu (chaînes TV, films, séries). Les utilisateurs sont seuls responsables du contenu qu'ils ajoutent via leurs propres listes de lecture.`
+    },
+    {
+      id: 'contact',
+      title: 'Contact & Support',
+      icon: AlertCircle,
+      content: `Nos ingénieurs sont disponibles pour vous accompagner dans vos déploiements d'infrastructure média. Pour toute question technique ou commerciale, n'hésitez pas à nous contacter.`,
+      features: [
+        'Email: inestaulrichokinda@gmail.com',
+        'Support Ticket via Panel Revendeur',
+        'Assistance Technique 24/7 pour les Licences Pro'
+      ]
     }
   ];
 
@@ -139,7 +164,9 @@ export function Documentation() {
 
             <Card className="p-5 border-zinc-800 bg-zinc-900/50 space-y-4">
               <p className="text-xs text-zinc-400 font-medium">Besoin d'aide technique ?</p>
-              <Button fullWidth size="sm" variant="outline" className="text-[10px] font-black uppercase tracking-widest border-zinc-700">Contact Support</Button>
+              <Link to="/contact">
+                <Button fullWidth size="sm" variant="outline" className="text-[10px] font-black uppercase tracking-widest border-zinc-700">Contact Support</Button>
+              </Link>
             </Card>
           </aside>
 
@@ -230,7 +257,9 @@ export function Documentation() {
                 <p className="text-zinc-400 max-w-md mx-auto">Nos ingénieurs sont disponibles pour vous accompagner dans vos déploiements d'infrastructure média.</p>
               </div>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <Button variant="primary" size="lg" className="px-10">Contacter le Support</Button>
+                <Link to="/contact">
+                  <Button variant="primary" size="lg" className="px-10">Contacter le Support</Button>
+                </Link>
                 <Link to="/about">
                   <Button variant="outline" size="lg" className="px-10 border-zinc-800">En savoir plus</Button>
                 </Link>
@@ -248,9 +277,9 @@ export function Documentation() {
             <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">Sky Player Documentation &copy; 2026 &bull; Alpha Release</p>
           </div>
           <div className="flex gap-8">
-            <Link to="/privacy" className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest hover:text-primary">Confidentialité</Link>
-            <Link to="/terms" className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest hover:text-primary">Conditions</Link>
-            <Link to="/contact" className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest hover:text-primary">Contact</Link>
+            <a href="#privacy" className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest hover:text-primary">Confidentialité</a>
+            <a href="#terms" className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest hover:text-primary">Conditions</a>
+            <a href="#contact" className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest hover:text-primary">Contact</a>
           </div>
         </div>
       </footer>

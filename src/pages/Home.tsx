@@ -108,7 +108,7 @@ export const Home = () => {
                   </div>
                 </Link>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <Link to="/login" onClick={() => setIsMenuOpen(false)}>
                     <div className="flex items-center gap-4 p-5 bg-zinc-900 rounded-2xl border border-zinc-800">
                       <LogIn className="text-zinc-400" />
