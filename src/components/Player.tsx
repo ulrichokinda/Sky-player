@@ -160,6 +160,16 @@ export const Player: React.FC<PlayerProps> = ({
     
     let finalUrl = url;
     
+    // Auto-convert Xtream Codes .ts links to .m3u8 for web compatibility
+    if (finalUrl.endsWith('.ts') && finalUrl.includes('/live/')) {
+      finalUrl = finalUrl.replace('.ts', '.m3u8');
+    } else if (finalUrl.includes('/live/') && !finalUrl.match(/\.(m3u8|ts|mp4|mkv)$/)) {
+      finalUrl += '.m3u8';
+    }
+    
+    // Check for Mixed Content (HTTPS site, HTTP stream)
+    const isMixedContent = finalUrl.startsWith('http://') && window.location.protocol === 'https:';
+    
     const isXtreamStream = finalUrl.includes('/live/') || finalUrl.includes('/movie/') || finalUrl.includes('/series/');
     const isM3U8 = finalUrl.includes('.m3u8') || finalUrl.includes('type=m3u8') || finalUrl.includes('/hls/');
     const isMP4 = finalUrl.includes('.mp4') || finalUrl.includes('.mkv');
@@ -175,6 +185,15 @@ export const Player: React.FC<PlayerProps> = ({
     };
     video.addEventListener('timeupdate', handleTimeUpdate);
 
+    const throwError = (msg: string) => {
+      if (isMixedContent) {
+        setError("Erreur de lecture: Votre navigateur bloque les flux HTTP (non sécurisés) sur ce site HTTPS. Essayez d'utiliser un lien M3U HTTPS.");
+      } else {
+        setError(msg);
+      }
+      setIsLoading(false);
+    };
+
     if (isM3U8) {
       if (Hls.isSupported()) {
         hls = new Hls({ enableWorker: true, lowLatencyMode: true });
@@ -189,7 +208,7 @@ export const Player: React.FC<PlayerProps> = ({
           if (data.fatal) {
             switch(data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                setError("Erreur réseau: Impossible de charger le flux vidéo.");
+                throwError("Erreur réseau: Impossible de charger le flux vidéo.");
                 hls?.startLoad();
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
@@ -197,7 +216,7 @@ export const Player: React.FC<PlayerProps> = ({
                 break;
               default:
                 hls?.destroy();
-                setError("Erreur fatale: Le format n'est pas supporté par votre navigateur.");
+                throwError("Erreur fatale: Le format n'est pas supporté par votre navigateur.");
                 break;
             }
           }
@@ -209,22 +228,26 @@ export const Player: React.FC<PlayerProps> = ({
           setIsPlaying(true);
           setIsLoading(false);
         });
+        video.addEventListener('error', () => throwError("Erreur de lecture du média."));
       }
     } else if (isTS && mpegts.isSupported()) {
-      mpegtsPlayer = mpegts.createPlayer({ type: 'mse', isLive: finalUrl.includes('/live/'), url: finalUrl });
-      mpegtsPlayer.attachMediaElement(video);
-      mpegtsPlayer.load();
-      mpegtsPlayer.play().then(() => {
-        setIsPlaying(true);
-        setIsLoading(false);
-      }).catch((err: any) => {
-        setIsPlaying(false);
-        setError("Impossible de charger ce flux. Le format ou le lien est invalide.");
-      });
-      mpegtsPlayer.on(mpegts.Events.ERROR, () => {
-        setError("Erreur de lecture: Impossible de charger ce flux.");
-        setIsLoading(false);
-      });
+      try {
+        mpegtsPlayer = mpegts.createPlayer({ type: 'mse', isLive: finalUrl.includes('/live/'), url: finalUrl, cors: true });
+        mpegtsPlayer.attachMediaElement(video);
+        mpegtsPlayer.load();
+        mpegtsPlayer.play().then(() => {
+          setIsPlaying(true);
+          setIsLoading(false);
+        }).catch((err: any) => {
+          setIsPlaying(false);
+          throwError("Impossible de charger ce flux (erreur de lecture).");
+        });
+        mpegtsPlayer.on(mpegts.Events.ERROR, () => {
+          throwError("Erreur de flux TS: le serveur refuse la connexion (CORS) ou le format est invalide.");
+        });
+      } catch (err) {
+        throwError("Impossible d'initialiser le lecteur vidéo.");
+      }
     } else {
       video.src = finalUrl;
       video.play().then(() => {
@@ -232,14 +255,13 @@ export const Player: React.FC<PlayerProps> = ({
         setIsLoading(false);
       }).catch((err) => {
         setIsPlaying(false);
-        setError("Impossible de charger ce flux. Le format ou le lien est invalide.");
+        throwError("Impossible de charger ce flux direct. Le format ou le lien est invalide.");
       });
       setIsLoading(false);
     }
 
     const handleError = () => {
-      setError("Erreur de lecture du média. Tentative de reconnexion...");
-      setIsLoading(false);
+      throwError("Erreur de lecture du média. Tentative de reconnexion...");
     };
 
     video.addEventListener('error', handleError);
