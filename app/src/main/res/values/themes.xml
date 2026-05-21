@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    
+    <!-- Thème principal de l'application -->
+    <style name="Theme.SkyPlayerPro" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/night_sky</item>
+        <item name="android:navigationBarColor">@color/night_sky</item>
+        <item name="android:windowBackground">@color/night_sky</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+    
+    <!-- Thème du Splash Screen -->
+    <style name="Theme.SkyPlayerPro.Splash" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Fenêtre transparente avant chargement -->
+        <item name="windowSplashScreenBackground">@color/night_sky</item>
+        
+        <!-- Icône animée du splash screen -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        
+        <!-- Thème à appliquer après le splash -->
+        <item name="postSplashScreenTheme">@style/Theme.SkyPlayerPro</item>
+        
+        <!-- Couleurs système -->
+        <item name="android:statusBarColor">@color/night_sky</item>
+        <item name="android:navigationBarColor">@color/night_sky</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+    
+    <!-- Thème pour l'activité du player plein écran -->
+    <style name="Theme.SkyPlayerPro.Player" parent="Theme.SkyPlayerPro">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+    
+</resources>

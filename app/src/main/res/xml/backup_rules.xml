@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Ne pas sauvegarder les données sensibles (tokens, credentials, config locale). -->
+    <exclude domain="sharedpref" path="."/>
+    <exclude domain="database" path="."/>
+
+    <!-- Exclure les caches -->
+    <exclude domain="cache" path="channel_logos/"/>
+    <exclude domain="cache" path="media_cache/"/>
+</full-backup-content>

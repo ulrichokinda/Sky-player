@@ -1,0 +1,62 @@
+{
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "hosting": {
+    "site": "skyplayerapp",
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/pawapay",
+        "function": "pawapayWebhook"
+      },
+      {
+        "source": "/api/check-status",
+        "function": "checkPaymentStatus"
+      },
+      {
+        "source": "/api/update-status",
+        "function": "updateLicenseStatus"
+      },
+      {
+        "source": "/api/**",
+        "function": "pawapayWebhook"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/api/**",
+        "headers": [
+          {
+            "key": "Access-Control-Allow-Origin",
+            "value": "*"
+          },
+          {
+            "key": "Access-Control-Allow-Methods",
+            "value": "GET, POST, OPTIONS"
+          },
+          {
+            "key": "Access-Control-Allow-Headers",
+            "value": "Content-Type, X-PawaPay-Signature"
+          }
+        ]
+      }
+    ]
+  },
+  "functions": [
+    {
+      "source": "firebase-functions",
+      "codebase": "pawapay-integration",
+      "runtime": "nodejs22"
+    }
+  ]
+}

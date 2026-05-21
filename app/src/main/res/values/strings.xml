@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sky Player Pro</string>
+    
+    <!-- Navigation -->
+    <string name="nav_live_tv">Live TV</string>
+    <string name="nav_vod">VOD</string>
+    <string name="nav_series">Séries</string>
+    <string name="nav_favorites">Favoris</string>
+    <string name="nav_settings">Paramètres</string>
+    
+    <!-- Actions -->
+    <string name="action_play">Lecture</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_add_favorite">Ajouter aux favoris</string>
+    <string name="action_remove_favorite">Retirer des favoris</string>
+    <string name="action_search">Rechercher</string>
+    <string name="action_filter">Filtrer</string>
+    <string name="action_back">Retour</string>
+    <string name="action_confirm">Confirmer</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_retry">Réessayer</string>
+    <string name="action_close">Fermer</string>
+    
+    <!-- Player -->
+    <string name="player_buffering">Chargement…</string>
+    <string name="player_live">EN DIRECT</string>
+    <string name="player_reconnecting">Reconnexion en cours…</string>
+    <string name="player_error_network">Problème de connexion. Nouvelle tentative…</string>
+    <string name="player_error_stream">Impossible de lire ce flux</string>
+    <string name="player_pip">Picture-in-Picture</string>
+    <string name="player_speed">Vitesse</string>
+    <string name="player_audio">Piste audio</string>
+    <string name="player_subtitles">Sous-titres</string>
+    <string name="player_multi">Multi-vue</string>
+    <string name="player_fullscreen">Plein écran</string>
+    
+    <!-- Qualité Vidéo -->
+    <string name="quality_title">Qualité Vidéo</string>
+    <string name="quality_auto">Auto (Adaptatif)</string>
+    <string name="quality_sd_240">240p (Très basse)</string>
+    <string name="quality_sd_360">360p (Basse)</string>
+    <string name="quality_sd_420">420p (Standard)</string>
+    <string name="quality_hd_720">720p (HD)</string>
+    <string name="quality_fhd_1080">1080p (Full HD)</string>
+    <string name="quality_uhd_4k">4K (Ultra HD)</string>
+    <string name="quality_network_excellent">Excellent réseau</string>
+    <string name="quality_network_good">Bon réseau</string>
+    <string name="quality_network_stable">Réseau stable</string>
+    <string name="quality_network_unstable">Réseau instable</string>
+    <string name="quality_network_poor">Connexion faible</string>
+    <string name="quality_auto_description">Mode Auto: La qualité s\'adapte automatiquement à votre connexion</string>
+    <string name="quality_indicator">Qualité actuelle</string>
+    <string name="quality_quick_select">Sélection rapide</string>
+    <string name="quality_manual">Mode manuel</string>
+    <string name="quality_status_hd">HD</string>
+    <string name="quality_status_sd">SD</string>
+    <string name="quality_status_low">LOW</string>
+    
+    <!-- Multi-Player -->
+    <string name="multi_player_title">Multi-vue</string>
+    <string name="multi_player_add">Ajouter une chaîne</string>
+    <string name="multi_player_remove">Retirer</string>
+    <string name="multi_player_layout">Disposition</string>
+    <string name="multi_player_2split">2 Écrans</string>
+    <string name="multi_player_4grid">4 Grille</string>
+    <string name="multi_player_pip">Principal + Miniatures</string>
+    
+    <!-- Code Parental -->
+    <string name="pin_title">Code Parental</string>
+    <string name="pin_enter">Entrez votre code PIN</string>
+    <string name="pin_set">Définir un code PIN</string>
+    <string name="pin_confirm">Confirmez le code PIN</string>
+    <string name="pin_mismatch">Les codes PIN ne correspondent pas</string>
+    <string name="pin_incorrect">Code PIN incorrect</string>
+    <string name="pin_forgot">Code PIN oublié ? Contactez le support</string>
+    <string name="pin_locked">Catégorie verrouillée</string>
+    
+    <!-- Playlist -->
+    <string name="playlist_add">Ajouter une playlist</string>
+    <string name="playlist_url">URL de la playlist</string>
+    <string name="playlist_name">Nom de la playlist</string>
+    <string name="playlist_xtream">Identifiants Xtream Codes</string>
+    <string name="playlist_username">Nom d\'utilisateur</string>
+    <string name="playlist_password">Mot de passe</string>
+    <string name="playlist_server">URL du serveur</string>
+    
+    <!-- Messages -->
+    <string name="msg_loading">Chargement…</string>
+    <string name="msg_no_internet">Pas de connexion internet</string>
+    <string name="msg_no_channels">Aucune chaîne disponible</string>
+    <string name="msg_no_results">Aucun résultat trouvé</string>
+    <string name="msg_added_favorite">Ajouté aux favoris</string>
+    <string name="msg_removed_favorite">Retiré des favoris</string>
+    
+    <!-- Dossiers Personnalisés -->
+    <string name="folder_create">Créer un dossier</string>
+    <string name="folder_new">Nouveau dossier</string>
+    <string name="folder_name">Nom du dossier</string>
+    <string name="folder_icon">Icône</string>
+    <string name="folder_color">Couleur</string>
+    <string name="folder_movies">Films</string>
+    <string name="folder_series">Séries</string>
+    <string name="folder_items_count">%1$d éléments</string>
+    <string name="folder_empty">Dossier vide</string>
+    <string name="folder_add_content">Ajouter du contenu</string>
+    <string name="folder_edit">Modifier le dossier</string>
+    <string name="folder_delete">Supprimer le dossier</string>
+    <string name="folder_default_movies">Mes Films Préférés</string>
+    <string name="folder_default_best">Mes Classiques</string>
+    <string name="folder_default_watchlater">À Regarder Plus Tard</string>
+    <string name="folder_default_series">Mes Séries</string>
+    <string name="folder_default_watching">En Cours</string>
+    <string name="folder_default_discover">À Découvrir</string>
+    
+    <!-- Paramètres -->
+    <string name="settings_parental">Contrôle parental</string>
+    <string name="settings_buffer">Tampon mémoire</string>
+    <string name="settings_buffer_size">Taille du tampon (optimisé pour connexion lente)</string>
+    <string name="settings_clear_cache">Vider le cache</string>
+    <string name="settings_about">À propos</string>
+    <string name="settings_version">Version %1$s</string>
+    
+    <!-- Écran d\'accueil -->
+    <string name="welcome_title">Bienvenue sur Sky Player Pro</string>
+    <string name="welcome_subtitle">La meilleure expérience IPTV, optimisée pour l\'Afrique</string>
+    <string name="welcome_add_playlist">Commencez par ajouter votre playlist</string>
+</resources>

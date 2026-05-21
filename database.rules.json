@@ -1,0 +1,105 @@
+{
+  "rules": {
+    "licenses": {
+      "$deviceId": {
+        ".read": "data.child('deviceId').val() == $deviceId",
+        ".write": false,
+        "deviceId": {
+          ".write": "!data.exists() && newData.val() == $deviceId",
+          ".validate": "newData.isString() && newData.val() == $deviceId"
+        },
+        "installDate": {
+          ".write": "!data.exists() && newData.isNumber() && newData.val() <= now",
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "isActive": {
+          ".write": "auth != null && auth.token.admin == true",
+          ".validate": "newData.isBoolean()"
+        },
+        "deviceInfo": {
+          ".write": "data.parent().child('deviceId').val() == $deviceId",
+          ".validate": "newData.hasChildren(['deviceName']) && newData.child('deviceName').isString() && newData.child('deviceName').val().length <= 120"
+        },
+        "serverTimestamp": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "activatedBy": {
+          ".write": "auth != null && auth.token.admin == true",
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "activationDate": {
+          ".write": "auth != null && auth.token.admin == true",
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "users": {
+      "$deviceId": {
+        ".read": "data.child('deviceId').val() == $deviceId",
+        ".write": "(data.exists() && data.child('deviceId').val() == $deviceId) || (!data.exists() && newData.child('deviceId').val() == $deviceId)",
+        "deviceId": {
+          ".validate": "newData.isString() && newData.val() == $deviceId"
+        },
+        "playlistUrl": {
+          ".validate": "newData.isString() && newData.val().matches(/^https:\\/\\/.+/)"
+        },
+        "subscription": {
+          ".validate": "newData.hasChildren(['active','plan'])",
+          "active": {
+            ".validate": "newData.isBoolean()"
+          },
+          "plan": {
+            ".validate": "newData.isString() && newData.val().matches(/^(basic|premium|vip)$/)"
+          },
+          "expiresAt": {
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() > now)"
+          },
+          "startedAt": {
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() <= now)"
+          }
+        },
+        "alerts": {
+          ".validate": "newData.hasChildren(['message','type'])",
+          "message": {
+            ".validate": "newData.isString() && newData.val().length <= 500"
+          },
+          "type": {
+            ".validate": "newData.isString() && newData.val().matches(/^(info|warning|critical)$/)"
+          },
+          "shownAt": {
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() <= now)"
+          }
+        },
+        "settings": {
+          ".validate": "newData.hasChildren(['preferredQuality','autoPlay','parentalLock'])",
+          "preferredQuality": {
+            ".validate": "newData.isString() && newData.val().matches(/^(auto|low|medium|high)$/)"
+          },
+          "autoPlay": {
+            ".validate": "newData.isBoolean()"
+          },
+          "parentalLock": {
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "lastUpdated": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "health_check": {
+      ".read": true,
+      ".write": false
+    },
+    "serverTime": {
+      ".read": true,
+      ".write": "auth != null && auth.token.admin == true"
+    }
+  }
+}

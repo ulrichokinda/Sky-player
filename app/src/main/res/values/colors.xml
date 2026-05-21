@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- === COULEURS PRINCIPALES PREMIUM === -->
+    <!-- Fond principal noir pur #0F0F0F -->
+    <color name="pure_black">#FF0F0F0F</color>
+    <color name="deep_black">#FF000000</color>
+    <color name="elevated_black">#FF1A1A1A</color>
+    <color name="card_black">#FF141414</color>
+    
+    <!-- Accents Premium -->
+    <!-- Bleu électrique #00AEEF - Sélections -->
+    <color name="electric_sky_blue">#FF00AEEF</color>
+    <color name="electric_sky_blue_dark">#FF0088CC</color>
+    <color name="electric_sky_blue_light">#FF4DC9FF</color>
+    
+    <!-- Or Premium #FFD700 - Comptes Premium -->
+    <color name="premium_gold">#FFFFD700</color>
+    <color name="premium_gold_dark">#FFB8860B</color>
+    <color name="premium_gold_light">#FFFFE55C</color>
+    
+    <!-- Glassmorphism -->
+    <color name="glass_white">#1AFFFFFF</color>
+    <color name="glass_light">#0DFFFFFF</color>
+    <color name="glass_dark">#26000000</color>
+    <color name="glass_overlay">#33FFFFFF</color>
+    <color name="blur_background">#800F0F0F</color>
+    
+    <!-- Surfaces et élévations -->
+    <color name="surface_level_0">@color/pure_black</color>
+    <color name="surface_level_1">@color/card_black</color>
+    <color name="surface_level_2">@color/elevated_black</color>
+    <color name="surface_level_3">#FF222222</color>
+    
+    <!-- Textes -->
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#B3FFFFFF</color>
+    <color name="text_tertiary">#80FFFFFF</color>
+    <color name="text_disabled">#4DFFFFFF</color>
+    <color name="text_on_gold">#FF0F0F0F</color>
+    
+    <!-- États -->
+    <color name="success_green">#FF00E676</color>
+    <color name="error_red">#FFFF3D71</color>
+    <color name="warning_orange">#FFFFA726</color>
+    <color name="info_blue">@color/electric_sky_blue</color>
+    
+    <!-- Gradients Premium -->
+    <color name="gradient_electric_start">#FF00AEEF</color>
+    <color name="gradient_electric_end">#FF00D4FF</color>
+    <color name="gradient_gold_start">@color/premium_gold</color>
+    <color name="gradient_gold_end">#FFFFE870</color>
+    <color name="gradient_dark_start">@color/pure_black</color>
+    <color name="gradient_dark_end">#FF1A1A1A</color>
+    
+    <!-- Catégories de contenu -->
+    <color name="live_tv">#FFFF3D71</color>
+    <color name="vod">#FF00E676</color>
+    <color name="series">#FF7C4DFF</color>
+    <color name="favorites">@color/premium_gold</color>
+    
+    <!-- Diviseurs et utilitaires -->
+    <color name="divider_color">#1FFFFFFF</color>
+    <color name="ripple_color">#4D00AEEF</color>
+    <color name="selection_background">#2600AEEF</color>
+    
+    <!-- Legacy aliases pour compatibilité -->
+    <color name="sky_blue">@color/electric_sky_blue</color>
+    <color name="sky_blue_light">@color/electric_sky_blue_light</color>
+    <color name="sky_blue_dark">@color/electric_sky_blue_dark</color>
+    <color name="night_sky">@color/pure_black</color>
+    <color name="night_surface">@color/elevated_black</color>
+    <color name="night_card">@color/card_black</color>
+    <color name="ic_launcher_background">#14A0F5</color>
+    <color name="sun_gold">@color/premium_gold</color>
+    <color name="cloud_white">@color/text_primary</color>
+</resources>
