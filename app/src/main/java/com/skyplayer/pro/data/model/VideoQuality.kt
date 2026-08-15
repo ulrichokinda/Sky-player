@@ -79,6 +79,7 @@ fun VideoQuality.toTrackSelectionParameters(context: Context): TrackSelectionPar
 /**
  * Extension pour convertir la qualité globale en qualité spécifique ABR
  */
+@OptIn(UnstableApi::class)
 fun VideoQuality.toAdaptiveQuality(): com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality {
     return when (this) {
         VideoQuality.AUTO -> com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality.AUTO

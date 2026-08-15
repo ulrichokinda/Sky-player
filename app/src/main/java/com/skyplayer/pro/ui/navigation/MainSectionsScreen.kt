@@ -3,7 +3,9 @@ package com.skyplayer.pro.ui.navigation
 import android.app.UiModeManager
 import android.content.Context
 import android.content.res.Configuration
+import androidx.annotation.OptIn
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.media3.common.util.UnstableApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -23,7 +25,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * Conteneur Phase 2 — navigation par gestes (swipe) entre les sections principales.
  * Synchronise le HorizontalPager avec la barre de navigation inférieure.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, UnstableApi::class)
 @Composable
 fun MainSectionsScreen(
     initialTab: MainTab,

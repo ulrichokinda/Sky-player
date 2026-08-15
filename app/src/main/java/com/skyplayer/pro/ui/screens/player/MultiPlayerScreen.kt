@@ -1,6 +1,7 @@
 package com.skyplayer.pro.ui.screens.player
 
 import androidx.media3.common.util.UnstableApi
+import androidx.annotation.OptIn
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.pm.ActivityInfo
@@ -67,6 +68,7 @@ import com.skyplayer.pro.ui.theme.PureBlack
  */
 @SuppressLint("SourceLockedOrientationActivity")
 @UnstableApi
+@OptIn(UnstableApi::class)
 @Composable
 fun MultiPlayerScreen(
     initialChannelId: String,
@@ -247,6 +249,7 @@ fun MultiPlayerScreen(
 /**
  * Layout 2 écrans séparés (horizontal)
  */
+@OptIn(UnstableApi::class)
 @Composable
 private fun TwoPlayerLayout(
     slots: List<PlayerSlot>,
@@ -289,6 +292,7 @@ private fun TwoPlayerLayout(
 /**
  * Layout 4 écrans en grille
  */
+@OptIn(UnstableApi::class)
 @Composable
 private fun FourPlayerLayout(
     slots: List<PlayerSlot>,
@@ -364,6 +368,7 @@ private fun FourPlayerLayout(
 /**
  * Layout PiP - 1 principal + petits thumbnails
  */
+@OptIn(UnstableApi::class)
 @Composable
 private fun PipMainLayout(
     slots: List<PlayerSlot>,
@@ -410,6 +415,7 @@ private fun PipMainLayout(
 /**
  * Vue d'un slot de lecteur
  */
+@OptIn(UnstableApi::class)
 @Composable
 private fun PlayerSlotView(
     slot: PlayerSlot?,
@@ -515,6 +521,7 @@ private fun PlayerSlotView(
 /**
  * Miniature pour mode PiP
  */
+@OptIn(UnstableApi::class)
 @Composable
 private fun MiniPlayerView(
     slot: PlayerSlot,
@@ -575,6 +582,7 @@ private fun MiniPlayerView(
 /**
  * Overlay état connexion simplifié
  */
+@OptIn(UnstableApi::class)
 @Composable
 private fun ConnectionOverlay(
     state: PlayerConnectionState,
@@ -625,6 +633,7 @@ private fun ConnectionOverlay(
 /**
  * Sélecteur de layout
  */
+@OptIn(UnstableApi::class)
 @Composable
 private fun LayoutSelector(
     currentMode: LayoutMode,
@@ -669,6 +678,7 @@ private fun LayoutSelector(
     }
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 private fun LayoutOption(
     icon: String,

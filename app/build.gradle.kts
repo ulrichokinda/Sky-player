@@ -135,6 +135,8 @@ android {
         showAll = true
         xmlReport = true
         htmlReport = true
+        // Faux positif connu : grpc-core référence javax.naming (classe jamais chargée sur Android)
+        disable += "InvalidPackage"
     }
 }
 
