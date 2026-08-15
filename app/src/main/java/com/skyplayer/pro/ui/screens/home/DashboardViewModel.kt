@@ -8,6 +8,9 @@ import com.skyplayer.pro.data.remote.DeviceCheckService
 import com.skyplayer.pro.data.remote.DownloadProgress
 import com.skyplayer.pro.data.remote.MacPlaylistInfo
 import com.skyplayer.pro.data.remote.MacPlaylistService
+import com.skyplayer.pro.data.model.Channel
+import com.skyplayer.pro.data.repository.ChannelRepository
+import com.skyplayer.pro.data.repository.FirestoreRepository
 import com.skyplayer.pro.data.repository.PlaylistRepository
 import com.skyplayer.pro.ui.theme.ElectricSkyBlue
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -15,9 +18,11 @@ import com.skyplayer.pro.ui.theme.SuccessGreen
 import com.skyplayer.pro.ui.theme.WarningOrange
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.text.SimpleDateFormat
@@ -34,8 +39,10 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val licenseManager: LicenseManager,
     private val playlistRepository: PlaylistRepository,
+    private val channelRepository: ChannelRepository,
     private val macPlaylistService: MacPlaylistService,
-    private val deviceCheckService: DeviceCheckService
+    private val deviceCheckService: DeviceCheckService,
+    private val firestoreRepository: FirestoreRepository
 ) : ViewModel() {
 
     // ═══════════════════════════════════════════════════════════════
@@ -81,21 +88,105 @@ class DashboardViewModel @Inject constructor(
     private val _channelCount = MutableStateFlow(0)
     val channelCount: StateFlow<Int> = _channelCount.asStateFlow()
 
+    // Sync status
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _syncProgress = MutableStateFlow(0f)
+    val syncProgress: StateFlow<Float> = _syncProgress.asStateFlow()
+
+    private val _expiryDateFormatted = MutableStateFlow("")
+    val expiryDateFormatted: StateFlow<String> = _expiryDateFormatted.asStateFlow()
+
+    /** Derniers contenus regardés (Live, VOD, Séries) */
+    val recentlyWatched: StateFlow<List<Channel>> = channelRepository.getAllRecentlyWatched(limit = 8)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     // Playlist détectée
     private var detectedPlaylistInfo: MacPlaylistInfo? = null
 
     // ═══════════════════════════════════════════════════════════════
-    // INITIALISATION UNIFIÉE (UN SEUL APPEL API)
+    // INITIALISATION UNIFIÉE (UN SEUL APPEL API + RÉFRESH PÉRIODIQUE)
     // ═══════════════════════════════════════════════════════════════
 
     init {
-        viewModelScope.launch {
-            val deviceId = licenseManager.getDeviceId()
-            _deviceId.value = deviceId
-            Timber.i("📱 DashboardViewModel init - Device ID: $deviceId")
+        val deviceId = licenseManager.getDeviceId()
+        _deviceId.value = deviceId
+        Timber.i("📱 DashboardViewModel init - Device ID: $deviceId")
 
-            // Un seul appel retourne : trial + playlist
+        // 1. Vérification initiale du statut
+        viewModelScope.launch {
             checkDeviceStatus(deviceId)
+            
+            // Vérification périodique
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                Timber.i("🔄 Actualisation périodique du statut...")
+                if (!_isChecking.value && !_isSyncing.value && _macPlaylistStatus.value is MacPlaylistStatus.None) {
+                    checkDeviceStatus(deviceId)
+                }
+            }
+        }
+        
+        // 2. Écoute Firestore en temps réel
+        viewModelScope.launch {
+            firestoreRepository.observeActivation(deviceId).collect { activation ->
+                handleFirestoreActivation(activation)
+            }
+        }
+    }
+
+    private fun handleFirestoreActivation(activation: com.skyplayer.pro.data.repository.FirestoreActivation?) {
+        if (activation == null) {
+            Timber.d("ℹ️ No Firestore activation")
+            return
+        }
+
+        Timber.i("📄 Firestore activation received: ${activation.status}")
+
+        if (activation.isActive()) {
+            val xtreamHost = activation.getXtreamHost()
+            val xtreamUser = activation.getXtreamUser()
+            val xtreamPassword = activation.getXtreamPassword()
+            val playlistUrl = activation.getPlaylistUrl()
+            val playlistName = activation.getPlaylistName()
+            val playlistType = activation.getPlaylistType()
+
+            if (!_isSyncing.value && _macPlaylistStatus.value is MacPlaylistStatus.None) {
+                if (!xtreamHost.isNullOrBlank() && !xtreamUser.isNullOrBlank() && !xtreamPassword.isNullOrBlank()) {
+                    // Charger playlist Xtream depuis Firestore
+                    val info = MacPlaylistInfo(
+                        name = playlistName ?: "Playlist Firestore",
+                        url = "",
+                        type = "xtream",
+                        expireDate = "",
+                        xtreamUsername = xtreamUser,
+                        xtreamPassword = xtreamPassword,
+                        xtreamServerUrl = xtreamHost
+                    )
+                    detectedPlaylistInfo = info
+                    _macPlaylistStatus.value = MacPlaylistStatus.Found(info)
+                    startXtreamLoad(info)
+                } else if (!playlistUrl.isNullOrBlank()) {
+                    // Charger playlist M3U depuis Firestore
+                    val info = MacPlaylistInfo(
+                        name = playlistName ?: "Playlist Firestore",
+                        url = playlistUrl,
+                        type = playlistType,
+                        expireDate = "",
+                        xtreamUsername = "",
+                        xtreamPassword = "",
+                        xtreamServerUrl = ""
+                    )
+                    detectedPlaylistInfo = info
+                    _macPlaylistStatus.value = MacPlaylistStatus.Found(info)
+                    startDownload(info)
+                }
+            }
         }
     }
 
@@ -114,22 +205,28 @@ class DashboardViewModel @Inject constructor(
                 // Trial actif avec ou sans playlist
                 _trialStatus.value = TrialStatus.TrialActive(result.daysRemaining)
                 _expiryLabel.value = "Essai: ${result.daysRemaining} j restants"
+                _expiryDateFormatted.value = ""
                 _expiryColor.value = if (result.daysRemaining <= 3) WarningOrange else PremiumGold
 
-                if (result.playlistUrl != null) {
-                    // SCÉNARIO A: Playlist trouvée → téléchargement
+                if (result.playlistUrl != null || result.xtreamServerUrl != null) {
+                    // SCÉNARIO A: Playlist trouvée → téléchargement ou ajout Xtream
                     val info = MacPlaylistInfo(
                         name = result.playlistName ?: "Playlist",
-                        url = result.playlistUrl,
-                        type = "m3u",
+                        url = result.playlistUrl ?: "",
+                        type = result.playlistType ?: "m3u",
                         expireDate = "",
-                        xtreamUsername = "",
-                        xtreamPassword = "",
-                        xtreamServerUrl = ""
+                        xtreamUsername = result.xtreamUsername ?: "",
+                        xtreamPassword = result.xtreamPassword ?: "",
+                        xtreamServerUrl = result.xtreamServerUrl ?: ""
                     )
                     detectedPlaylistInfo = info
                     _macPlaylistStatus.value = MacPlaylistStatus.Found(info)
-                    startDownload(info)
+                    
+                    if (info.type == "xtream" && info.xtreamServerUrl.isNotBlank() && info.xtreamUsername.isNotBlank()) {
+                        startXtreamLoad(info)
+                    } else {
+                        startDownload(info)
+                    }
                 } else {
                     // SCÉNARIO B: Aucune playlist → Dashboard
                     _macPlaylistStatus.value = MacPlaylistStatus.None
@@ -142,22 +239,28 @@ class DashboardViewModel @Inject constructor(
                 licenseManager.setActivatedLocally(true)
                 _trialStatus.value = TrialStatus.Activated
                 _expiryLabel.value = "✓ Abonnement actif"
+                _expiryDateFormatted.value = ""
                 _expiryColor.value = SuccessGreen
 
-                if (result.playlistUrl != null) {
-                    // SCÉNARIO A: Playlist trouvée → téléchargement
+                if (result.playlistUrl != null || result.xtreamServerUrl != null) {
+                    // SCÉNARIO A: Playlist trouvée → téléchargement ou ajout Xtream
                     val info = MacPlaylistInfo(
                         name = result.playlistName ?: "Playlist",
-                        url = result.playlistUrl,
-                        type = "m3u",
+                        url = result.playlistUrl ?: "",
+                        type = result.playlistType ?: "m3u",
                         expireDate = "",
-                        xtreamUsername = "",
-                        xtreamPassword = "",
-                        xtreamServerUrl = ""
+                        xtreamUsername = result.xtreamUsername ?: "",
+                        xtreamPassword = result.xtreamPassword ?: "",
+                        xtreamServerUrl = result.xtreamServerUrl ?: ""
                     )
                     detectedPlaylistInfo = info
                     _macPlaylistStatus.value = MacPlaylistStatus.Found(info)
-                    startDownload(info)
+                    
+                    if (info.type == "xtream" && info.xtreamServerUrl.isNotBlank() && info.xtreamUsername.isNotBlank()) {
+                        startXtreamLoad(info)
+                    } else {
+                        startDownload(info)
+                    }
                 } else {
                     // SCÉNARIO B: Aucune playlist → Dashboard
                     _macPlaylistStatus.value = MacPlaylistStatus.None
@@ -166,12 +269,12 @@ class DashboardViewModel @Inject constructor(
                 }
             }
             is DeviceCheckService.DeviceStatus.Expired -> {
-                // ⛔ BLOQUÉ - Trial expiré
+                // ⛔ BLOQUÉ - Non activé
                 _trialStatus.value = TrialStatus.Expired
-                _expiryLabel.value = "⚠ Essai expiré — Activation requise"
+                _expiryLabel.value = "⚠ Application non activée"
                 _expiryColor.value = WarningOrange
                 _isChecking.value = false
-                Timber.w("⛔ Trial expiré - Accès bloqué")
+                Timber.w("⛔ Non activé - Accès bloqué")
             }
             is DeviceCheckService.DeviceStatus.Offline -> {
                 // Fallback local
@@ -205,7 +308,7 @@ class DashboardViewModel @Inject constructor(
             }
             info.isTrialValid -> {
                 val daysLeft = info.trialDaysRemaining
-                val expiryDate = Date(info.installDate + (15L * 24 * 60 * 60 * 1000))
+                val expiryDate = Date(info.installDate + (LicenseManager.TRIAL_DAYS.toLong() * 24 * 60 * 60 * 1000))
                 _expiryLabel.value = "Essai: $daysLeft j — expire le ${dateFormat.format(expiryDate)}"
                 _expiryColor.value = if (daysLeft <= 3) WarningOrange else PremiumGold
             }
@@ -227,7 +330,12 @@ class DashboardViewModel @Inject constructor(
                 val info = result.info
                 detectedPlaylistInfo = info
                 _macPlaylistStatus.value = MacPlaylistStatus.Found(info)
-                startDownload(info)
+                
+                if (info.type == "xtream" && info.xtreamServerUrl.isNotBlank() && info.xtreamUsername.isNotBlank()) {
+                    startXtreamLoad(info)
+                } else {
+                    startDownload(info)
+                }
             } else {
                 _macPlaylistStatus.value = MacPlaylistStatus.None
                 _isChecking.value = false
@@ -241,36 +349,85 @@ class DashboardViewModel @Inject constructor(
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TÉLÉCHARGEMENT PROGRESSIF (SCÉNARIO A)
+    // CHARGEMENT PLAYLIST (M3U ou XTREAM)
     // ═══════════════════════════════════════════════════════════════
 
     private fun startDownload(info: MacPlaylistInfo) {
         viewModelScope.launch {
-            Timber.i("⬇️ Démarrage téléchargement: ${info.name}")
+            Timber.i("⬇️ Démarrage téléchargement M3U: ${info.name}")
+            _isSyncing.value = true
+            _syncProgress.value = 0f
+            _downloadError.value = null
 
-            macPlaylistService.downloadPlaylistWithProgress(info.url)
-                .collect { progress ->
-                    when (progress) {
-                        is DownloadProgress.Downloading -> {
-                            _downloadProgress.value = progress
-                            Timber.d("📥 Téléchargement: ${progress.label}")
-                        }
-                        is DownloadProgress.Done -> {
-                            // Sauvegarder la playlist
-                            val count = savePlaylist(info, progress.content)
-                            _channelCount.value = count
-                            _downloadComplete.value = true
-                            _isChecking.value = false
-                            Timber.i("✅ Téléchargement terminé - $count chaînes")
-                        }
-                        is DownloadProgress.Failed -> {
-                            _downloadError.value = progress.error
-                            _isChecking.value = false
-                            _macPlaylistStatus.value = MacPlaylistStatus.None // Retour au Dashboard
-                            Timber.e("❌ Erreur téléchargement: ${progress.error}")
-                        }
+            playlistRepository.addM3UPlaylist(info.name, info.url).collect { loadProgress ->
+                when (loadProgress) {
+                    is com.skyplayer.pro.data.repository.PlaylistLoadProgress.Loading -> {
+                        _downloadProgress.value = DownloadProgress.Downloading(
+                            readBytes = (loadProgress.progress ?: 0f).toLong(),
+                            totalBytes = if (loadProgress.progress != null) 100L else -1L
+                        )
+                        _syncProgress.value = loadProgress.progress ?: 0f
+                        Timber.d("📥 Téléchargement: ${loadProgress.message}")
+                    }
+                    is com.skyplayer.pro.data.repository.PlaylistLoadProgress.Success -> {
+                        _channelCount.value = loadProgress.channelCount
+                        _downloadComplete.value = true
+                        _isChecking.value = false
+                        _isSyncing.value = false
+                        _syncProgress.value = 1f
+                        Timber.i("✅ Téléchargement terminé - ${loadProgress.channelCount} chaînes")
+                    }
+                    is com.skyplayer.pro.data.repository.PlaylistLoadProgress.Error -> {
+                        _downloadError.value = loadProgress.exception.message ?: "Erreur inconnue"
+                        _isChecking.value = false
+                        _isSyncing.value = false
+                        _macPlaylistStatus.value = MacPlaylistStatus.None // Retour au Dashboard
+                        Timber.e(loadProgress.exception, "❌ Erreur téléchargement")
                     }
                 }
+            }
+        }
+    }
+
+    private fun startXtreamLoad(info: MacPlaylistInfo) {
+        viewModelScope.launch {
+            Timber.i("📺 Démarrage chargement Xtream: ${info.name}")
+            _isSyncing.value = true
+            _syncProgress.value = 0f
+            _downloadError.value = null
+
+            playlistRepository.addXtreamPlaylist(
+                name = info.name,
+                username = info.xtreamUsername,
+                password = info.xtreamPassword,
+                serverUrl = info.xtreamServerUrl
+            ).collect { loadProgress ->
+                when (loadProgress) {
+                    is com.skyplayer.pro.data.repository.PlaylistLoadProgress.Loading -> {
+                        _downloadProgress.value = DownloadProgress.Downloading(
+                            readBytes = (loadProgress.progress ?: 0f).toLong(),
+                            totalBytes = if (loadProgress.progress != null) 100L else -1L
+                        )
+                        _syncProgress.value = loadProgress.progress ?: 0f
+                        Timber.d("📺 Chargement Xtream: ${loadProgress.message}")
+                    }
+                    is com.skyplayer.pro.data.repository.PlaylistLoadProgress.Success -> {
+                        _channelCount.value = loadProgress.channelCount
+                        _downloadComplete.value = true
+                        _isChecking.value = false
+                        _isSyncing.value = false
+                        _syncProgress.value = 1f
+                        Timber.i("✅ Playlist Xtream chargée - ${loadProgress.channelCount} chaînes")
+                    }
+                    is com.skyplayer.pro.data.repository.PlaylistLoadProgress.Error -> {
+                        _downloadError.value = loadProgress.exception.message ?: "Erreur inconnue"
+                        _isChecking.value = false
+                        _isSyncing.value = false
+                        _macPlaylistStatus.value = MacPlaylistStatus.None
+                        Timber.e(loadProgress.exception, "❌ Erreur chargement Xtream")
+                    }
+                }
+            }
         }
     }
 
@@ -296,7 +453,11 @@ class DashboardViewModel @Inject constructor(
         detectedPlaylistInfo?.let { info ->
             _downloadError.value = null
             _downloadComplete.value = false
-            startDownload(info)
+            if (info.type == "xtream" && info.xtreamServerUrl.isNotBlank() && info.xtreamUsername.isNotBlank()) {
+                startXtreamLoad(info)
+            } else {
+                startDownload(info)
+            }
         }
     }
 

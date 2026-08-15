@@ -1,5 +1,7 @@
 package com.skyplayer.pro.ui.screens.tv
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,72 +12,83 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.ContentType
 import com.skyplayer.pro.ui.components.tv.TvChannelCard
 import com.skyplayer.pro.ui.viewmodel.GroupFilterViewModel
+import com.skyplayer.pro.ui.viewmodel.FavoritesViewModel
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 /**
  * Dashboard TV avec navigation optimisée pour télécommande
  * 
  * Structure :
- * - Menu vertical à gauche (Categories)
+ * - Menu vertical rétractable à gauche
  * - Grille de cartes à droite (Chaînes)
- * - Focus automatique sur le premier élément
+ * - Focus visuel clair (Scale + Bordure)
  */
 @Composable
 fun TvDashboardScreen(
     viewModel: GroupFilterViewModel = hiltViewModel(),
+    favoritesViewModel: FavoritesViewModel = hiltViewModel(),
     onChannelClick: (Channel) -> Unit = {},
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onParentalClick: () -> Unit = {},
+    onNavigateToRemoteConfig: () -> Unit = {}
 ) {
     val groups by viewModel.groups.collectAsState()
-    val channels by viewModel.channels.collectAsState()
-    val selectedGroup by viewModel.selectedGroup.collectAsState()
+    val history by viewModel.watchHistory.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    
-    // État pour les favoris (dans une vraie app, viendrait du ViewModel)
-    var favoriteChannelIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    
-    // FocusRequesters pour la navigation TV
+
+    // Favoris réels depuis Room
+    val favorites by favoritesViewModel.favorites.collectAsState(initial = emptyList())
+    val favoriteIds = remember(favorites) { favorites.map { it.id }.toSet() }
+
+    // FocusRequesters
     val menuFocusRequester = remember { FocusRequester() }
     val firstCardFocusRequester = remember { FocusRequester() }
-    
-    // État pour suivre le focus actuel
-    var focusedMenuIndex by remember { mutableStateOf(0) }
-    var isMenuFocused by remember { mutableStateOf(true) }
-    
-    // Fonction pour toggle les favoris
-    val toggleFavorite = { channel: Channel ->
-        favoriteChannelIds = if (favoriteChannelIds.contains(channel.id)) {
-            favoriteChannelIds - channel.id
-        } else {
-            favoriteChannelIds + channel.id
-        }
-    }
-    
+
+    // État du menu rétractable
+    var isMenuExpanded by remember { mutableStateOf(false) }
+    var focusedMenuId by remember { mutableStateOf("live") }
+
+    val menuWidth by animateDpAsState(if (isMenuExpanded) 240.dp else 80.dp)
+
     LaunchedEffect(Unit) {
         viewModel.loadGroups(ContentType.LIVE_TV)
-        // Focus automatique sur le menu au lancement
         menuFocusRequester.requestFocus()
     }
 
@@ -84,47 +97,124 @@ fun TvDashboardScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // === MENU VERTICAL GAUCHE ===
+        // === MENU LATÉRAL RÉTRACTABLE ===
+        // Simplified focus handling
+        val menuParentModifier = Modifier
+            .width(menuWidth)
+            .fillMaxHeight()
+            .onFocusChanged {
+                // Only expand on initial focus gain
+                if (it.isFocused && !isMenuExpanded) {
+                    isMenuExpanded = true
+                }
+            }
+
         TvSideMenu(
-            selectedIndex = focusedMenuIndex,
-            onItemClick = { index, item ->
-                focusedMenuIndex = index
+            isExpanded = isMenuExpanded,
+            selectedId = focusedMenuId,
+            onItemClick = { item ->
+                focusedMenuId = item.id
                 when (item.id) {
-                    "live" -> viewModel.setContentType(ContentType.LIVE_TV)
-                    "vod" -> viewModel.setContentType(ContentType.VOD_MOVIE)
+                    "live" -> {
+                        viewModel.setContentType(ContentType.LIVE_TV)
+                    }
+                    "vod" -> {
+                        viewModel.setContentType(ContentType.VOD_MOVIE)
+                    }
+                    "favorites" -> { /* géré par focusedMenuId */ }
                     "settings" -> onSettingsClick()
+                    "parental" -> onParentalClick()
+                    "config" -> onNavigateToRemoteConfig()
                 }
             },
-            onFocusChanged = { hasFocus ->
-                isMenuFocused = hasFocus
-            },
             focusRequester = menuFocusRequester,
-            modifier = Modifier
-                .width(240.dp)
-                .fillMaxHeight()
+            modifier = menuParentModifier
         )
-        
-        // === GRILLE DE CHAINES DROITE ===
+
+        // === CONTENU PRINCIPAL ===
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(24.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.primary
+                    modifier = Alignment.Center.let { Modifier.align(it) },
+                    color = Color.White
                 )
             } else {
-                TvChannelsGrid(
-                    channels = channels,
-                    selectedGroup = selectedGroup,
-                    onChannelClick = onChannelClick,
-                    onChannelLongClick = toggleFavorite,
-                    firstCardFocusRequester = firstCardFocusRequester,
-                    modifier = Modifier.fillMaxSize(),
-                    favoriteChannelIds = favoriteChannelIds
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    if (focusedMenuId == "favorites") {
+                        TvChannelsGrid(
+                            channels = favorites,
+                            selectedGroup = "Mes Favoris",
+                            onChannelClick = onChannelClick,
+                            onChannelLongClick = { favoritesViewModel.toggleFavorite(it) },
+                            firstCardFocusRequester = firstCardFocusRequester,
+                            favoriteChannelIds = favoriteIds
+                        )
+                    } else {
+                        // Section Historique (uniquement sur Live TV)
+                        if (focusedMenuId == "live" && history.isNotEmpty()) {
+                            TvDashboardSection(
+                                title = "Reprendre la lecture",
+                                channelList = history,
+                                onChannelClick = onChannelClick,
+                                onChannelLongClick = { favoritesViewModel.toggleFavorite(it) },
+                                favoriteChannelIds = favoriteIds
+                            )
+                        }
+
+                        // Carrousels par catégories
+                        groups.forEach { group ->
+                            val groupChannels by viewModel.getChannelsByGroup(group.name).collectAsState(initial = emptyList())
+                            if (groupChannels.isNotEmpty()) {
+                                TvDashboardSection(
+                                    title = group.name,
+                                    channelList = groupChannels,
+                                    onChannelClick = onChannelClick,
+                                    onChannelLongClick = { favoritesViewModel.toggleFavorite(it) },
+                                    favoriteChannelIds = favoriteIds
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvDashboardSection(
+    title: String,
+    channelList: List<Channel>,
+    onChannelClick: (Channel) -> Unit,
+    onChannelLongClick: (Channel) -> Unit,
+    favoriteChannelIds: Set<String>
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = Color.White,
+            modifier = Modifier.padding(start = 24.dp, bottom = 8.dp)
+        )
+        // Utilisation de LazyRow standard
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(channelList, key = { it.id }) { channel ->
+                var isFocused by remember { mutableStateOf(false) }
+                TvChannelCard(
+                    channel = channel,
+                    isFocused = isFocused,
+                    isFavorite = favoriteChannelIds.contains(channel.id),
+                    onClick = { onChannelClick(channel) },
+                    onLongClick = { onChannelLongClick(channel) },
+                    onFocusChanged = { isFocused = it }
                 )
             }
         }
@@ -132,101 +222,109 @@ fun TvDashboardScreen(
 }
 
 /**
- * Menu vertical à gauche optimisé pour TV
+ * Menu vertical rétractable pour TV
  */
 @Composable
 private fun TvSideMenu(
-    selectedIndex: Int,
-    onItemClick: (Int, MenuItem) -> Unit,
-    onFocusChanged: (Boolean) -> Unit,
+    isExpanded: Boolean,
+    selectedId: String,
+    onItemClick: (MenuItem) -> Unit,
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier
 ) {
     val menuItems = remember {
         listOf(
             MenuItem("live", "Live TV", Icons.Default.PlayArrow),
+            MenuItem("favorites", "Favoris", Icons.Default.Star),
             MenuItem("vod", "Films & Séries", Icons.Default.Movie),
+            MenuItem("config", "Configuration", Icons.Default.Tv),
+            MenuItem("parental", "Code Parental", Icons.Default.Lock),
             MenuItem("settings", "Paramètres", Icons.Default.Settings)
         )
     }
-    
+
+    val listState = rememberLazyListState()
+
     Column(
         modifier = modifier
-            .background(Color(0xFF1A1A1A))
-            .padding(vertical = 32.dp)
+            .background(Color(0xFF121212))
+            .padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Logo
-        Text(
-            text = "SKY PLAYER",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .fillMaxWidth(),
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // Menu items
+        // Logo / Titre
+        if (isExpanded) {
+            Text(
+                text = "SKY PLAYER PRO",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp).padding(bottom = 32.dp)
+            )
+        }
+
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
             itemsIndexed(menuItems) { index, item ->
-                val itemFocusRequester = remember { FocusRequester() }
                 var isFocused by remember { mutableStateOf(false) }
-                
-                // Auto-focus sur le premier élément
-                LaunchedEffect(Unit) {
-                    if (index == 0) {
-                        itemFocusRequester.requestFocus()
-                    }
-                }
-                
-                Card(
-                    onClick = { onItemClick(index, item) },
+                val isSelected = selectedId == item.id
+
+                val scale by animateFloatAsState(if (isFocused) 1.1f else 1.0f)
+
+                Surface(
+                    onClick = { onItemClick(item) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(
-                            if (index == 0) focusRequester else itemFocusRequester
-                        )
-                        .onFocusChanged { 
+                        .padding(horizontal = if (isExpanded) 16.dp else 8.dp)
+                        .scale(scale)
+                        .onFocusChanged {
                             isFocused = it.isFocused
-                            onFocusChanged(it.isFocused)
                         }
+                        .then(if (index == 0) Modifier.focusRequester(focusRequester) else Modifier)
                         .focusable(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isFocused) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            Color.Transparent,
-                        contentColor = if (isFocused) 
-                            Color.Black 
-                        else 
-                            Color.White
-                    ),
                     shape = RoundedCornerShape(8.dp),
-                    border = if (isFocused) {
-                        BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                    } else null
+                    color = when {
+                        isFocused -> Color.White
+                        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        else -> Color.Transparent
+                    },
+                    contentColor = when {
+                        isFocused -> Color.Black
+                        isSelected -> MaterialTheme.colorScheme.primary
+                        else -> Color.White.copy(alpha = 0.6f)
+                    }
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center
                     ) {
                         Icon(
                             imageVector = item.icon,
                             contentDescription = item.label,
                             modifier = Modifier.size(24.dp)
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = item.label,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                        if (isExpanded) {
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = item.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -235,65 +333,57 @@ private fun TvSideMenu(
 }
 
 /**
- * Grille de chaînes optimisée pour TV
+ * Grille de chaînes optimisée pour TV avec focus visuel clair
  */
 @Composable
 private fun TvChannelsGrid(
     channels: List<Channel>,
     selectedGroup: String?,
     onChannelClick: (Channel) -> Unit,
-    onChannelLongClick: (Channel) -> Unit = {},
+    onChannelLongClick: (Channel) -> Unit,
     firstCardFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
     favoriteChannelIds: Set<String> = emptySet()
 ) {
     Column(modifier = modifier) {
-        // Titre du groupe sélectionné
         Text(
             text = selectedGroup ?: "Toutes les chaînes",
             style = MaterialTheme.typography.headlineSmall,
             color = Color.White,
-            modifier = Modifier.padding(bottom = 16.dp)
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 24.dp)
         )
         
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 16.dp)
-        ) {
-            itemsIndexed(channels) { index, channel ->
-                val cardFocusRequester = remember { FocusRequester() }
-                var isFocused by remember { mutableStateOf(false) }
-                val isFavorite = remember(favoriteChannelIds, channel.id) {
-                    favoriteChannelIds.contains(channel.id)
+        if (channels.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Aucun contenu dans cette catégorie", color = Color.Gray)
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                contentPadding = PaddingValues(bottom = 32.dp)
+            ) {
+                itemsIndexed(channels, key = { _, ch -> ch.id }) { index, channel ->
+                    var isFocused by remember { mutableStateOf(false) }
+                    val isFavorite = favoriteChannelIds.contains(channel.id)
+                    
+                    TvChannelCard(
+                        channel = channel,
+                        isFocused = isFocused,
+                        isFavorite = isFavorite,
+                        onClick = { onChannelClick(channel) },
+                        onLongClick = { onChannelLongClick(channel) },
+                        onFocusChanged = { isFocused = it },
+                        focusRequester = if (index == 0) firstCardFocusRequester else null
+                    )
                 }
-                
-                // Focus automatique sur la première carte
-                LaunchedEffect(Unit) {
-                    if (index == 0) {
-                        firstCardFocusRequester.requestFocus()
-                    }
-                }
-                
-                TvChannelCard(
-                    channel = channel,
-                    isFocused = isFocused,
-                    isFavorite = isFavorite,
-                    onClick = { onChannelClick(channel) },
-                    onLongClick = { onChannelLongClick(channel) },
-                    focusRequester = if (index == 0) firstCardFocusRequester else cardFocusRequester,
-                    onFocusChanged = { focused -> isFocused = focused }
-                )
             }
         }
     }
 }
 
-
-/**
- * Data class pour les items du menu
- */
 private data class MenuItem(
     val id: String,
     val label: String,

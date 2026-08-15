@@ -2,12 +2,10 @@
 # Optimisé pour la sécurité et la performance
 
 # ==================== OPTIMISATIONS GÉNÉRALES ====================
--repackageclasses ''
--flattenpackagehierarchy ''
 -allowaccessmodification
 -mergeinterfacesaggressively
 -overloadaggressively
--repackageclasses 'com.skyplayer.pro.internal'
+# -repackageclasses 'com.skyplayer.pro.internal'
 
 # Garder les attributs essentiels pour le debugging (si nécessaire)
 -renamesourcefileattribute SourceFile
@@ -37,6 +35,18 @@
 # Media3 ExoPlayer
 -keep class androidx.media3.** { *; }
 -dontwarn androidx.media3.**
+# Garder les classes de décodage et de rendu qui pourraient être instanciées par réflexion
+-keep class androidx.media3.exoplayer.mediacodec.** { *; }
+-keep class androidx.media3.exoplayer.video.** { *; }
+-keep class androidx.media3.exoplayer.audio.** { *; }
+-keep class androidx.media3.extractor.** { *; }
+# Crucial pour IPTV : garder les décodeurs natifs et extensions
+-keep class com.google.android.exoplayer2.** { *; }
+-keep class com.google.android.exoplayer2.ext.ffmpeg.** { *; }
+-keep class com.google.android.exoplayer2.ext.av1.** { *; }
+-keep class com.google.android.exoplayer2.ext.vp9.** { *; }
+-keep class com.google.android.exoplayer2.ext.opus.** { *; }
+-keep class com.google.android.exoplayer2.ext.flac.** { *; }
 
 # Room Database
 -keep class * extends androidx.room.RoomDatabase
@@ -64,6 +74,13 @@
 -keep class okhttp3.** { *; }
 -dontwarn okhttp3.**
 -dontwarn okio.**
+# Empêcher l'obfuscation des méthodes de redirection et de protocole (crucial pour HTTP -> HTTP/2 ou redirections de flux)
+-keepclassmembers class okhttp3.internal.publicsuffix.PublicSuffixDatabase {
+    public java.lang.String getEffectiveTldPlusOne(java.lang.String);
+}
+-keep class okhttp3.Protocol { *; }
+-keep class okhttp3.CipherSuite { *; }
+-keep class okhttp3.TlsVersion { *; }
 
 # Gson / JSON
 -keep class com.google.gson.** { *; }
@@ -84,8 +101,18 @@
 # Android Crypto (Security)
 -keep class androidx.security.crypto.** { *; }
 
-# ZXing (QR Code)
--keep class com.google.zxing.** { *; }
+# LibVLC
+-keep class org.videolan.libvlc.** { *; }
+-dontwarn org.videolan.libvlc.**
+
+# Annotation @Keep pour les modèles de données
+-keep @androidx.annotation.Keep class com.skyplayer.pro.data.model.** { *; }
+-keepclassmembers class com.skyplayer.pro.data.model.** { *; }
+
+# S'assurer que les modèles Retrofit ne sont pas obfusqués
+-keepclassmembers class com.skyplayer.pro.data.model.** {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
 
 # ==================== SÉCURITÉ MÉTIER (PROTECTION) ====================
 
@@ -110,4 +137,9 @@
 -keepnames class com.skyplayer.pro.data.prefetch.StreamPrefetchManager
 
 # Garder les classes de données pour éviter les crashes au parsing JSON
+-keep @androidx.annotation.Keep class *
+-keep @androidx.annotation.Keep class ** { *; }
+-keep @androidx.annotation.Keep interface *
+-keep @androidx.annotation.Keep enum *
 -keep class com.skyplayer.pro.data.model.** { *; }
+-keepclassmembers class com.skyplayer.pro.data.model.** { *; }

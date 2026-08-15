@@ -7,12 +7,18 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import coil.ImageLoader
+import coil.request.ImageRequest
 import com.skyplayer.pro.data.model.Channel
+import com.skyplayer.pro.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import okhttp3.Dns
+import okhttp3.OkHttpClient
 import timber.log.Timber
+import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,22 +28,30 @@ import javax.inject.Singleton
  *
  * Stratégie :
  * - Pré-charge silencieuse des flux voisins (précédent + suivant)
+ * - Pré-chargement des logos via Coil
+ * - Résolution DNS anticipée pour les 10 chaînes suivantes
  * - Buffering agressif des segments initiaux (3-5s)
  * - Libération automatique des ressources hors scope
- * - Objectif : zapping < 500ms même sur 3G/4G instable
+ * - Objectif : zapping < 300ms même sur 3G/4G instable
  */
 @UnstableApi
 @Singleton
 class StreamPrefetchManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val imageLoader: ImageLoader,
+    private val okHttpClient: OkHttpClient
 ) {
     companion object {
         private const val PREFETCH_BUFFER_MS = 3000L // 3 secondes de buffer
         private const val MAX_PREFETCHED_STREAMS = 3 // Précédent, Courant, Suivant
         private const val PREFETCH_TIMEOUT_MS = 8000L // Timeout pré-chargement
+        private const val DNS_PREFETCH_COUNT = 15    // Nombre de domaines à résoudre à l'avance
     }
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    
+    // Cache des domaines résolus pour éviter les répétitions
+    private val resolvedDomains = ConcurrentHashMap.newKeySet<String>()
     
     // Cache des players en pré-chargement
     private val prefetchedPlayers = ConcurrentHashMap<String, PrefetchedStream>()
@@ -81,9 +95,62 @@ class StreamPrefetchManager @Inject constructor(
                     prefetchStream(neighbor)
                 }
             }
+
+            // Pré-charger les logos des 10 chaînes suivantes pour fluidité scroll
+            val logoNeighbors = allChannels.subList(
+                currentIndex,
+                (currentIndex + 10).coerceAtMost(allChannels.size)
+            )
+            prefetchLogos(logoNeighbors)
+
+            // Pré-charger le DNS pour les 15 chaînes suivantes (Zapping ultra-rapide)
+            val dnsNeighbors = allChannels.subList(
+                currentIndex,
+                (currentIndex + DNS_PREFETCH_COUNT).coerceAtMost(allChannels.size)
+            )
+            prefetchDns(dnsNeighbors)
             
             // Nettoyer les streams hors scope
             cleanupOutOfScopeStreams(channel.id, neighbors.map { it.id })
+        }
+    }
+
+    /**
+     * Résout les noms de domaine à l'avance pour éliminer la latence DNS au zapping
+     */
+    private fun prefetchDns(channels: List<Channel>) {
+        coroutineScope.launch(Dispatchers.IO) {
+            channels.forEach { channel ->
+                try {
+                    val uri = android.net.Uri.parse(channel.url)
+                    val host = uri.host ?: return@forEach
+                    
+                    if (!resolvedDomains.contains(host)) {
+                        Timber.d("🌐 DNS Prefetch: résolution de $host...")
+                        // Résolution DNS synchrone via le système
+                        InetAddress.getAllByName(host)
+                        resolvedDomains.add(host)
+                    }
+                } catch (e: Exception) {
+                    // Ignorer erreur DNS
+                }
+            }
+        }
+    }
+
+    /**
+     * Pré-charge les logos via Coil
+     */
+    private fun prefetchLogos(channels: List<Channel>) {
+        coroutineScope.launch {
+            channels.forEach { channel ->
+                channel.logoUrl?.let { url ->
+                    val request = ImageRequest.Builder(context)
+                        .data(url)
+                        .build()
+                    imageLoader.enqueue(request)
+                }
+            }
         }
     }
 
@@ -146,10 +213,10 @@ class StreamPrefetchManager @Inject constructor(
         // Configurer LoadControl pour buffering agressif
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                1500,  // minBufferMs
-                5000,  // maxBufferMs
-                1000,  // bufferForPlaybackMs
-                2000   // bufferForPlaybackAfterRebufferMs
+                BuildConfig.MIN_BUFFER_MS,
+                minOf(BuildConfig.MAX_BUFFER_MS, 10_000),
+                BuildConfig.BUFFER_FOR_PLAYBACK_MS,
+                BuildConfig.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
             )
             .build()
         
@@ -175,10 +242,30 @@ class StreamPrefetchManager @Inject constructor(
      */
     fun getPrefetchedPlayer(channelId: String): ExoPlayer? {
         val prefetched = prefetchedPlayers[channelId]
-        return prefetched?.player?.apply {
-            // Activer le son et la lecture
-            volume = 1f
-            playWhenReady = true
+        val player = prefetched?.player
+        
+        if (player != null) {
+            // Nettoyer du cache une fois récupéré pour éviter les fuites
+            prefetchedPlayers.remove(channelId)
+            
+            return player.apply {
+                volume = 1f
+                playWhenReady = true
+            }
+        }
+        return null
+    }
+
+    /**
+     * Pré-charge les flux favoris pour un accès instantané au démarrage
+     */
+    fun prefetchFavorites(favorites: List<Channel>) {
+        coroutineScope.launch {
+            Timber.i("🌟 Pré-chargement des favoris (${favorites.size})...")
+            favorites.take(5).forEach { channel ->
+                prefetchDns(listOf(channel))
+                prefetchLogos(listOf(channel))
+            }
         }
     }
 

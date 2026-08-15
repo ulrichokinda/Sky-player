@@ -5,15 +5,11 @@
   "hosting": {
     "site": "skyplayerapp",
     "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
-        "source": "/api/pawapay",
-        "function": "pawapayWebhook"
+        "source": "/api/joboost-cash",
+        "function": "joboostCashWebhook"
       },
       {
         "source": "/api/check-status",
@@ -23,10 +19,7 @@
         "source": "/api/update-status",
         "function": "updateLicenseStatus"
       },
-      {
-        "source": "/api/**",
-        "function": "pawapayWebhook"
-      },
+
       {
         "source": "**",
         "destination": "/index.html"
@@ -38,7 +31,7 @@
         "headers": [
           {
             "key": "Access-Control-Allow-Origin",
-            "value": "*"
+            "value": "https://skyplayerapp.xyz"
           },
           {
             "key": "Access-Control-Allow-Methods",
@@ -46,7 +39,7 @@
           },
           {
             "key": "Access-Control-Allow-Headers",
-            "value": "Content-Type, X-PawaPay-Signature"
+            "value": "Content-Type, X-Joboost-Cash-Signature"
           }
         ]
       }
@@ -55,8 +48,8 @@
   "functions": [
     {
       "source": "firebase-functions",
-      "codebase": "pawapay-integration",
-      "runtime": "nodejs22"
+      "codebase": "joboost-cash-integration",
+      "runtime": "nodejs20"
     }
   ]
 }

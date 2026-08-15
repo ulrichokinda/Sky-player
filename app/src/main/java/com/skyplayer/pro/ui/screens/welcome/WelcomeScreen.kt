@@ -64,6 +64,10 @@ fun WelcomeScreen(
 ) {
     val playlistStatus by viewModel.playlistStatus
 
+    val finishOnboarding: () -> Unit = {
+        viewModel.completeOnboarding()
+        onSkip()
+    }
 
     Box(
         modifier = Modifier
@@ -256,7 +260,7 @@ fun WelcomeScreen(
                 }
                 PlaylistState.LOADED -> {
                     Button(
-                        onClick = onSkip,
+                        onClick = finishOnboarding,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),

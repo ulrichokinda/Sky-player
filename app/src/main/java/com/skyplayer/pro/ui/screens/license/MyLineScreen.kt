@@ -25,14 +25,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,12 +71,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.ErrorRed
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.PureBlack
 import com.skyplayer.pro.ui.theme.SuccessGreen
 import com.skyplayer.pro.ui.theme.WarningOrange
+import com.skyplayer.pro.ui.viewmodel.AppNetworkStatus
+import com.skyplayer.pro.ui.viewmodel.AppStatusViewModel
 import com.skyplayer.pro.ui.viewmodel.LicenseViewModel
 import com.skyplayer.pro.ui.screens.home.DashboardViewModel
 import com.skyplayer.pro.util.QrCodeUtils
@@ -93,13 +101,13 @@ import kotlinx.coroutines.delay
 fun MyLineScreen(
     onBackClick: () -> Unit,
     licenseViewModel: LicenseViewModel = hiltViewModel(),
-    dashboardViewModel: DashboardViewModel = hiltViewModel()
+    dashboardViewModel: DashboardViewModel = hiltViewModel(),
+    appStatusViewModel: com.skyplayer.pro.ui.viewmodel.AppStatusViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uiState by licenseViewModel.uiState.collectAsStateWithLifecycle()
+    val appState by appStatusViewModel.uiState.collectAsStateWithLifecycle()
     val playlistName by dashboardViewModel.activePlaylistName.collectAsStateWithLifecycle()
-    val expiryLabel by dashboardViewModel.expiryLabel.collectAsStateWithLifecycle()
-    val expiryColor by dashboardViewModel.expiryColor.collectAsStateWithLifecycle()
 
     val deviceId = uiState.deviceId
     val isActivated = uiState.isActivated
@@ -118,7 +126,7 @@ fun MyLineScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -157,13 +165,49 @@ fun MyLineScreen(
                 valueColor = statusColor
             )
 
+            // ── État réseau ──────────────────────────────────────
+            val networkIcon = when (appState.networkStatus) {
+                AppNetworkStatus.Wifi -> Icons.Default.Wifi
+                AppNetworkStatus.Cellular -> Icons.Default.SignalCellularAlt
+                AppNetworkStatus.Offline -> Icons.Default.WifiOff
+                else -> Icons.Default.Sync
+            }
+            val networkColor = when (appState.networkStatus) {
+                AppNetworkStatus.Offline -> ErrorRed
+                AppNetworkStatus.Cellular -> WarningOrange
+                else -> SuccessGreen
+            }
+            MyLineCard(
+                icon = networkIcon,
+                iconTint = networkColor,
+                label = "Connexion réseau",
+                value = when (appState.networkStatus) {
+                    AppNetworkStatus.Wifi -> "Wi-Fi • Stable"
+                    AppNetworkStatus.Cellular -> "Données mobiles"
+                    AppNetworkStatus.Offline -> "Hors ligne"
+                    AppNetworkStatus.Checking -> "Vérification..."
+                    else -> "Connecté"
+                },
+                valueColor = networkColor
+            )
+
             // ── Playlist active ───────────────────────────────────
             MyLineCard(
-                icon = Icons.Default.PlaylistPlay,
+                icon = Icons.AutoMirrored.Filled.PlaylistPlay,
                 iconTint = ElectricSkyBlue,
                 label = "Playlist active",
                 value = playlistName.ifBlank { "Aucune playlist configurée" }
             )
+
+            // ── Nombre de chaînes ─────────────────────────────────
+            if (appState.channelCount > 0) {
+                MyLineCard(
+                    icon = Icons.Default.LiveTv,
+                    iconTint = SuccessGreen,
+                    label = "Chaînes disponibles",
+                    value = "${appState.channelCount} chaînes"
+                )
+            }
 
             // ── Device ID / Adresse MAC ───────────────────────────
             Column(

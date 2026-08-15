@@ -1,63 +1,144 @@
 package com.skyplayer.pro.ui.navigation
 
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.util.UnstableApi
+import com.skyplayer.pro.ui.components.TrustStatusBanner
+import com.skyplayer.pro.ui.viewmodel.AppStatusViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
-import androidx.compose.foundation.layout.fillMaxSize
-import com.skyplayer.pro.ui.screens.favorites.FavoritesScreen
-import com.skyplayer.pro.ui.screens.live.LiveTVScreen
+import com.skyplayer.pro.ui.components.BottomNavBar
+import com.skyplayer.pro.ui.screens.detail.ContentDetailScreen
+import com.skyplayer.pro.ui.screens.home.DashboardScreen
+import com.skyplayer.pro.ui.screens.license.LicenseScreen
+import com.skyplayer.pro.ui.screens.license.MyLineScreen
+import com.skyplayer.pro.ui.screens.license.TrialExpiredScreen
 import com.skyplayer.pro.ui.screens.player.MultiPlayerScreen
 import com.skyplayer.pro.ui.screens.player.PlayerScreen
 import com.skyplayer.pro.ui.screens.playlist.AddPlaylistScreen
 import com.skyplayer.pro.ui.screens.playlist.ManagePlaylistsScreen
 import com.skyplayer.pro.ui.screens.playlist.QRScannerScreen
-import com.skyplayer.pro.ui.screens.series.SeriesScreen
+import com.skyplayer.pro.ui.screens.epg.EpgGuideScreen
 import com.skyplayer.pro.ui.screens.remoteconfig.RemoteConfigScreen
+import com.skyplayer.pro.ui.screens.search.SearchScreen
 import com.skyplayer.pro.ui.screens.settings.SettingsScreen
-import com.skyplayer.pro.ui.screens.detail.ContentDetailScreen
-import com.skyplayer.pro.ui.screens.license.LicenseScreen
-import com.skyplayer.pro.ui.screens.license.TrialExpiredScreen
-import com.skyplayer.pro.ui.screens.license.MyLineScreen
-import com.skyplayer.pro.ui.screens.home.DashboardScreen
-import com.skyplayer.pro.ui.screens.welcome.WelcomeScreen
-import com.skyplayer.pro.ui.screens.vod.VODScreen
-import com.skyplayer.pro.ui.screens.splash.SplashScreen
 import com.skyplayer.pro.ui.screens.splash.DownloadProgressScreen
-import com.skyplayer.pro.ui.navigation.enterToPlayer
-import com.skyplayer.pro.ui.navigation.exitFromPlayer
-import com.skyplayer.pro.ui.navigation.slideInFromBottom
-import com.skyplayer.pro.ui.navigation.slideOutToBottom
+import com.skyplayer.pro.ui.screens.splash.SplashScreen
+import com.skyplayer.pro.ui.screens.onboarding.OnboardingScreen
+import com.skyplayer.pro.ui.screens.parental.SimplifiedParentalSetupScreen
+import com.skyplayer.pro.ui.screens.tv.TvDashboardScreen
+import com.skyplayer.pro.ui.screens.tv.TvPlayerScreen
 
 /**
- * Host de navigation principal de l'application
- * Configure toutes les routes et la structure de navigation
+ * Host de navigation principal de l'application.
+ * Les sections Live / VOD / Séries / Favoris partagent une barre de navigation inférieure.
  */
+@UnstableApi
 @Composable
 fun SkyPlayerNavHost(
     navController: NavHostController,
     startDestination: String = Routes.Splash.route
 ) {
-    NavHost(
-        navController = navController,
-        startDestination = startDestination,
-        modifier = Modifier.fillMaxSize()
-    ) {
-            // Écran de démarrage minimaliste - 3 secondes
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val context = LocalContext.current
+    val isTV = (context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager)
+        .currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+
+    val currentTab = currentMainTab(currentRoute)
+    val showBottomBar = !isTV && (
+        currentRoute?.startsWith("main_sections/") == true ||
+        currentRoute in setOf(
+            Routes.LiveTV.route,
+            Routes.VOD.route,
+            Routes.Series.route,
+            Routes.Favorites.route
+        )
+    )
+    val showStatusBanner = !isTV && (
+        currentRoute == Routes.Home.route || isMainSectionsRoute(currentRoute)
+    )
+
+    val appStatusViewModel: AppStatusViewModel = hiltViewModel()
+    val appStatus by appStatusViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(currentRoute) {
+        if (showStatusBanner) {
+            appStatusViewModel.refresh()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            if (showStatusBanner) {
+                TrustStatusBanner(
+                    state = appStatus,
+                    onClick = { navController.navigate(Routes.MyLine.route) }
+                )
+            }
+        },
+        bottomBar = {
+            if (showBottomBar) {
+                BottomNavBar(
+                    currentTab = currentTab,
+                    onNavigate = { tab ->
+                        val targetRoute = Routes.MainSections.createRoute(tab)
+                        if (currentRoute != targetRoute) {
+                            navController.navigate(targetRoute) {
+                                popUpTo(Routes.Home.route) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            enterTransition = { slideInFromRight() },
+            exitTransition = { slideOutToLeft() },
+            popEnterTransition = { slideInFromRight() },
+            popExitTransition = { slideOutToLeft() }
+        ) {
             composable(Routes.Splash.route) {
                 SplashScreen(
                     onNavigateToDashboard = {
                         navController.navigate(Routes.Home.route) {
                             popUpTo(Routes.Splash.route) { inclusive = true }
                         }
+                    },
+                    onNavigateToWelcome = {
+                        navController.navigate(Routes.Welcome.route) {
+                            popUpTo(Routes.Splash.route) { inclusive = true }
+                        }
                     }
                 )
             }
 
-            // Téléchargement progressif playlist MAC
             composable(Routes.DownloadProgress.route) {
                 DownloadProgressScreen(
                     onDownloadComplete = {
@@ -67,94 +148,171 @@ fun SkyPlayerNavHost(
                     }
                 )
             }
-            
-            // Dashboard principal (Style Hot Player)
+
             composable(Routes.Home.route) {
-                DashboardScreen(
-                    onNavigateToLive = { navController.navigate(Routes.LiveTV.route) },
-                    onNavigateToVOD = { navController.navigate(Routes.VOD.route) },
-                    onNavigateToSeries = { navController.navigate(Routes.Series.route) },
-                    onNavigateToFavorites = { navController.navigate(Routes.Favorites.route) },
-                    onNavigateToSettings = { navController.navigate(Routes.Settings.route) },
-                    onNavigateToRemoteConfig = { navController.navigate(Routes.RemoteConfig.route) },
-                    onNavigateToAddPlaylist = { navController.navigate(Routes.AddPlaylist.route) },
-                    onNavigateToScannerTV = { navController.navigate(Routes.RemoteConfig.route) },
-                    onNavigateToEditPlaylist = { navController.navigate(Routes.AddPlaylist.route) }
-                )
+                if (isTV) {
+                    TvDashboardScreen(
+                        onChannelClick = { channel ->
+                            navController.navigate(Routes.Player.createRoute(channel.id))
+                        },
+                        onSettingsClick = {
+                            navController.navigate(Routes.Settings.route)
+                        },
+                        onParentalClick = {
+                            navController.navigate(Routes.ParentalLock.route)
+                        },
+                        onNavigateToRemoteConfig = {
+                            navController.navigate(Routes.RemoteConfig.route)
+                        }
+                    )
+                } else {
+                    DashboardScreen(
+                        onNavigateToLive = { navController.navigate(Routes.MainSections.createRoute(MainTab.LIVE)) },
+                        onNavigateToVOD = { navController.navigate(Routes.MainSections.createRoute(MainTab.VOD)) },
+                        onNavigateToSeries = { navController.navigate(Routes.MainSections.createRoute(MainTab.SERIES)) },
+                        onNavigateToFavorites = { navController.navigate(Routes.MainSections.createRoute(MainTab.FAVORITES)) },
+                        onNavigateToParentalSetup = { navController.navigate(Routes.ParentalLock.route) },
+                        onNavigateToSettings = { navController.navigate(Routes.Settings.route) },
+                        onNavigateToRemoteConfig = { navController.navigate(Routes.RemoteConfig.route) },
+                        onNavigateToSearch = { navController.navigate(Routes.Search.route) },
+                        onNavigateToAddPlaylist = { navController.navigate(Routes.AddPlaylist.route) },
+                        onNavigateToScannerTV = { navController.navigate(Routes.RemoteConfig.route) },
+                        onNavigateToEditPlaylist = { navController.navigate(Routes.ManagePlaylists.route) },
+                        onPlayChannel = { channel ->
+                            navController.navigate(Routes.Player.createRoute(channel.id))
+                        },
+                        onPlayContent = { channel ->
+                            navController.navigate(Routes.ContentDetail.createRoute(channel.id))
+                        }
+                    )
+                }
             }
-            
-            // Écran de bienvenue (première utilisation)
+
             composable(Routes.Welcome.route) {
-                WelcomeScreen(
+                OnboardingScreen(
                     onAddPlaylist = {
                         navController.navigate(Routes.AddPlaylist.route)
                     },
                     onRemoteConfig = {
                         navController.navigate(Routes.RemoteConfig.route)
                     },
-                    onSkip = {
+                    onComplete = {
                         navController.navigate(Routes.Home.route) {
                             popUpTo(Routes.Welcome.route) { inclusive = true }
                         }
                     }
                 )
             }
-            
-            // Section Live TV (exclusive, Back = Home)
-            composable(Routes.LiveTV.route) {
-                LiveTVScreen(
+
+            composable(Routes.Onboarding.route) {
+                OnboardingScreen(
+                    onAddPlaylist = {
+                        navController.navigate(Routes.AddPlaylist.route)
+                    },
+                    onRemoteConfig = {
+                        navController.navigate(Routes.RemoteConfig.route)
+                    },
+                    onComplete = {
+                        navController.navigate(Routes.Home.route) {
+                            popUpTo(Routes.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable(
+                route = Routes.MainSections.route,
+                arguments = listOf(
+                    navArgument("tab") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val tab = MainTab.fromRoute(backStackEntry.arguments?.getString("tab"))
+                MainSectionsScreen(
+                    initialTab = tab,
+                    onTabChanged = { newTab ->
+                        val newRoute = Routes.MainSections.createRoute(newTab)
+                        if (currentRoute != newRoute) {
+                            navController.navigate(newRoute) {
+                                popUpTo(Routes.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    },
+                    onNavigateToHome = {
+                        navController.navigate(Routes.Home.route) {
+                            popUpTo(Routes.Home.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                     onChannelClick = { channel ->
                         navController.navigate(Routes.Player.createRoute(channel.id))
+                    },
+                    onContentClick = { content ->
+                        navController.navigate(Routes.ContentDetail.createRoute(content.id))
                     },
                     onNavigateToSettings = {
                         navController.navigate(Routes.Settings.route)
                     },
+                    onNavigateToSearch = {
+                        navController.navigate(Routes.Search.route)
+                    },
+                    onNavigateToAddPlaylist = {
+                        navController.navigate(Routes.AddPlaylist.route)
+                    },
                     onNavigateToMultiView = { channelId ->
                         navController.navigate(Routes.MultiPlayer.createRoute(channelId))
                     },
-                    onBackToHome = {
-                        navController.popBackStack(Routes.Home.route, inclusive = false)
+                    onNavigateToEpgGuide = {
+                        navController.navigate(Routes.EpgGuide.route)
+                    },
+                    onNavigateToLive = {
+                        navController.navigate(Routes.MainSections.createRoute(MainTab.LIVE)) {
+                            popUpTo(Routes.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }
-            
-            // Section VOD (exclusive, Back = Home)
+
+            // Redirections legacy vers MainSections (compatibilité)
+            composable(Routes.LiveTV.route) {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.MainSections.createRoute(MainTab.LIVE)) {
+                        popUpTo(Routes.LiveTV.route) { inclusive = true }
+                    }
+                }
+            }
             composable(Routes.VOD.route) {
-                VODScreen(
-                    onContentClick = { content ->
-                        navController.navigate(Routes.ContentDetail.createRoute(content.id))
-                    },
-                    onBackToHome = {
-                        navController.popBackStack(Routes.Home.route, inclusive = false)
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.MainSections.createRoute(MainTab.VOD)) {
+                        popUpTo(Routes.VOD.route) { inclusive = true }
                     }
-                )
+                }
             }
-            
-            // Section Séries (exclusive, Back = Home)
             composable(Routes.Series.route) {
-                SeriesScreen(
-                    onSeriesClick = { series ->
-                        navController.navigate(Routes.ContentDetail.createRoute(series.id))
-                    },
-                    onBackToHome = {
-                        navController.popBackStack(Routes.Home.route, inclusive = false)
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.MainSections.createRoute(MainTab.SERIES)) {
+                        popUpTo(Routes.Series.route) { inclusive = true }
                     }
-                )
+                }
             }
-            
-            // Section Favoris (exclusive, Back = Home)
             composable(Routes.Favorites.route) {
-                FavoritesScreen(
-                    onChannelClick = { channel ->
-                        navController.navigate(Routes.Player.createRoute(channel.id))
-                    },
-                    onBackToHome = {
-                        navController.popBackStack(Routes.Home.route, inclusive = false)
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.MainSections.createRoute(MainTab.FAVORITES)) {
+                        popUpTo(Routes.Favorites.route) { inclusive = true }
                     }
+                }
+            }
+
+            composable(Routes.ParentalLock.route) {
+                SimplifiedParentalSetupScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onComplete = { navController.popBackStack() }
                 )
             }
-            
-            // Page de détails Film / Série
+
             composable(
                 route = Routes.ContentDetail.route,
                 arguments = listOf(
@@ -171,7 +329,6 @@ fun SkyPlayerNavHost(
                 )
             }
 
-            // Lecteur vidéo avec animations fluides
             composable(
                 route = Routes.Player.route,
                 arguments = listOf(
@@ -193,8 +350,7 @@ fun SkyPlayerNavHost(
                     }
                 )
             }
-            
-            // Multi-lecteur (2-4 chaînes)
+
             composable(
                 route = Routes.MultiPlayer.route,
                 arguments = listOf(
@@ -208,41 +364,37 @@ fun SkyPlayerNavHost(
                         navController.popBackStack()
                     },
                     onAddChannel = {
-                        // Navigation vers sélection de chaîne
-                        navController.navigate(Routes.LiveTV.route)
+                        navController.navigate(Routes.MainSections.createRoute(MainTab.LIVE))
                     }
                 )
             }
-            
-            // Ajout de playlist
+
             composable(Routes.AddPlaylist.route) {
                 AddPlaylistScreen(
                     onBackClick = {
                         navController.popBackStack()
                     },
                     onPlaylistAdded = {
+                        appStatusViewModel.refresh()
                         navController.navigate(Routes.Home.route) {
                             popUpTo(Routes.AddPlaylist.route) { inclusive = true }
                         }
                     }
                 )
             }
-            
-            // Gestion des playlists
+
             composable(Routes.ManagePlaylists.route) {
                 ManagePlaylistsScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            
-            // Scanner QR pour TV
+
             composable(Routes.QRScanner.route) {
                 QRScannerScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            
-            // Écran de licence et activation
+
             composable(Routes.License.route) {
                 LicenseScreen(
                     onNavigateToHome = {
@@ -253,19 +405,16 @@ fun SkyPlayerNavHost(
                 )
             }
 
-            // Écran expiration essai 15 jours
             composable(Routes.TrialExpired.route) {
                 TrialExpiredScreen()
             }
 
-            // Ma Ligne: MAC + playlist active + statut abonnement (depuis Paramètres)
             composable(Routes.MyLine.route) {
                 MyLineScreen(
                     onBackClick = { navController.popBackStack() }
                 )
             }
-            
-            // Paramètres
+
             composable(Routes.Settings.route) {
                 SettingsScreen(
                     onBackClick = {
@@ -275,13 +424,14 @@ fun SkyPlayerNavHost(
                         navController.navigate(Routes.RemoteConfig.route)
                     },
                     onNavigateToMyLine = {
-                        // Affiche la fiche d'activation: MAC + playlist active + statut abonnement
                         navController.navigate(Routes.MyLine.route)
+                    },
+                    onNavigateToParentalSetup = {
+                        navController.navigate(Routes.ParentalLock.route)
                     }
                 )
             }
 
-            // Configuration à distance par QR Code (TV)
             composable(Routes.RemoteConfig.route) {
                 RemoteConfigScreen(
                     onConfigApplied = {
@@ -290,6 +440,28 @@ fun SkyPlayerNavHost(
                         }
                     }
                 )
+            }
+
+            composable(Routes.Search.route) {
+                SearchScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onChannelClick = { channel ->
+                        navController.navigate(Routes.Player.createRoute(channel.id))
+                    },
+                    onContentClick = { content ->
+                        navController.navigate(Routes.ContentDetail.createRoute(content.id))
+                    }
+                )
+            }
+
+            composable(Routes.EpgGuide.route) {
+                EpgGuideScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onChannelClick = { channel ->
+                        navController.navigate(Routes.Player.createRoute(channel.id))
+                    }
+                )
+            }
         }
     }
 }

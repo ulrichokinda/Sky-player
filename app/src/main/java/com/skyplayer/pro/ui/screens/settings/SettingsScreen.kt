@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,22 +16,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.NetworkCheck
-import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,10 +43,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,21 +58,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.skyplayer.pro.BuildConfig
 import com.skyplayer.pro.data.model.VideoQuality
+import com.skyplayer.pro.ui.components.PinDialog
 import com.skyplayer.pro.ui.components.QualitySelector
 import com.skyplayer.pro.ui.components.QuickStreamingModes
 import com.skyplayer.pro.ui.components.StreamingAdvancedSettings
 import com.skyplayer.pro.ui.theme.GradientElectricStart
 import com.skyplayer.pro.ui.theme.GradientStart
 import com.skyplayer.pro.ui.theme.SuccessGreen
-import com.skyplayer.pro.ui.components.PinDialog
 import com.skyplayer.pro.ui.viewmodel.LicenseViewModel
 import com.skyplayer.pro.ui.viewmodel.ParentalViewModel
+import com.skyplayer.pro.ui.viewmodel.SettingsViewModel
 import com.skyplayer.pro.ui.viewmodel.StreamingPreferencesViewModel
-import androidx.hilt.navigation.compose.hiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Écran Paramètres
@@ -83,19 +82,27 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     onNavigateToRemoteConfig: () -> Unit = {},
     onNavigateToMyLine: () -> Unit = {},
+    onNavigateToParentalSetup: () -> Unit = {},
     viewModel: LicenseViewModel = hiltViewModel(),
     streamingViewModel: StreamingPreferencesViewModel = hiltViewModel(),
     parentalViewModel: ParentalViewModel = hiltViewModel(),
-    epgViewModel: com.skyplayer.pro.ui.viewmodel.EpgViewModel = hiltViewModel()
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val streamingPrefs by streamingViewModel.preferences.collectAsStateWithLifecycle()
+    val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
 
-    var showSetPinDialog by remember { mutableStateOf(false) }
+    var showVerifyPinDialog by remember { mutableStateOf(false) }
     var pinError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        settingsViewModel.events.collect { message ->
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -108,7 +115,7 @@ fun SettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Retour"
                         )
                     }
@@ -126,6 +133,79 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Section: Apparence
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SettingsSectionTitle("Apparence")
+                SettingsCard {
+                    Column {
+                        // Mode Thème
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Thème",
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                )
+                                Text(
+                                    text = when (settingsUiState.themeMode) {
+                                        "system" -> "Automatique (système)"
+                                        "light" -> "Clair"
+                                        "dark" -> "Sombre"
+                                        "amoled" -> "AMOLED (noir absolu)"
+                                        else -> "Sombre"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        // Sélecteur de thème
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ThemeOption(
+                                label = "Auto",
+                                selected = settingsUiState.themeMode == "system",
+                                onClick = { settingsViewModel.setThemeMode("system") }
+                            )
+                            ThemeOption(
+                                label = "Clair",
+                                selected = settingsUiState.themeMode == "light",
+                                onClick = { settingsViewModel.setThemeMode("light") }
+                            )
+                            ThemeOption(
+                                label = "Sombre",
+                                selected = settingsUiState.themeMode == "dark",
+                                onClick = { settingsViewModel.setThemeMode("dark") }
+                            )
+                            ThemeOption(
+                                label = "AMOLED",
+                                selected = settingsUiState.themeMode == "amoled",
+                                onClick = { settingsViewModel.setThemeMode("amoled") }
+                            )
+                        }
+                    }
+                }
+            }
+
             // Section: Sécurité
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -135,11 +215,17 @@ fun SettingsScreen(
                         icon = Icons.Default.Lock,
                         title = "Code Parental (PIN)",
                         subtitle = if (parentalViewModel.manager.isPinSet()) "Modifier votre code de protection" else "Définir un code pour verrouiller des catégories",
-                        onClick = { showSetPinDialog = true }
+                        onClick = {
+                            if (parentalViewModel.manager.isPinSet()) {
+                                showVerifyPinDialog = true
+                            } else {
+                                onNavigateToParentalSetup()
+                            }
+                        }
                     )
                 }
             }
-            
+
             // Section: Qualité Vidéo (Nouvelle section)
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -193,31 +279,25 @@ fun SettingsScreen(
                             onClick = { /* Géré dans Qualité Vidéo */ }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsItem(
+                        SettingsToggle(
                             icon = Icons.Default.NetworkCheck,
                             title = "Reconnexion auto",
-                            subtitle = "Backoff exponentiel activé",
-                            onClick = { /* TODO */ }
+                            checked = settingsUiState.autoReconnect,
+                            onCheckedChange = { settingsViewModel.setAutoReconnect(it) }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsItem(
                             icon = Icons.Default.Refresh,
                             title = "Mettre à jour l'EPG",
-                            subtitle = "Actualiser le guide des programmes",
-                            onClick = {
-                                coroutineScope.launch {
-                                    // Simuler un refresh global pour toutes les playlists
-                                    // Dans une version finale, on bouclerait sur les playlists
-                                    android.widget.Toast.makeText(context, "EPG mis à jour", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }
+                            subtitle = if (settingsUiState.isRefreshingEpg) "Mise à jour en cours..." else "Actualiser le guide des programmes de la playlist active",
+                            onClick = { settingsViewModel.refreshActivePlaylistEpg() }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsToggle(
                             icon = Icons.Default.Update,
                             title = "Mises à jour auto",
-                            checked = true,
-                            onCheckedChange = { /* TODO */ }
+                            checked = settingsUiState.autoUpdate,
+                            onCheckedChange = { settingsViewModel.setAutoUpdate(it) }
                         )
                     }
                 }
@@ -230,7 +310,7 @@ fun SettingsScreen(
                 SettingsCard {
                     Column {
                         SettingsItem(
-                            icon = Icons.Default.PlaylistPlay,
+                            icon = Icons.AutoMirrored.Filled.PlaylistPlay,
                             title = "Mes playlists",
                             subtitle = "Adresse MAC, playlist active et statut abonnement",
                             onClick = { onNavigateToMyLine() }
@@ -238,59 +318,15 @@ fun SettingsScreen(
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsItem(
                             icon = Icons.Default.Delete,
-                            title = "Vider le cache",
+                            title = if (settingsUiState.isClearingCache) "Vidage du cache..." else "Vider le cache",
                             subtitle = "Libérer l'espace de stockage temporaire",
-                            onClick = {
-                                coroutineScope.launch {
-                                    withContext(Dispatchers.IO) {
-                                        // 1. Cache interne de l'application
-                                        try {
-                                            context.cacheDir.deleteRecursively()
-                                        } catch (e: Exception) {
-                                            android.util.Log.w("Settings", "Erreur nettoyage cacheDir: ${e.message}")
-                                        }
-
-                                        // 2. Cache ExoPlayer (sous-dossier media_cache)
-                                        try {
-                                            val mediaCache = java.io.File(context.cacheDir, "media_cache")
-                                            if (mediaCache.exists()) mediaCache.deleteRecursively()
-                                        } catch (e: Exception) {
-                                            android.util.Log.w("Settings", "Erreur nettoyage media_cache: ${e.message}")
-                                        }
-
-                                        // 3. Base de données d'indexation ExoPlayer si présente
-                                        try {
-                                            context.getDatabasePath("exoplayer_download.db")?.let {
-                                                if (it.exists()) it.delete()
-                                            }
-                                        } catch (e: Exception) {
-                                            android.util.Log.w("Settings", "Erreur nettoyage DB ExoPlayer: ${e.message}")
-                                        }
-
-                                        // 4. Fichiers temporaires (/data/data/.../files/cache*)
-                                        try {
-                                            context.filesDir.listFiles()
-                                                ?.filter { it.name.startsWith("cache") || it.name.endsWith(".tmp") }
-                                                ?.forEach { it.deleteRecursively() }
-                                        } catch (e: Exception) {
-                                            android.util.Log.w("Settings", "Erreur nettoyage filesDir temp: ${e.message}")
-                                        }
-                                    }
-
-                                    // Toast sur le thread principal
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "Cache vidé avec succès",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            },
+                            onClick = { settingsViewModel.clearCache() },
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
                 }
             }
-            
+
             // Section: Configuration TV (QR Code)
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -307,7 +343,7 @@ fun SettingsScreen(
                     }
                 }
             }
-            
+
             // Section: Licence & Activation
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -320,7 +356,7 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable(onClick = {
-                                    clipboardManager?.setText(androidx.compose.ui.text.AnnotatedString(deviceId))
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(deviceId))
                                 })
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -354,9 +390,9 @@ fun SettingsScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        
+
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        
+
                         // Statut licence
                         Row(
                             modifier = Modifier
@@ -381,7 +417,7 @@ fun SettingsScreen(
                                 Text(
                                     text = when {
                                         uiState.isActivated -> "✅ Activée"
-                                        uiState.licenseInfo?.isTrialValid == true -> 
+                                        uiState.licenseInfo?.isTrialValid == true ->
                                             "🎁 Essai - ${uiState.licenseInfo?.trialDaysRemaining} jours restants"
                                         else -> "⏳ En attente d'activation"
                                     },
@@ -393,7 +429,7 @@ fun SettingsScreen(
                     }
                 }
             }
-            
+
             // Section: Mention légale
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -425,7 +461,7 @@ fun SettingsScreen(
                     }
                 }
             }
-            
+
             // Section: À propos
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -434,12 +470,18 @@ fun SettingsScreen(
                     SettingsItem(
                         icon = Icons.Default.Info,
                         title = "Version",
-                        subtitle = "Sky Player Pro v1.0.0",
-                        onClick = { /* TODO */ }
+                        subtitle = "Sky Player Pro v${BuildConfig.VERSION_NAME}",
+                        onClick = {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Sky Player Pro v${BuildConfig.VERSION_NAME}",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     )
                 }
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
@@ -454,40 +496,23 @@ fun SettingsScreen(
         }
     }
 
-    // PIN Dialog for parental control
-    if (showSetPinDialog) {
-        if (parentalViewModel.manager.isPinSet()) {
-            // Modify existing PIN: verify current first
-            PinDialog(
-                onConfirm = { pin ->
-                    if (parentalViewModel.manager.checkPin(pin)) {
-                        showSetPinDialog = false
-                        pinError = null
-                    } else {
-                        pinError = "Code PIN incorrect"
-                    }
-                },
-                onDismiss = {
-                    showSetPinDialog = false
+    if (showVerifyPinDialog) {
+        PinDialog(
+            onConfirm = { pin ->
+                if (parentalViewModel.manager.checkPin(pin)) {
+                    showVerifyPinDialog = false
                     pinError = null
-                },
-                error = pinError
-            )
-        } else {
-            // Create new PIN
-            PinDialog(
-                onConfirm = { pin ->
-                    parentalViewModel.manager.setPin(pin)
-                    showSetPinDialog = false
-                    pinError = null
-                },
-                onDismiss = {
-                    showSetPinDialog = false
-                    pinError = null
-                },
-                error = pinError
-            )
-        }
+                    onNavigateToParentalSetup()
+                } else {
+                    pinError = "Code PIN incorrect"
+                }
+            },
+            onDismiss = {
+                showVerifyPinDialog = false
+                pinError = null
+            },
+            error = pinError
+        )
     }
 }
 
@@ -586,6 +611,41 @@ private fun SettingsToggle(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+private fun RowScope.ThemeOption(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .weight(1f)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.SemiBold
+            ),
+            modifier = Modifier
+                .padding(vertical = 10.dp, horizontal = 8.dp)
+                .fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            color = if (selected)
+                MaterialTheme.colorScheme.onPrimaryContainer
+            else
+                MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

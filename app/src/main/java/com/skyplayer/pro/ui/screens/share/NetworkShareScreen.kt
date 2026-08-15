@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -114,7 +116,7 @@ fun NetworkShareScreen(
                                     showSuccessDialog = true
                                     onPlaylistReceived(share)
                                 },
-                                onError = { error ->
+                                onError = { _ ->
                                     // Gérer erreur
                                 }
                             )
@@ -135,7 +137,7 @@ fun NetworkShareScreen(
             modifier = Modifier.align(Alignment.TopStart)
         ) {
             Icon(
-                imageVector = Icons.Default.ArrowBack,
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Retour",
                 tint = Color.White
             )
@@ -178,7 +180,7 @@ private fun ModeSelectionScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Send,
+                    imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = null,
                     tint = ElectricSkyBlue,
                     modifier = Modifier.size(48.dp)
@@ -306,7 +308,7 @@ private fun SendModeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "Playlist: ${(shareState as ShareState.Sharing).data.playlistName}",
+                    text = "Playlist: ${shareState.data.playlistName}",
                     style = MaterialTheme.typography.bodySmall,
                     color = ElectricSkyBlue
                 )

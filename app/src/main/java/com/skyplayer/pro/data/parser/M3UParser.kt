@@ -2,64 +2,76 @@ package com.skyplayer.pro.data.parser
 
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.ContentType
+import com.skyplayer.pro.data.organizer.ContentClassifier
 import timber.log.Timber
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.BufferedInputStream
 import java.util.zip.GZIPInputStream
 import java.io.File
+import java.net.URL
 
 /**
  * Parser M3U haute performance pour playlists IPTV
  * Supporte les formats M3U et M3U8 avec attributs étendus et compression GZIP
  */
 class M3UParser(private val okHttpClient: OkHttpClient) {
-    
-    
+
+
     /**
      * Parse une playlist M3U depuis une URL avec timeout configurable
-     * Optimisé pour réseaux lents avec retry intégré
+     * Optimisé pour réseaux lents avec retry intégré et mode Streaming
      */
     suspend fun parseFromUrl(url: String, playlistId: String, maxRetries: Int = 3): List<Channel> {
         return withContext(Dispatchers.IO) {
             var lastException: Exception? = null
-            
+
             repeat(maxRetries) { attempt ->
                 try {
+                    Timber.i("📥 Tentative ${attempt + 1}/$maxRetries : téléchargement M3U depuis $url")
                     val request = Request.Builder()
                         .url(url)
-                        .header("User-Agent", "SkyPlayerPro/1.0")
-                        .header("Accept", "application/vnd.apple.mpegurl, audio/mpegurl, text/plain")
+                        // User-Agent standard pour éviter les erreurs réseau M3U
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+                        .header("Accept", "application/vnd.apple.mpegurl, audio/mpegurl, text/plain, */*")
+                        .header("Accept-Language", "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7")
                         .build()
-                    
+
                     okHttpClient.newCall(request).execute().use { response ->
+                        Timber.i("📥 Réponse HTTP ${response.code} pour $url")
                         if (!response.isSuccessful) {
-                            throw Exception("HTTP ${response.code}")
+                            throw Exception("Erreur HTTP ${response.code}")
                         }
+
+                        val body = response.body ?: throw Exception("Corps de réponse vide")
+                        val contentLength = body.contentLength()
+                        Timber.i("📥 Taille du fichier M3U : ${if (contentLength > 0) "${contentLength / 1024} Ko" else "inconnue"}")
                         
-                        response.body?.let { body ->
-                            return@withContext parseFromInputStream(body.byteStream(), playlistId, url)
-                        }
+                        // Utilisation de byteStream() pour ne pas charger tout en RAM
+                        return@withContext parseFromInputStream(body.byteStream(), playlistId, url)
                     }
                 } catch (e: Exception) {
                     lastException = e
-                    Timber.w("Tentative ${attempt + 1}/$maxRetries échouée pour $url: ${e.message}")
+                    Timber.e(e, "❌ Tentative ${attempt + 1}/$maxRetries échouée pour $url")
                     if (attempt < maxRetries - 1) {
-                        kotlinx.coroutines.delay(1000L * (attempt + 1)) // Backoff exponentiel
+                        val delayMs = 2000L * (attempt + 1)
+                        Timber.i("⌛ Attente de $delayMs ms avant nouvelle tentative...")
+                        kotlinx.coroutines.delay(delayMs) // Backoff exponentiel
                     }
                 }
             }
-            
-            Timber.e(lastException, "Échec parsing M3U après $maxRetries tentatives: $url")
-            emptyList()
+
+            Timber.e(lastException, "❌ Échec parsing M3U après $maxRetries tentatives: $url")
+            throw lastException ?: Exception("Échec inattendu")
         }
     }
-    
+
     /**
      * Parse depuis un fichier local
      */
@@ -70,24 +82,24 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
                 parseFromContent(content, playlistId, file.absolutePath)
             } catch (e: Exception) {
                 Timber.e(e, "Erreur parsing fichier M3U: ${file.path}")
-                emptyList()
+                throw e
             }
         }
     }
-    
+
     /**
      * Parse depuis un flux d'entrée (InputStream)
      * Supporte la détection automatique de GZIP et l'extraction de l'URL EPG
      */
     suspend fun parseFromInputStream(
-        inputStream: InputStream, 
-        playlistId: String, 
+        inputStream: InputStream,
+        playlistId: String,
         sourceUrl: String? = null,
         onEpgUrlFound: (String) -> Unit = {}
     ): List<Channel> {
-        return withContext(Dispatchers.Default) {
+        return withContext(Dispatchers.IO) {
             val bufferedStream = BufferedInputStream(inputStream)
-            
+
             // Détection GZIP (Magic bytes: 0x1f 0x8b)
             val finalStream = if (isGzipped(bufferedStream)) {
                 Timber.d("Compression GZIP détectée pour $sourceUrl")
@@ -101,25 +113,36 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
             var extInfLine: String? = null
             var lineNumber = 0
             var firstLine = true
+            var errorsCount = 0
 
             reader.useLines { lines ->
                 for (line in lines) {
                     lineNumber++
-                    val trimmedLine = line.trim()
+                    val trimmedLine = stripBom(line.trim())
+
+                    if (lineNumber % 1000 == 0) {
+                        Timber.d("📄 Parsing en cours... Ligne $lineNumber, ${channels.size} chaînes trouvées")
+                        yield() // Libérer le thread UI toutes les 1000 lignes
+                    }
+
+                    if (trimmedLine.isEmpty() || (trimmedLine.startsWith("#") && !trimmedLine.startsWith("#EXT", ignoreCase = true))) {
+                        continue
+                    }
 
                     if (firstLine) {
-                        firstLine = false
-                        if (!trimmedLine.startsWith(EXT_M3U, ignoreCase = true)) {
-                            Timber.w("Contenu invalide - pas d'en-tête #EXTM3U")
-                            return@useLines
+                        if (trimmedLine.startsWith(EXT_M3U, ignoreCase = true)) {
+                            firstLine = false
+                            // Extraire l'URL EPG du header x-tvg-url ou url-tvg
+                            extractEpgUrl(trimmedLine)?.let { epgUrl ->
+                                Timber.i("📌 URL EPG trouvée dans le header M3U : $epgUrl")
+                                onEpgUrlFound(epgUrl)
+                            }
+                            continue
+                        } else {
+                            Timber.w("⚠️ Contenu invalide à la ligne $lineNumber - pas d'en-tête #EXTM3U")
+                            // On continue quand même au cas où le fichier est mal formé mais contient des #EXTINF
+                            firstLine = false
                         }
-                        
-                        // Extraire l'URL EPG du header x-tvg-url ou url-tvg
-                        extractEpgUrl(trimmedLine)?.let { epgUrl ->
-                            Timber.i("📌 URL EPG trouvée dans le header M3U : $epgUrl")
-                            onEpgUrlFound(epgUrl)
-                        }
-                        continue
                     }
 
                     when {
@@ -140,11 +163,22 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
                             extInfLine?.let { extInf ->
                                 try {
                                     if (isValidStreamUrl(trimmedLine)) {
-                                        val channel = parseChannel(extInf, trimmedLine, playlistId, channels.size, sourceUrl)
+                                        val resolvedUrl = resolveStreamUrl(trimmedLine, sourceUrl)
+                                        val channel = parseChannel(extInf, resolvedUrl, playlistId, channels.size)
                                         channels.add(channel)
+                                    } else {
+                                        val resolved = resolveStreamUrl(trimmedLine, sourceUrl)
+                                        if (isValidStreamUrl(resolved)) {
+                                            val channel = parseChannel(extInf, resolved, playlistId, channels.size)
+                                            channels.add(channel)
+                                        } else {
+                                            Timber.w("⚠️ URL de flux invalide à la ligne $lineNumber : ${trimmedLine.take(50)}...")
+                                            errorsCount++
+                                        }
                                     }
-                                } catch (_: Exception) {
-                                    // Ignorer erreur individuelle
+                                } catch (e: Exception) {
+                                    Timber.w(e, "⚠️ Erreur parsing ligne $lineNumber")
+                                    errorsCount++
                                 }
                                 extInfLine = null
                             }
@@ -152,8 +186,8 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
                     }
                 }
             }
-            
-            Timber.d("M3U parsé: ${channels.size} chaînes trouvées depuis ${sourceUrl ?: "stream"}")
+
+            Timber.i("✅ M3U parsé: ${channels.size} chaînes trouvées depuis ${sourceUrl ?: "stream"}, $errorsCount erreurs ignorées")
             channels
         }
     }
@@ -183,59 +217,88 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
     suspend fun parseFromContent(content: String, playlistId: String, sourceUrl: String? = null): List<Channel> {
         return parseFromInputStream(content.byteInputStream(), playlistId, sourceUrl)
     }
-    
+
     /**
      * Parse une playlist M3U depuis un InputStream (streaming)
      */
     suspend fun parse(inputStream: InputStream, playlistId: String, sourceUrl: String? = null): List<Channel> {
         return parseFromInputStream(inputStream, playlistId, sourceUrl)
     }
-    
+
     /**
      * Vérifie si l'URL est un flux valide
      */
     private fun isValidStreamUrl(url: String): Boolean {
-        return url.startsWith("http://") || 
-               url.startsWith("https://") || 
+        return url.startsWith("http://") ||
+               url.startsWith("https://") ||
                url.startsWith("rtmp://") ||
                url.startsWith("rtsp://") ||
                url.startsWith("udp://") ||
                url.startsWith("rtp://") ||
                url.startsWith("file://")
     }
-    
+
+    /**
+     * Résout une URL relative par rapport à la playlist source.
+     */
+    private fun resolveStreamUrl(urlLine: String, sourceUrl: String?): String {
+        val trimmed = urlLine.trim()
+        if (isValidStreamUrl(trimmed)) return trimmed
+        if (sourceUrl.isNullOrBlank()) return trimmed
+
+        return runCatching {
+            URL(URL(sourceUrl), trimmed).toString()
+        }.getOrElse {
+            runCatching {
+                val base = URL(sourceUrl)
+                val pathBase = base.path.substringBeforeLast('/', "")
+                URL(base, "$pathBase/$trimmed").toString()
+            }.getOrDefault(trimmed)
+        }
+    }
+
+    private fun stripBom(value: String): String =
+        if (value.startsWith("\uFEFF")) value.removePrefix("\uFEFF") else value
+
     /**
      * Parse une ligne EXTINF et l'URL associée avec métadonnées enrichies
      */
     private fun parseChannel(
-        extInfLine: String, 
-        urlLine: String, 
-        playlistId: String, 
-        index: Int,
-        sourceUrl: String? = null
+        extInfLine: String,
+        urlLine: String,
+        playlistId: String,
+        index: Int
     ): Channel {
         // Extraire la durée et le titre
         val duration = DURATION_REGEX.find(extInfLine)?.groupValues?.get(1)?.toIntOrNull() ?: -1
-        
+
         // Extraire les attributs
         val attributes = parseAttributes(extInfLine)
-        
+
         // Extraire le titre (dernière partie après la dernière virgule)
         val rawTitle = extInfLine.substringAfterLast(",", "Unknown").trim()
         val cleanTitle = cleanChannelName(rawTitle)
-        
+
+        val rawGroupTitle = attributes[ATTR_TVG_GROUP]
+
         // Déterminer le type de contenu avec heuristique améliorée
-        val contentType = detectContentType(extInfLine, urlLine, duration, attributes)
-        
+        val contentType = ContentClassifier.inferContentType(
+            name = cleanTitle,
+            groupTitle = rawGroupTitle,
+            url = urlLine,
+            duration = duration,
+            explicitType = attributes["type"]
+        )
+
         // Construire le groupe avec fallback intelligent
-        val groupTitle = buildGroupTitle(attributes, cleanTitle, contentType)
-        
+        val groupTitle = ContentClassifier.inferCategory(cleanTitle, rawGroupTitle, contentType)
+
         // Générer ID unique stable
         val stableId = generateStableId(playlistId, urlLine, cleanTitle, index)
-        
+
         // Nettoyer et valider l'URL du logo
         val logoUrl = attributes[ATTR_TVG_LOGO]?.let { cleanLogoUrl(it) }
-        
+
         return Channel(
             id = stableId,
             name = attributes[ATTR_TVG_NAME]?.let { cleanChannelName(it) } ?: cleanTitle,
@@ -249,7 +312,7 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
             isLocked = false
         )
     }
-    
+
     companion object {
         private const val EXT_M3U = "#EXTM3U"
         private const val EXT_INF = "#EXTINF"
@@ -259,158 +322,43 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
         private const val ATTR_TVG_NAME = "tvg-name"
         private const val ATTR_TVG_LOGO = "tvg-logo"
         private const val ATTR_TVG_GROUP = "group-title"
-        private const val ATTR_RADIO = "radio"
 
         // Patterns regex compilés pour performance
         private val DURATION_REGEX = "#EXTINF:(-?\\d+)".toRegex()
         private val ATTR_QUOTED_REGEX = "([\\w-]+)=\"([^\"]*)\"".toRegex()
         private val ATTR_UNQUOTED_REGEX = "([\\w-]+)=([^\\s,]+)".toRegex()
 
-        // Patterns S01E01, S1E1, 1x01, E01, EP01 — indiquent une série
-        private val SERIES_EPISODE_REGEX = Regex(
-            """(?i)(S\d{1,2}E\d{1,2}|\d{1,2}x\d{1,2}\b|[.\s_]E\d{1,2}[.\s_]|[.\s_]EP\d{1,3}[.\s_]|Saison\s*\d|Season\s*\d|Episode\s*\d)""",
-            RegexOption.IGNORE_CASE
-        )
 
-        // Mots-clés dans group-title indiquant une série
-        private val SERIES_GROUP_KEYWORDS = listOf(
-            "series", "série", "serie", "épisode", "episode", "saison", "season",
-            "tv show", "tvshow", "miniserie", "feuilleton", "soap"
-        )
-
-        // Mots-clés dans group-title indiquant un film
-        private val MOVIE_GROUP_KEYWORDS = listOf(
-            "film", "movie", "cinema", "vod", "movies", "films", "long métrage",
-            "long-metrage", "feature"
-        )
     }
 
-    /**
-     * Détecte le type de contenu avec heuristique avancée
-     * Ordre de priorité: Radio > Série > Film > Live
-     */
-    private fun detectContentType(
-        extInfLine: String,
-        urlLine: String,
-        duration: Int,
-        attributes: Map<String, String>
-    ): ContentType {
-        val groupTitle = (attributes[ATTR_TVG_GROUP] ?: "").lowercase()
-        val titlePart = extInfLine.substringAfterLast(",", "").trim()
 
-        // 1. Radio
-        if (attributes[ATTR_RADIO] == "true" ||
-            urlLine.contains(".mp3", ignoreCase = true) ||
-            urlLine.contains(".aac", ignoreCase = true) ||
-            extInfLine.contains("radio=\"true\"")
-        ) return ContentType.RADIO
 
-        // 2. Séries — priorité sur films (un épisode peut avoir durée > 0)
-        val isSeriesByUrl = urlLine.contains("/series/", ignoreCase = true) ||
-            urlLine.contains("/show/", ignoreCase = true) ||
-            urlLine.contains("/episode/", ignoreCase = true)
-        val isSeriesByTitle = SERIES_EPISODE_REGEX.containsMatchIn(titlePart)
-        val isSeriesByGroup = SERIES_GROUP_KEYWORDS.any { groupTitle.contains(it) }
-        val isSeriesByExtInf = SERIES_EPISODE_REGEX.containsMatchIn(extInfLine)
-
-        if (isSeriesByUrl || isSeriesByTitle || isSeriesByGroup || isSeriesByExtInf) {
-            return ContentType.VOD_SERIES
-        }
-
-        // 3. Films
-        val isMovieByUrl = urlLine.contains("/movie/", ignoreCase = true) ||
-            urlLine.contains("/vod/", ignoreCase = true) ||
-            urlLine.contains(".mp4", ignoreCase = true) ||
-            urlLine.contains(".mkv", ignoreCase = true) ||
-            urlLine.contains(".avi", ignoreCase = true)
-        val isMovieByGroup = MOVIE_GROUP_KEYWORDS.any { groupTitle.contains(it) }
-        val isMovieByDuration = duration > 0  // durée fixe = VOD
-
-        if (isMovieByUrl || isMovieByGroup || isMovieByDuration) {
-            return ContentType.VOD_MOVIE
-        }
-
-        // 4. Live par défaut
-        return ContentType.LIVE_TV
-    }
-    
-    /**
-     * Construit le titre du groupe avec fallback
-     */
-    private fun buildGroupTitle(
-        attributes: Map<String, String>, 
-        title: String,
-        contentType: ContentType
-    ): String {
-        // Priorité: attribut group-title > détection par mot-clé dans titre > défaut par type
-        return attributes[ATTR_TVG_GROUP] ?: detectGroupFromTitle(title) ?: when (contentType) {
-            ContentType.LIVE_TV -> "Chaînes TV"
-            ContentType.LIVE_SPORTS -> "Sports"
-            ContentType.LIVE_NEWS -> "Actualités"
-            ContentType.RADIO -> "Radio"
-            ContentType.VOD_MOVIE -> "Films"
-            ContentType.VOD_SERIES -> "Séries"
-            ContentType.SERIES_EPISODE -> "Épisodes"
-        }
-    }
-    
-    /**
-     * Détecte le groupe à partir de mots-clés dans le titre
-     */
-    private fun detectGroupFromTitle(title: String): String? {
-        val lowerTitle = title.lowercase()
-        val groupMappings = mapOf(
-            "france" to "France",
-            "french" to "France",
-            "fr " to "France",
-            "belgique" to "Belgique",
-            "suisse" to "Suisse",
-            "canada" to "Canada",
-            "sport" to "Sports",
-            "football" to "Sports",
-            "cinema" to "Cinéma",
-            "movie" to "Cinéma",
-            "film" to "Cinéma",
-            "news" to "Actualités",
-            "actualite" to "Actualités",
-            "documentary" to "Documentaires",
-            "kids" to "Enfants",
-            "enfant" to "Enfants",
-            "music" to "Musique",
-            "musique" to "Musique",
-            "religious" to "Religion",
-            "religion" to "Religion"
-        )
-        
-        return groupMappings.entries.firstOrNull { (keyword, _) ->
-            lowerTitle.contains(keyword)
-        }?.value
-    }
-    
     /**
      * Nettoie le nom de la chaîne (supprime les qualités, résolutions, etc.)
      */
     private fun cleanChannelName(name: String): String {
         return name
-            .replace(Regex("\\s*(FHD|HD|SD|UHD|4K|8K|H265|HEVC|AVC)\\s*$", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\s*\\d+p\\s*$"), "")
-            .replace(Regex("\\s*\\[.*?\\]"), "")
+            // Supprimer d'abord les tags entre crochets et parenthèses car ils peuvent contenir des suffixes de qualité
+            .replace(Regex("\\s*\\[[^\\]]*]"), "")
             .replace(Regex("\\s*\\(.*?\\)"), "")
+            // Ensuite supprimer les indicateurs de qualité en fin de nom
+            .replace(Regex("\\s*(FHD|HD|SD|UHD|4K|8K|H265|HEVC|AVC)\\s*$", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("\\s*\\d+p\\s*$", RegexOption.IGNORE_CASE), "")
             .trim()
     }
-    
+
     /**
      * Nettoie l'URL du logo (supporte les URLs relatives)
      */
     private fun cleanLogoUrl(url: String): String {
         return when {
-            url.startsWith("http://", ignoreCase = true) || 
+            url.startsWith("http://", ignoreCase = true) ||
             url.startsWith("https://", ignoreCase = true) -> url
             url.startsWith("//") -> "https:$url"
             else -> url
         }
     }
-    
+
     /**
      * Génère un ID stable et unique pour la chaîne
      */
@@ -420,19 +368,19 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
         val hash = hashInput.hashCode().toString().replace("-", "n")
         return "${playlistId}_${hash}_${index}"
     }
-    
+
     /**
      * Parse les attributs de la ligne EXTINF avec patterns compilés
      */
     private fun parseAttributes(line: String): Map<String, String> {
         val attributes = mutableMapOf<String, String>()
-        
+
         // Attributs avec guillemets
         ATTR_QUOTED_REGEX.findAll(line).forEach { matchResult ->
             val (key, value) = matchResult.destructured
             attributes[key] = value
         }
-        
+
         // Attributs sans guillemets (fallback)
         ATTR_UNQUOTED_REGEX.findAll(line).forEach { matchResult ->
             val (key, value) = matchResult.destructured
@@ -440,14 +388,7 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
                 attributes[key] = value
             }
         }
-        
+
         return attributes
-    }
-    
-    /**
-     * Détecte si le contenu est un fichier M3U valide
-     */
-    fun isValidM3U(content: String): Boolean {
-        return content.trim().startsWith(EXT_M3U, ignoreCase = true)
     }
 }

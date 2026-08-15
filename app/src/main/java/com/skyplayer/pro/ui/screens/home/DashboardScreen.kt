@@ -24,12 +24,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ContentCopy
@@ -40,6 +43,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Tv
@@ -78,8 +82,18 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.skyplayer.pro.data.model.Channel
+import com.skyplayer.pro.data.model.ContentType
 import com.skyplayer.pro.ui.components.PinDialog
+import com.skyplayer.pro.ui.components.AdvancedMenuDialog
 import com.skyplayer.pro.ui.theme.CardBlack
 import com.skyplayer.pro.ui.theme.ElectricSkyBlue
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
@@ -90,9 +104,13 @@ import com.skyplayer.pro.ui.theme.SuccessGreen
 import com.skyplayer.pro.ui.theme.WarningOrange
 import com.skyplayer.pro.ui.viewmodel.ParentalViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+
+import androidx.compose.ui.res.stringResource
+import com.skyplayer.pro.R
 
 /**
  * Dashboard premium inspiré de Hot Player
@@ -106,15 +124,23 @@ fun DashboardScreen(
     onNavigateToFavorites: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToRemoteConfig: () -> Unit,
+    onNavigateToSearch: () -> Unit = {},
     onNavigateToAddPlaylist: () -> Unit = {},
+    @Suppress("UNUSED_PARAMETER")
     onNavigateToScannerTV: () -> Unit = {},
     onNavigateToEditPlaylist: () -> Unit = {},
+    onNavigateToParentalSetup: () -> Unit = {},
+    onPlayChannel: (Channel) -> Unit = {},
+    onPlayContent: (Channel) -> Unit = {},
     dashboardViewModel: DashboardViewModel = hiltViewModel(),
     parentalViewModel: ParentalViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
+    
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     // Détection TV (Android TV / Firestick)
     val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
@@ -151,12 +177,17 @@ fun DashboardScreen(
     var currentDate by remember { mutableStateOf("") }
 
     // État réseau
-    var networkStatus by remember { mutableStateOf("VÉRIFICATION...") }
+    val checkingStatus = stringResource(R.string.dash_checking)
+    val offlineStatus = stringResource(R.string.dash_offline)
+    val wifiStatus = stringResource(R.string.dash_signal_wifi)
+    val dataStatus = stringResource(R.string.dash_signal_data)
+    val connectedStatus = stringResource(R.string.dash_signal_connected)
+
+    var networkStatus by remember { mutableStateOf(checkingStatus) }
     var networkColor by remember { mutableStateOf(Color.Gray) }
 
     // Parental control states
     var showPinDialog by remember { mutableStateOf(false) }
-    var showSetupPinDialog by remember { mutableStateOf(false) }
     var pinError by remember { mutableStateOf<String?>(null) }
     var parentalUnlocked by remember { mutableStateOf(false) }
 
@@ -174,20 +205,20 @@ fun DashboardScreen(
             val caps = cm.getNetworkCapabilities(activeNetwork)
 
             if (activeNetwork == null || caps == null) {
-                networkStatus = "HORS LIGNE"
+                networkStatus = offlineStatus
                 networkColor = Color.Red
             } else {
                 when {
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
-                        networkStatus = "SIGNAL WIFI"
+                        networkStatus = wifiStatus
                         networkColor = ElectricSkyBlue
                     }
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
-                        networkStatus = "SIGNAL DATA"
+                        networkStatus = dataStatus
                         networkColor = WarningOrange
                     }
                     else -> {
-                        networkStatus = "SIGNAL CONNECTÉ"
+                        networkStatus = connectedStatus
                         networkColor = Color.Green
                     }
                 }
@@ -205,160 +236,172 @@ fun DashboardScreen(
     val downloadComplete by dashboardViewModel.downloadComplete.collectAsState()
     val downloadError by dashboardViewModel.downloadError.collectAsState()
     val channelCount by dashboardViewModel.channelCount.collectAsState()
-    
+    val recentlyWatched by dashboardViewModel.recentlyWatched.collectAsState()
+    val isSyncing by dashboardViewModel.isSyncing.collectAsState()
+    val syncProgress by dashboardViewModel.syncProgress.collectAsState()
+
     // Navigation vers Live TV quand téléchargement terminé
     LaunchedEffect(downloadComplete) {
         if (downloadComplete) {
             onNavigateToLive()
         }
     }
-    
-    // ═══════════════════════════════════════════════════════════════
-    // ÉTAT 1: VÉRIFICATION EN COURS (afficher logo + chargement)
-    // ═══════════════════════════════════════════════════════════════
-    if (isChecking && trialStatus == DashboardViewModel.TrialStatus.Checking) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(64.dp),
-                    color = ElectricSkyBlue,
-                    strokeWidth = 4.dp
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Vérification de l'appareil...",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
-            }
-        }
-        return
-    }
-    
-    // ═══════════════════════════════════════════════════════════════
-    // ÉTAT 2: TRIAL EXPIRÉ (afficher MAC + lien activation)
-    // ═══════════════════════════════════════════════════════════════
-    if (trialStatus == DashboardViewModel.TrialStatus.Expired) {
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        containerColor = PureBlack
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PureBlack)
-                .padding(24.dp),
-            contentAlignment = Alignment.Center
+                .padding(paddingValues)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                // Icône avertissement
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp),
-                    tint = WarningOrange
-                )
-                
-                Text(
-                    text = "Période d'essai expirée",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    ),
-                    textAlign = TextAlign.Center
-                )
-                
-                Text(
-                    text = "Votre essai de 15 jours est terminé.\nPour continuer à utiliser Sky Player Pro, veuillez activer votre appareil.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center
-                )
-                
-                // Carte MAC en grand
-                Surface(
+            // ═══════════════════════════════════════════════════════════════
+            // ÉTAT 1: VÉRIFICATION EN COURS (afficher logo + chargement)
+            // ═══════════════════════════════════════════════════════════════
+            if (isChecking && trialStatus == DashboardViewModel.TrialStatus.Checking) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(64.dp),
+                            color = ElectricSkyBlue,
+                            strokeWidth = 4.dp
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Vérification de l'appareil...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+                return@Scaffold
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // ÉTAT 2: TRIAL EXPIRÉ (afficher MAC + lien activation)
+            // ═══════════════════════════════════════════════════════════════
+            if (trialStatus == DashboardViewModel.TrialStatus.Expired) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE)
-                                    as ClipboardManager
-                            cm.setPrimaryClip(
-                                ClipData.newPlainText("Adresse MAC", deviceId)
-                            )
-                            Toast.makeText(
-                                context,
-                                "Adresse MAC copiée",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
-                    color = Color(0xFF1A1A1A),
-                    shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        2.dp,
-                        WarningOrange.copy(alpha = 0.5f)
-                    )
+                        .fillMaxSize()
+                        .background(PureBlack)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        Text(
-                            text = "VOTRE ADRESSE MAC",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                color = WarningOrange,
-                                letterSpacing = 2.sp
-                            )
+                        // Icône avertissement
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(80.dp),
+                            tint = WarningOrange
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+
                         Text(
-                            text = deviceId,
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
+                            text = stringResource(R.string.dash_trial_expired_title),
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
                                 color = Color.White
                             ),
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+
                         Text(
-                            text = "(Appuyez pour copier)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.5f)
+                            text = stringResource(R.string.dash_trial_expired_msg),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center
+                        )
+
+                        // Carte MAC en grand
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                            as ClipboardManager
+                                    cm.setPrimaryClip(
+                                        ClipData.newPlainText("Adresse MAC", deviceId)
+                                    )
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            context.getString(R.string.dash_mac_copied)
+                                        )
+                                    }
+                                },
+                            color = Color(0xFF1A1A1A),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                2.dp,
+                                WarningOrange.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.dash_your_mac),
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        color = WarningOrange,
+                                        letterSpacing = 2.sp
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = deviceId,
+                                    style = MaterialTheme.typography.headlineSmall.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    ),
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "(Appuyez pour copier)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Contactez votre fournisseur avec cette adresse MAC pour l'activation.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
-                
-                Text(
-                    text = "Contactez votre fournisseur avec cette adresse MAC pour l'activation.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center
-                )
+                return@Scaffold
             }
-        }
-        return
-    }
-    
-    // ═══════════════════════════════════════════════════════════════
-    // ÉTAT 3: TÉLÉCHARGEMENT EN COURS (Scenario A: playlist trouvée)
-    // ═══════════════════════════════════════════════════════════════
-    if (macPlaylistStatus is DashboardViewModel.MacPlaylistStatus.Found && 
-        !downloadComplete && 
-        downloadError == null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(PureBlack)
-                .padding(24.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.fillMaxWidth(0.85f)
-            ) {
+
+            // ═══════════════════════════════════════════════════════════════
+            // ÉTAT 3: TÉLÉCHARGEMENT EN COURS (Scenario A: playlist trouvée)
+            // ═══════════════════════════════════════════════════════════════
+            if (macPlaylistStatus is DashboardViewModel.MacPlaylistStatus.Found &&
+                !downloadComplete &&
+                downloadError == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(PureBlack)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(24.dp),
+                        modifier = Modifier.fillMaxWidth(0.85f)
+                    ) {
                 // Icône téléchargement animée
                 Box(
                     modifier = Modifier.size(96.dp),
@@ -376,7 +419,7 @@ fun DashboardScreen(
                         tint = ElectricSkyBlue
                     )
                 }
-                
+
                 val playlistInfo = (macPlaylistStatus as DashboardViewModel.MacPlaylistStatus.Found).info
                 Text(
                     text = "Téléchargement de votre playlist",
@@ -386,14 +429,14 @@ fun DashboardScreen(
                     ),
                     textAlign = TextAlign.Center
                 )
-                
+
                 Text(
                     text = playlistInfo.name,
                     style = MaterialTheme.typography.bodyLarge,
                     color = PremiumGold,
                     textAlign = TextAlign.Center
                 )
-                
+
                 // Barre de progression
                 if (downloadProgress.totalBytes > 0) {
                     LinearProgressIndicator(
@@ -415,7 +458,7 @@ fun DashboardScreen(
                         trackColor = Color.White.copy(alpha = 0.1f)
                     )
                 }
-                
+
                 // Texte "Téléchargement : X.X Mo / Y.Y Mo"
                 Text(
                     text = "Téléchargement : ${downloadProgress.label}",
@@ -428,7 +471,7 @@ fun DashboardScreen(
                     ),
                     textAlign = TextAlign.Center
                 )
-                
+
                 // Bouton pour ignorer et aller au Dashboard
                 TextButton(
                     onClick = { dashboardViewModel.skipToDashboard() }
@@ -438,283 +481,231 @@ fun DashboardScreen(
                         color = Color.White.copy(alpha = 0.5f)
                     )
                 }
-            }
-        }
-        return
-    }
-    
-    // ═══════════════════════════════════════════════════════════════
-    // ÉTAT 4: DASHBOARD NORMAL (Scenario B: aucune playlist)
-    // ═══════════════════════════════════════════════════════════════
-    
-    val items = listOf(
-        DashboardItem("LIVE TV", Icons.Default.LiveTv, ElectricSkyBlue, onNavigateToLive),
-        DashboardItem("FILMS", Icons.Default.Movie, PremiumGold, onNavigateToVOD),
-        DashboardItem("SÉRIES", Icons.Default.Tv, Color(0xFFE91E63), onNavigateToSeries),
-        DashboardItem("FAVORIS", Icons.Default.Favorite, Color.Red, onNavigateToFavorites),
-        DashboardItem(
-            title = "PARENTAL",
-            icon = Icons.Default.Lock,
-            color = if (parentalUnlocked) SuccessGreen else WarningOrange,
-            onClick = {
-                if (parentalViewModel.manager.isPinSet()) {
-                    showPinDialog = true
-                } else {
-                    showSetupPinDialog = true
                 }
             }
-        ),
-        DashboardItem("RÉGLAGES", Icons.Default.Settings, Color.Gray, onNavigateToSettings),
-        DashboardItem("QR SYNC", Icons.Default.QrCodeScanner, ElectricSkyBlue, onNavigateToRemoteConfig)
-    )
+            return@Scaffold
+        }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureBlack)
-    ) {
-        Column(
+        // ═══════════════════════════════════════════════════════════════
+        // ÉTAT 4: DASHBOARD NORMAL (Scenario B: aucune playlist)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Dashboard simplifié à 5 tuiles essentielles + bouton "Plus"
+        val mainItems = listOf(
+            DashboardItem("LIVE TV", Icons.Default.LiveTv, ElectricSkyBlue, onNavigateToLive),
+            DashboardItem("FILMS", Icons.Default.Movie, PremiumGold, onNavigateToVOD),
+            DashboardItem("SÉRIES", Icons.Default.Tv, Color(0xFFE91E63), onNavigateToSeries),
+            DashboardItem("FAVORIS", Icons.Default.Favorite, Color.Red, onNavigateToFavorites),
+            DashboardItem("RECHERCHE", Icons.Default.Search, ElectricSkyBlue.copy(alpha = 0.8f), onNavigateToSearch)
+        )
+
+        // Options avancées accessibles via bouton "Plus"
+        var showAdvancedMenu by remember { mutableStateOf(false) }
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .background(PureBlack)
         ) {
-            // En-tête intelligent: nom playlist + expiration
-            AnimatedVisibility(
-                visible = headerVisible,
-                enter = slideInVertically { -it } + fadeIn(),
-                exit = slideOutVertically { -it } + fadeOut()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp)
-                        .background(
-                            color = Color(0xFF111111),
-                            shape = RoundedCornerShape(10.dp)
+                // En-tête intelligent: nom playlist + expiration
+                AnimatedVisibility(
+                    visible = headerVisible,
+                    enter = slideInVertically { -it } + fadeIn(),
+                    exit = slideOutVertically { -it } + fadeOut()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp)
+                            .background(
+                                color = Color(0xFF111111),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .clickable { headerVisible = false }
+                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = playlistName.ifBlank { "Sky Player Pro" },
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            )
+                            if (expiryLabel.isNotBlank()) {
+                                Text(
+                                    text = expiryLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = expiryColor
+                                    )
+                                )
+                            }
+                        }
+                        Text(
+                            text = "✕",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                color = Color.White.copy(alpha = 0.4f)
+                            )
                         )
-                        .clickable { headerVisible = false }
-                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    }
+                }
+
+                // Header minimaliste avec Horloge et Statut Réseau
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
                     Column {
                         Text(
-                            text = playlistName.ifBlank { "Sky Player Pro" },
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.SemiBold,
+                            text = "Sky Player",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
                                 color = Color.White
                             )
                         )
-                        if (expiryLabel.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = expiryLabel,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = expiryColor
+                                text = "PRO VERSION",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    color = PremiumGold,
+                                    letterSpacing = 3.sp
                                 )
                             )
-                        }
-                    }
-                    Text(
-                        text = "✕",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            color = Color.White.copy(alpha = 0.4f)
-                        )
-                    )
-                }
-            }
-
-            // Header minimaliste avec Horloge et Statut Réseau
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column {
-                    Text(
-                        text = "Sky Player",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "PRO VERSION",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                color = PremiumGold,
-                                letterSpacing = 3.sp
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Surface(
-                            color = networkColor.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(4.dp),
-                            border = androidx.compose.foundation.BorderStroke(0.5.dp, networkColor.copy(alpha = 0.5f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Surface(
+                                color = networkColor.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(4.dp),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, networkColor.copy(alpha = 0.5f))
                             ) {
-                                Icon(Icons.Default.SignalCellularAlt, null, tint = networkColor, modifier = Modifier.size(10.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(networkStatus, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = networkColor)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.SignalCellularAlt, null, tint = networkColor, modifier = Modifier.size(10.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(networkStatus, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = networkColor)
+                                }
                             }
                         }
                     }
+
+                    // Horloge Digitale Premium
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = currentTime,
+                            style = MaterialTheme.typography.displayMedium.copy(
+                                fontWeight = FontWeight.Light,
+                                color = Color.White
+                            )
+                        )
+                        Text(
+                            text = currentDate,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = Color.White.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
                 }
 
-                // Horloge Digitale Premium
-                Column(horizontalAlignment = Alignment.End) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Indicateur permanent compact
+                CompactStatusIndicator(
+                    isSyncing = isSyncing,
+                    syncProgress = syncProgress,
+                    channelCount = channelCount,
+                    expiryLabel = expiryLabel,
+                    expiryColor = expiryColor,
+                    isOffline = networkStatus == offlineStatus,
+                    isNetworkUnstable = networkColor == WarningOrange
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (recentlyWatched.isNotEmpty()) {
                     Text(
-                        text = currentTime,
-                        style = MaterialTheme.typography.displayMedium.copy(
-                            fontWeight = FontWeight.Light,
+                        text = stringResource(R.string.dash_continue_watching),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                     )
-                    Text(
-                        text = currentDate,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            color = Color.White.copy(alpha = 0.5f)
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Grille responsive: colonnes fixes sur mobile (zéro débordement),
-            // adaptive sur tablette/TV
-            LazyVerticalGrid(
-                columns = if (isTV || screenWidthDp >= 600)
-                    GridCells.Adaptive(minSize = tileMinSize)
-                else
-                    GridCells.Fixed(gridColumns),  // 2 colonnes fixes sur smartphone
-                horizontalArrangement = Arrangement.spacedBy(if (isTV) 16.dp else 12.dp),
-                verticalArrangement = Arrangement.spacedBy(if (isTV) 16.dp else 12.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(items) { item ->
-                    DashboardTile(item, isTV = isTV)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ═══════════════════════════════════════════════════════════════
-            // SECTION BOUTONS D'ACTION CONFIGURABLES — TOUJOURS VISIBLE
-            // Sur Mobile: boutons empilés verticalement
-            // Sur Tablette/TV: boutons alignés horizontalement
-            // ═══════════════════════════════════════════════════════════════
-            val actionButtonHeight = if (isTV) 56.dp else 48.dp
-            val actionFontSize = if (isTV) 16.sp else 14.sp
-            val actionIconSize = if (isTV) 24.dp else 20.dp
-
-            if (screenWidthDp >= 600 || isTV) {
-                // Mode Tablette/TV: Boutons alignés horizontalement
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Bouton 1: Ajouter une playlist
-                    ActionButton(
-                        text = "Ajouter une playlist",
-                        icon = Icons.Default.Add,
-                        onClick = onNavigateToAddPlaylist,
-                        height = actionButtonHeight,
-                        fontSize = actionFontSize,
-                        iconSize = actionIconSize,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Bouton 2: Scanner pour TV
-                    ActionButton(
-                        text = "Scanner pour TV",
-                        icon = Icons.Default.QrCode2,
-                        onClick = onNavigateToScannerTV,
-                        height = actionButtonHeight,
-                        fontSize = actionFontSize,
-                        iconSize = actionIconSize,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Bouton 3: Gérer la playlist
-                    ActionButton(
-                        text = "Gérer playlist",
-                        icon = Icons.Default.Edit,
-                        onClick = onNavigateToEditPlaylist,
-                        height = actionButtonHeight,
-                        fontSize = actionFontSize,
-                        iconSize = actionIconSize,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            } else {
-                // Mode Mobile: Boutons empilés verticalement pour éviter débordement
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Bouton 1: Ajouter une playlist
-                    ActionButton(
-                        text = "Ajouter une playlist",
-                        icon = Icons.Default.Add,
-                        onClick = onNavigateToAddPlaylist,
-                        height = actionButtonHeight,
-                        fontSize = actionFontSize,
-                        iconSize = actionIconSize,
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Bouton 2: Scanner pour TV
-                    ActionButton(
-                        text = "Scanner pour TV",
-                        icon = Icons.Default.QrCode2,
-                        onClick = onNavigateToScannerTV,
-                        height = actionButtonHeight,
-                        fontSize = actionFontSize,
-                        iconSize = actionIconSize,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Bouton 3: Gérer la playlist
-                    ActionButton(
-                        text = "Gérer playlist",
-                        icon = Icons.Default.Edit,
-                        onClick = onNavigateToEditPlaylist,
-                        height = actionButtonHeight,
-                        fontSize = actionFontSize,
-                        iconSize = actionIconSize,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            // ── Bloc MAC — Visible sur tous les appareils (Mobile, Tablette, TV) ──
-            if (deviceId.isNotBlank()) {
-                // Design unifié: carte MAC avec style premium sur tous les écrans
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .clickable {
-                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE)
-                                    as ClipboardManager
-                            cm.setPrimaryClip(
-                                ClipData.newPlainText("Adresse MAC", deviceId)
+                    ) {
+                        items(recentlyWatched, key = { it.id }) { channel ->
+                            ContinueWatchingCard(
+                                channel = channel,
+                                onClick = {
+                                    when (channel.type) {
+                                        ContentType.VOD_MOVIE, ContentType.VOD_SERIES -> onPlayContent(channel)
+                                        else -> onPlayChannel(channel)
+                                    }
+                                }
                             )
-                            Toast.makeText(
-                                context,
-                                "Adresse MAC copiée",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                // Grille responsive: colonnes fixes sur mobile (zéro débordement),
+                // adaptive sur tablette/TV
+                LazyVerticalGrid(
+                    columns = if (isTV || screenWidthDp >= 600)
+                        GridCells.Adaptive(minSize = tileMinSize)
+                    else
+                        GridCells.Fixed(gridColumns),  // 2 colonnes fixes sur smartphone
+                    horizontalArrangement = Arrangement.spacedBy(if (isTV) 16.dp else 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (isTV) 16.dp else 12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(mainItems) { item ->
+                        DashboardTile(item, isTV = isTV)
+                    }
+
+                    // Tuile "Plus" pour options avancées
+                    item {
+                        DashboardTile(
+                            DashboardItem(
+                                title = "PLUS",
+                                icon = Icons.Default.Settings,
+                                color = Color.Gray,
+                                onClick = { showAdvancedMenu = true }
+                            ),
+                            isTV = isTV
+                        )
+                    }
+                }
+
+                // ── Bloc MAC — Visible sur tous les appareils (Mobile, Tablette, TV) ──
+                if (deviceId.isNotBlank()) {
+                    // Design unifié: carte MAC avec style premium sur tous les écrans
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .clickable {
+                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                        as ClipboardManager
+                                cm.setPrimaryClip(
+                                    ClipData.newPlainText("Adresse MAC", deviceId)
+                                )
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.dash_mac_copied)
+                                    )
+                                }
+                            },
                     color = Color(0xFF0E0E0E),
                     shape = RoundedCornerShape(12.dp),
                     border = androidx.compose.foundation.BorderStroke(
@@ -731,7 +722,7 @@ fun DashboardScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "ADRESSE MAC",
+                                text = stringResource(R.string.dash_mac_label),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = Color.White.copy(alpha = 0.5f),
                                     letterSpacing = 2.sp
@@ -800,143 +791,89 @@ fun DashboardScreen(
         )
     }
 
-    // PIN Setup Dialog (first time)
-    if (showSetupPinDialog) {
-        SetupPinDialog(
-            onPinCreated = { pin ->
-                parentalViewModel.manager.setPin(pin)
-                showSetupPinDialog = false
-                parentalUnlocked = true
-            },
-            onDismiss = { showSetupPinDialog = false }
+    // Menu avancé (Options supplémentaires)
+    if (showAdvancedMenu) {
+        AdvancedMenuDialog(
+            onDismiss = { showAdvancedMenu = false },
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToRemoteConfig = onNavigateToRemoteConfig,
+            onNavigateToAddPlaylist = onNavigateToAddPlaylist,
+            onNavigateToEditPlaylist = onNavigateToEditPlaylist,
+            onNavigateToParental = {
+                showAdvancedMenu = false
+                if (parentalViewModel.manager.isPinSet()) {
+                    showPinDialog = true
+                } else {
+                    onNavigateToParentalSetup()
+                }
+            }
         )
+    }
+        }
     }
 }
 
-/**
- * Dialog pour créer un nouveau code PIN parental
- */
 @Composable
-private fun SetupPinDialog(
-    onPinCreated: (String) -> Unit,
-    onDismiss: () -> Unit
+private fun ContinueWatchingCard(
+    channel: Channel,
+    onClick: () -> Unit
 ) {
-    var pin by remember { mutableStateOf("") }
-    var confirmPin by remember { mutableStateOf("") }
-    var step by remember { mutableStateOf(1) } // 1=create, 2=confirm
-    var error by remember { mutableStateOf<String?>(null) }
-
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = CardBlack,
-        shape = RoundedCornerShape(24.dp),
-        title = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .width(120.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.67f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardBlack),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!channel.logoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(channel.logoUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = channel.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
                 Icon(
-                    imageVector = Icons.Default.Lock,
+                    imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
                     tint = ElectricSkyBlue,
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = if (step == 1) "CRÉER UN CODE PIN" else "CONFIRMER LE CODE",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    modifier = Modifier.size(32.dp)
                 )
             }
-        },
-        text = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(36.dp)
+                    .background(Color.Black.copy(alpha = 0.55f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = if (step == 1) "Choisissez un code PIN à 4 chiffres"
-                    else "Confirmez votre code PIN",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
                 )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                androidx.compose.material3.OutlinedTextField(
-                    value = if (step == 1) pin else confirmPin,
-                    onValueChange = {
-                        if (it.length <= 4) {
-                            if (step == 1) pin = it else confirmPin = it
-                            error = null
-                        }
-                    },
-                    modifier = Modifier.width(160.dp),
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
-                    ),
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.headlineMedium.copy(
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        letterSpacing = 8.sp,
-                        color = ElectricSkyBlue
-                    ),
-                    colors = androidx.compose.material3.TextFieldDefaults.colors(
-                        focusedContainerColor = PureBlack,
-                        unfocusedContainerColor = PureBlack,
-                        focusedIndicatorColor = ElectricSkyBlue
-                    )
-                )
-
-                if (error != null) {
-                    Text(
-                        text = error!!,
-                        color = Color.Red,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            androidx.compose.material3.Button(
-                onClick = {
-                    if (step == 1) {
-                        if (pin.length == 4) {
-                            step = 2
-                        } else {
-                            error = "Le code doit contenir 4 chiffres"
-                        }
-                    } else {
-                        if (confirmPin == pin) {
-                            onPinCreated(pin)
-                        } else {
-                            error = "Les codes ne correspondent pas"
-                            confirmPin = ""
-                        }
-                    }
-                },
-                enabled = if (step == 1) pin.length == 4 else confirmPin.length == 4,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = ElectricSkyBlue
-                )
-            ) {
-                Text(
-                    text = if (step == 1) "SUIVANT" else "CRÉER",
-                    fontWeight = FontWeight.Bold,
-                    color = PureBlack
-                )
-            }
-        },
-        dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("ANNULER", color = Color.White.copy(alpha = 0.5f))
             }
         }
-    )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = channel.name,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
+    }
 }
 
 @Composable
@@ -1063,6 +1000,151 @@ private fun ActionButton(
                 softWrap = false,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Visible // Pas de troncature
             )
+        }
+    }
+}
+
+/**
+ * Indicateur permanent compact pour le Dashboard
+ */
+@Composable
+private fun CompactStatusIndicator(
+    isSyncing: Boolean,
+    syncProgress: Float,
+    channelCount: Int,
+    expiryLabel: String,
+    expiryColor: Color,
+    isOffline: Boolean,
+    isNetworkUnstable: Boolean
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth(),
+        color = Color(0xFF0F0F0F),
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            when {
+                isOffline -> Color.Red.copy(alpha = 0.3f)
+                isSyncing -> ElectricSkyBlue.copy(alpha = 0.3f)
+                isNetworkUnstable -> WarningOrange.copy(alpha = 0.3f)
+                else -> Color.White.copy(alpha = 0.1f)
+            }
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left: Status
+                when {
+                    isOffline -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SignalCellularAlt,
+                                contentDescription = null,
+                                tint = Color.Red,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Hors ligne — contenu local uniquement",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.Red
+                            )
+                        }
+                    }
+                    isSyncing -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = ElectricSkyBlue
+                            )
+                            Text(
+                                text = "Mise à jour… ${(syncProgress * 100).toInt()}%",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = ElectricSkyBlue
+                            )
+                        }
+                    }
+                    isNetworkUnstable -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SignalCellularAlt,
+                                contentDescription = null,
+                                tint = WarningOrange,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Connexion instable",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = WarningOrange
+                            )
+                        }
+                    }
+                    else -> {
+                        // Playlist OK
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "✓",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                color = SuccessGreen
+                            )
+                            Text(
+                                text = "$channelCount chaînes",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+
+                // Right: Expiry/License
+                Text(
+                    text = expiryLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = expiryColor
+                )
+            }
+
+            // Progress bar if syncing
+            AnimatedVisibility(
+                visible = isSyncing,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { syncProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = ElectricSkyBlue,
+                        trackColor = Color.White.copy(alpha = 0.08f)
+                    )
+                }
+            }
         }
     }
 }

@@ -1,76 +1,51 @@
 # Sky Player Pro
 
-**Application IPTV premium optimisée pour l'Afrique**
+**Application IPTV premium optimisée pour l'Afrique** (réseaux instables, Edge/3G/4G).
 
-## Caractéristiques principales
+## Fonctionnalités
 
-### Optimisation réseau
-- **Buffering agressif** : 60-120 secondes de tampon mémoire
-- **Reconnexion automatique** exponentielle (backoff)
-- **Support réseaux lents** : Edge/3G/4G instable
-- **Cache intelligent** des logos pour économiser la data
+- **Lecture** : ExoPlayer Media3 (HLS/DASH), reprise après coupure, reconnexion exponentielle, qualité auto-ajustable, sélecteur de qualité manuel, lecture en arrière-plan.
+- **Contenu** : Live TV, VOD (films) et Séries, catégorisation automatique (sport, news, pays, enfants…), EPG, moteur de recommandations.
+- **Playlists** : parser M3U universel (gzip, attributs étendus), API Xtream Codes, multi-playlists, favoris, historique avec reprise.
+- **Licence** : essai de 14 jours, activation via Firebase RTDB + backend Node, vérification temps réel, code parental (PIN).
+- **TV** : configuration par QR code pour Android TV, partage local réseau.
+- **Design** : Material 3 Dark Mode, splash animé, navigation par sections (Live, VOD, Séries, Favoris).
 
-### Moteur de lecture
-- **ExoPlayer Media3** avec configuration personnalisée
-- **Support HLS/DASH** pour streaming adaptatif
-- **Qualité auto-ajustable** selon le débit réseau
-- **Lecture en arrière-plan** avec service dédié
-
-### Interface utilisateur
-- **Design Premium Dark Mode** Material 3
-- **Navigation fluide** entre Live TV, VOD et Séries
-- **Splash Screen animé** avec branding
-- **Icônes catégorisées** par type de contenu
-
-### Fonctionnalités
-- **Parser M3U universel** haute performance
-- **Support Xtream Codes** API
-- **Système de Favoris** persistant
-- **Historique de lecture** avec reprise
-- **Code Parental** (PIN Lock) pour contrôle parental
-- **Gestion multi-playlists**
-
-## Architecture technique
+## Architecture
 
 ```
 app/src/main/java/com/skyplayer/pro/
 ├── data/
-│   ├── local/          # Room Database (DAO, Entities)
-│   ├── model/          # Data classes (Channel, Playlist, etc.)
-│   ├── parser/         # M3UParser
-│   ├── remote/         # XtreamCodes API
-│   └── repository/     # Repositories (Channel, Playlist)
-├── di/                 # Hilt Modules (App, Database, Network)
-├── receiver/           # NetworkReceiver
-├── service/            # PlayerService (background)
-└── ui/
-    ├── components/     # Composables réutilisables
-    ├── navigation/     # Routes, NavHost
-    ├── screens/        # Écrans (Splash, LiveTV, VOD, etc.)
-    └── theme/          # Couleurs, Typographie, Theme
+│   ├── local/          # Room (DAO, entités)
+│   ├── model/          # Data classes (Channel, Playlist, ContentType…)
+│   ├── parser/         # M3UParser, EpgParser
+│   ├── remote/         # XtreamCodes, DeviceCheck, LicenseApi
+│   ├── license/        # LicenseManager, TrialPeriod, LicenseSecurityManager
+│   ├── organizer/      # ContentClassifier (type + catégorie)
+│   └── repository/     # Repositories (Channel, Playlist, Epg, Favoris…)
+├── di/                 # Hilt (App, Database, Network)
+├── service/            # PlayerService (arrière-plan)
+└── ui/                 # Compose : screens, components, navigation, theme
 ```
+
+**Stack** : Kotlin, Jetpack Compose + Material 3, Media3 ExoPlayer, Hilt, Room, Coil, Retrofit/OkHttp, Firebase (RTDB, Firestore, Analytics, Crashlytics), DataStore.
+
+**Backend** :
+- `backend/api/` — endpoints PHP (MySQL) : `check_mac.php` (playlist par MAC), `devices/check.php` (statut licence + playlist), `reseller/` (dashboard revendeur).
+- `backend/activation-service/` — service Node.js d'activation des licences (Firebase Admin).
+- `firebase-functions/` — Cloud Functions (webhooks paiement Joboost Cash).
+- `public/` — page d'accueil du site `skyplayerapp.xyz`.
 
 ## Configuration du buffering
 
+Valeurs réelles dans `app/build.gradle.kts` (`BuildConfig`) :
+
 ```kotlin
-// LoadControl personnalisé pour réseaux instables
-minBufferMs = 60000      // 60 secondes
-maxBufferMs = 120000     // 120 secondes
-bufferForPlaybackMs = 2500
+minBufferMs = 15000                     // 15 secondes cible
+maxBufferMs = 50000                     // 50 secondes max
+bufferForPlaybackMs = 2500              // démarrage après ~2,5 s de buffer
 bufferForPlaybackAfterRebufferMs = 5000
 ```
-
-## Dépendances principales
-
-| Catégorie | Bibliothèque |
-|-----------|-------------|
-| UI | Jetpack Compose, Material 3 |
-| Lecteur | Media3 ExoPlayer |
-| Injection | Hilt |
-| Base de données | Room |
-| Images | Coil |
-| Réseau | Retrofit, OkHttp |
-| Logging | Timber |
 
 ## Compilation
 
@@ -78,41 +53,45 @@ bufferForPlaybackAfterRebufferMs = 5000
 # Build debug
 ./gradlew :app:assembleDebug
 
-# Build release
+# Build release (signé via keystore.properties)
 ./gradlew :app:assembleRelease
+
+# Tests unitaires
+./gradlew :app:testDebugUnitTest
+
+# Lint
+./gradlew :app:lintDebug
 ```
 
-## Mise en production
+### Baseline profiles (démarrage plus rapide)
 
-- Guide complet: `DEPLOIEMENT_SECURISE.md`
-- Deploiement regles Firebase: `scripts/deploy-rules.ps1`
-- Backend activation site: `backend/activation-service/`
+Le setup est en place (`androidx.baselineprofile` + `profileinstaller` + `BaselineProfileGenerator`).
+Générer le profil sur un appareil/émulateur connecté (Android 7+) :
 
-## Structure du projet créée
+```bash
+./gradlew :app:generateBaselineProfile
+```
 
-- ✅ Configuration Gradle (Kotlin DSL)
-- ✅ Fichiers de version centralisés (libs.versions.toml)
-- ✅ Splash Screen avec animation
-- ✅ Thème Premium Dark Mode
-- ✅ Navigation Compose avec 4 sections
-- ✅ ExoPlayer avec buffering agressif
-- ✅ Reconnexion automatique exponentielle
-- ✅ Parser M3U universel
-- ✅ Support Xtream Codes
-- ✅ Base de données Room (Channels, Playlists, WatchHistory)
-- ✅ Système de favoris
-- ✅ Code Parental (structure)
-- ✅ Cache images avec Coil
-- ✅ Service lecteur en arrière-plan
+Le résultat est écrit dans `app/src/main/baselineProfiles/baseline-prof.txt` et embarqué dans l'APK de release.
 
-## Prochaines étapes suggérées
+## Configuration du backend (app → serveur)
 
-1. Implémenter l'écran PIN complet avec clavier numérique
-2. Ajouter le guide électronique des programmes (EPG)
-3. Intégrer la recherche avec filtre temps réel
-4. Ajouter le support Chromecast
-5. Implémenter les sous-titres multiples
+L'URL et la clé du backend sont injectées depuis `local.properties` (non versionné) :
+
+```properties
+BACKEND_BASE_URL=https://skyplayerapp.xyz
+LICENSE_API_KEY=ma_cle_secrete
+```
+
+Les secrets PHP sont chargés **uniquement** par variables d'environnement — voir `backend/config.example.php`
+et `DEPLOIEMENT_SECURISE.md`. Aucun secret ne doit être écrit dans `backend/config.php` (fichier gitignoré).
+
+## Roadmap
+
+- Paiement intégré à l'app (Mobile Money / cartes) au lieu du flux manuel ID appareil → site.
+- EPG complet côté UI (le parseur existe).
+- Tests instrumentés + benchmark de démarrage.
+- Vérification d'essai entièrement côté serveur (anti-triche horloge).
 
 ---
-**Version** : 1.0.0-Pro  
-**Optimisé pour** : Afrique (réseaux instables)
+**Version** : 1.0.0-Pro — **Optimisé pour** : Afrique (réseaux instables)

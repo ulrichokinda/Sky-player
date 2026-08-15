@@ -134,4 +134,12 @@ class EncryptedPrefs @Inject constructor(
     fun getInt(key: String, defaultValue: Int = 0): Int {
         return prefs.getInt(key, defaultValue)
     }
+
+    fun isOnboardingCompleted(): Boolean {
+        return getBoolean("onboarding_completed", false)
+    }
+
+    fun setOnboardingCompleted(completed: Boolean = true) {
+        saveBoolean("onboarding_completed", completed)
+    }
 }

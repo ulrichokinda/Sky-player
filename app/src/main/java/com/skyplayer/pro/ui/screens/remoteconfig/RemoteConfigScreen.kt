@@ -45,6 +45,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -87,23 +88,32 @@ fun RemoteConfigScreen(
     viewModel: RemoteConfigViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    
-    // Fullscreen pour TV - using modern Activity API
-    LaunchedEffect(Unit) {
+
+    // Fullscreen pour TV pendant l'affichage du QR Code, puis restauration à la sortie
+    DisposableEffect(Unit) {
         val activity = context as? android.app.Activity
-        activity?.window?.let { window ->
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            WindowInsetsControllerCompat(window, window.decorView).let { controller ->
+        val window = activity?.window
+
+        window?.let {
+            WindowCompat.setDecorFitsSystemWindows(it, false)
+            WindowInsetsControllerCompat(it, it.decorView).let { controller ->
                 controller.hide(WindowInsetsCompat.Type.systemBars())
                 controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         }
+
+        onDispose {
+            window?.let {
+                WindowCompat.setDecorFitsSystemWindows(it, true)
+                WindowInsetsControllerCompat(it, it.decorView).show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
     }
-    
+
     val deviceId by viewModel.deviceId.collectAsState()
     val qrUrl by viewModel.qrUrl.collectAsState()
     val configState by viewModel.configState.collectAsState()
-    
+
     // Collecter les événements (Toasts)
     LaunchedEffect(Unit) {
         viewModel.events.collect { message ->
@@ -120,7 +130,7 @@ fun RemoteConfigScreen(
             backgroundColor = android.graphics.Color.WHITE
         )
     }
-    
+
     // Observer les configs reçues pour auto-appliquer
     LaunchedEffect(configState) {
         if (configState is RemoteConfigState.Received) {
@@ -128,7 +138,7 @@ fun RemoteConfigScreen(
             viewModel.applyRemoteConfig(config, onConfigApplied)
         }
     }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -153,27 +163,27 @@ fun RemoteConfigScreen(
                         onRefresh = { viewModel.refreshQrCode() }
                     )
                 }
-                
+
                 is RemoteConfigState.Received -> {
                     ApplyingConfigState(
                         config = state.config
                     )
                 }
-                
+
                 is RemoteConfigState.Applied -> {
                     SuccessState(
                         playlistName = (state as RemoteConfigState.Applied).playlistName
                     )
                 }
-                
+
                 is RemoteConfigState.Offline -> {
                     OfflineState(
                         onRetry = { viewModel.retryConnection() }
                     )
                 }
-                
+
                 is RemoteConfigState.Error -> {
-                    ErrorState(
+                    com.skyplayer.pro.ui.components.TrustErrorView(
                         message = (state as RemoteConfigState.Error).message,
                         onRetry = { viewModel.retryConnection() }
                     )
@@ -203,7 +213,7 @@ private fun QrCodeDisplay(
         ),
         label = "qr_pulse"
     )
-    
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -227,9 +237,9 @@ private fun QrCodeDisplay(
                 color = Color.White
             )
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         // QR Code Container - 400dp pour visibilité 3m
         Box(
             modifier = Modifier
@@ -263,7 +273,7 @@ private fun QrCodeDisplay(
                 )
             }
         }
-        
+
         // Mention sous QR
         Text(
             text = "Scannez pour configurer votre playlist depuis votre smartphone",
@@ -272,9 +282,9 @@ private fun QrCodeDisplay(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         // ID MAC affiché
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -300,9 +310,9 @@ private fun QrCodeDisplay(
                 modifier = Modifier.padding(top = 6.dp)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Instructions étapes
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -312,9 +322,9 @@ private fun QrCodeDisplay(
             InstructionStep("2", "Scannez le QR code ci-dessus")
             InstructionStep("3", "Remplissez les informations sur la page web")
         }
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         // URL
         Text(
             text = "skyplayerapp.xyz/connect",
@@ -323,9 +333,9 @@ private fun QrCodeDisplay(
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.5.sp
         )
-        
+
         Spacer(modifier = Modifier.height(20.dp))
-        
+
         // Mention légale obligatoire
         Text(
             text = "Mention légale : SkyPlayer ne fournit aucun contenu TV. " +
@@ -372,7 +382,7 @@ private fun ApplyingConfigState(config: RemoteConfig) {
         is RemoteConfig.XtreamConfig -> "Xtream Codes"
         is RemoteConfig.M3uConfig -> "Playlist M3U"
     }
-    
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -383,26 +393,26 @@ private fun ApplyingConfigState(config: RemoteConfig) {
             color = ElectricSkyBlue,
             strokeWidth = 8.dp
         )
-        
+
         Spacer(modifier = Modifier.height(40.dp))
-        
+
         Text(
             text = "Configuration reçue !",
             fontSize = 36.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = "Type: $configType",
             fontSize = 22.sp,
             color = PremiumGold
         )
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         Text(
             text = "Application en cours...",
             fontSize = 20.sp,
@@ -414,11 +424,11 @@ private fun ApplyingConfigState(config: RemoteConfig) {
 @Composable
 private fun SuccessState(playlistName: String) {
     val scale = remember { Animatable(0.8f) }
-    
+
     LaunchedEffect(Unit) {
         scale.animateTo(1f, tween(400, easing = FastOutSlowInEasing))
     }
-    
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -432,9 +442,9 @@ private fun SuccessState(playlistName: String) {
                 .size(140.dp)
                 .scale(scale.value)
         )
-        
+
         Spacer(modifier = Modifier.height(40.dp))
-        
+
         Text(
             text = "Configuration appliquée !",
             fontSize = 38.sp,
@@ -442,15 +452,15 @@ private fun SuccessState(playlistName: String) {
             color = Color.White,
             textAlign = TextAlign.Center
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = "Playlist chargée :",
             fontSize = 22.sp,
             color = Color.White.copy(alpha = 0.7f)
         )
-        
+
         Text(
             text = playlistName,
             fontSize = 28.sp,
@@ -474,18 +484,18 @@ private fun OfflineState(onRetry: () -> Unit) {
             tint = WarningOrange,
             modifier = Modifier.size(120.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(40.dp))
-        
+
         Text(
             text = "Hors ligne",
             fontSize = 36.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = "Connexion internet requise pour la configuration à distance",
             fontSize = 20.sp,
@@ -493,9 +503,9 @@ private fun OfflineState(onRetry: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 40.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Button(
             onClick = onRetry,
             colors = ButtonDefaults.buttonColors(
@@ -519,60 +529,3 @@ private fun OfflineState(onRetry: () -> Unit) {
     }
 }
 
-@Composable
-private fun ErrorState(message: String, onRetry: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Icon(
-            imageVector = Icons.Default.Warning,
-            contentDescription = null,
-            tint = Color.Red,
-            modifier = Modifier.size(120.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(40.dp))
-        
-        Text(
-            text = "Erreur",
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Text(
-            text = message,
-            fontSize = 20.sp,
-            color = Color.White.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 40.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = ElectricSkyBlue,
-                contentColor = Color.Black
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Réessayer",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}

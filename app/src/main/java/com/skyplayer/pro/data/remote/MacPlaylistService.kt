@@ -1,5 +1,7 @@
 package com.skyplayer.pro.data.remote
 
+import com.google.gson.annotations.SerializedName
+import com.skyplayer.pro.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -30,7 +32,9 @@ class MacPlaylistService @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) {
     companion object {
-        private const val CHECK_URL = "https://skyplayerapp.xyz/api/playlist/check_mac.php"
+        // Utilisation de l'URL injectée via BuildConfig pour cohérence
+        private val BASE_URL = BuildConfig.BACKEND_BASE_URL.trimEnd('/') + "/"
+        private val CHECK_URL = "${BASE_URL}api/playlist/check_mac.php"
         private const val APP_KEY   = "skyplayer_pro"
         private const val TIMEOUT_S = 15L
         private const val BUFFER_SIZE = 8192   // 8 Ko par lecture
@@ -107,7 +111,8 @@ class MacPlaylistService @Inject constructor(
             val request = Request.Builder()
                 .url(url)
                 .get()
-                .addHeader("User-Agent", "SkyPlayerPro/1.0 Android")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+                .header("Accept", "application/vnd.apple.mpegurl, audio/mpegurl, text/plain, */*")
                 .build()
 
             val response = httpClient.newCall(request).execute()
@@ -203,14 +208,15 @@ sealed class MacPlaylistResult {
 }
 
 /** Informations de la playlist renvoyées par le serveur */
+@androidx.annotation.Keep
 data class MacPlaylistInfo(
     val name: String,
     val url: String,
     val type: String,           // "m3u" ou "xtream"
-    val expireDate: String,
-    val xtreamUsername: String,
-    val xtreamPassword: String,
-    val xtreamServerUrl: String
+    @SerializedName("expire") val expireDate: String,
+    @SerializedName("xtream_username") val xtreamUsername: String,
+    @SerializedName("xtream_password") val xtreamPassword: String,
+    @SerializedName("xtream_server_url") val xtreamServerUrl: String
 )
 
 /** États du téléchargement progressif */

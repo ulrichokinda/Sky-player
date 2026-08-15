@@ -72,7 +72,7 @@ private const val ACTIVATION_SITE = "skyplayerapp.xyz"
 private const val ACTIVATION_URL  = "https://skyplayerapp.xyz"
 
 /**
- * Écran de blocage — expiration d'essai 15 jours.
+ * Écran de blocage — expiration d'essai 14 jours.
  *
  * SÉCURITÉ:
  * - BackHandler intercepte et BLOQUE le bouton Retour Android.
@@ -149,7 +149,7 @@ fun TrialExpiredScreen(
 
             // ── Titre en gras grande taille ──────────────────────
             Text(
-                text = "Votre période d'essai de\n15 jours a expiré",
+                text = "Période d'essai terminée",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -160,7 +160,7 @@ fun TrialExpiredScreen(
 
             // ── Message réglementaire exact ──────────────────────
             Text(
-                text = "Veuillez activer votre application sur\nskyplayerapp.xyz",
+                text = "Votre période d'essai de 14 jours est terminée.\nVeuillez activer votre application sur\nskyplayerapp.xyz",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     color = Color.White.copy(alpha = 0.85f),
                     lineHeight = 26.sp,

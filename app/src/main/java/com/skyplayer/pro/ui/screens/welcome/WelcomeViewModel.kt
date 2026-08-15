@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.skyplayer.pro.data.encrypted.EncryptedPrefs
 import com.skyplayer.pro.data.local.PlaylistDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -17,7 +18,8 @@ enum class PlaylistState {
 
 @HiltViewModel
 class WelcomeViewModel @Inject constructor(
-    private val playlistDao: PlaylistDao
+    private val playlistDao: PlaylistDao,
+    private val encryptedPrefs: EncryptedPrefs
 ) : ViewModel() {
 
     private val _playlistStatus = mutableStateOf(PlaylistState.LOADING)
@@ -36,5 +38,9 @@ class WelcomeViewModel @Inject constructor(
                 _playlistStatus.value = PlaylistState.EMPTY
             }
         }
+    }
+
+    fun completeOnboarding() {
+        encryptedPrefs.setOnboardingCompleted()
     }
 }

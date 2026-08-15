@@ -15,7 +15,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.with
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,7 +56,7 @@ fun <T> ChannelToPlayerTransition(
                 )
             ) + fadeIn(
                 animationSpec = tween(300)
-            ) with
+            ) togetherWith
             scaleOut(
                 targetScale = 1.15f,
                 animationSpec = tween(300)
@@ -94,24 +94,25 @@ fun <T> HorizontalZappingTransition(
                     durationMillis = 250,
                     easing = FastOutSlowInEasing
                 )
-            ) + fadeIn(animationSpec = tween(200)) with
+            ) + fadeIn(animationSpec = tween(200)) togetherWith
             slideOutHorizontally(
                 targetOffsetX = { fullWidth -> -fullWidth * slideDirection },
                 animationSpec = tween(250)
-            ) + fadeOut(animationSpec = tween(150))
+            ) + fadeOut(animationSpec = tween(200))
         },
+        label = "zapping_transition",
         content = content
     )
 }
 
 /**
- * Transition verticale pour navigation catégories
+ * Transition verticale pour le zapping (Up/Down)
  */
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun <T> VerticalCategoryTransition(
+fun <T> VerticalZappingTransition(
     targetState: T,
-    direction: VerticalDirection,
+    direction: ZappingDirection,
     modifier: Modifier = Modifier,
     content: @Composable AnimatedContentScope.(T) -> Unit
 ) {
@@ -120,22 +121,23 @@ fun <T> VerticalCategoryTransition(
         modifier = modifier,
         transitionSpec = {
             val slideDirection = when (direction) {
-                VerticalDirection.UP -> -1
-                VerticalDirection.DOWN -> 1
+                ZappingDirection.NEXT -> 1  // Vers le bas
+                ZappingDirection.PREVIOUS -> -1  // Vers le haut
             }
             
             slideInVertically(
                 initialOffsetY = { fullHeight -> fullHeight * slideDirection },
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = 250,
                     easing = FastOutSlowInEasing
                 )
-            ) + fadeIn(animationSpec = tween(250)) with
+            ) + fadeIn(animationSpec = tween(200)) togetherWith
             slideOutVertically(
                 targetOffsetY = { fullHeight -> -fullHeight * slideDirection },
                 animationSpec = tween(250)
             ) + fadeOut(animationSpec = tween(200))
         },
+        label = "vertical_zapping_transition",
         content = content
     )
 }
@@ -157,7 +159,7 @@ fun <T> FadeScaleTransition(
             scaleIn(
                 initialScale = 0.95f,
                 animationSpec = tween(200)
-            ) + fadeIn(animationSpec = tween(200)) with
+            ) + fadeIn(animationSpec = tween(200)) togetherWith
             scaleOut(
                 targetScale = 1.05f,
                 animationSpec = tween(200)
@@ -184,7 +186,7 @@ fun <T> MorphingTransition(
         contentAlignment = contentAlignment,
         transitionSpec = {
             // Crossfade avec resize smooth
-            fadeIn(animationSpec = tween(300)) with
+            fadeIn(animationSpec = tween(300)) togetherWith
             fadeOut(animationSpec = tween(200)) using
             SizeTransform { initialSize, targetSize ->
                 tween(

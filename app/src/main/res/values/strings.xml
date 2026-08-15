@@ -8,6 +8,15 @@
     <string name="nav_series">Séries</string>
     <string name="nav_favorites">Favoris</string>
     <string name="nav_settings">Paramètres</string>
+    <string name="nav_home">Accueil</string>
+    
+    <!-- Sections -->
+    <string name="section_live_tv">Live TV</string>
+    <string name="section_vod">Films</string>
+    <string name="section_series">Séries</string>
+    <string name="section_favorites">Mes Favoris</string>
+    <string name="section_items_count">%1$d éléments</string>
+    <string name="section_channels_count">%1$d chaînes</string>
     
     <!-- Actions -->
     <string name="action_play">Lecture</string>
@@ -122,7 +131,49 @@
     <string name="settings_version">Version %1$s</string>
     
     <!-- Écran d\'accueil -->
+    <!-- Live TV -->
+    <string name="live_all_channels">TOUTES LES CHAÎNES</string>
+    <string name="live_channels_count">%1$d chaînes disponibles</string>
+    <string name="live_no_epg">Aucun programme (EPG)</string>
+    <string name="live_preview_loading">Chargement de la preview…</string>
+
+    <!-- Dashboard -->
+    <string name="dash_checking">VÉRIFICATION…</string>
+    <string name="dash_offline">HORS LIGNE</string>
+    <string name="dash_signal_wifi">SIGNAL WIFI</string>
+    <string name="dash_signal_data">SIGNAL DATA</string>
+    <string name="dash_signal_connected">SIGNAL CONNECTÉ</string>
+    <string name="dash_id_copied">Identifiant copié !</string>
+    <string name="dash_trial">Essai Gratuit</string>
+    <string name="dash_premium">Compte Premium</string>
+    <string name="dash_expired">Expiré</string>
+
+    <string name="dash_trial_expired_title">Période d\'essai expirée</string>
+    <string name="dash_continue_watching">Reprendre</string>
+    <string name="dash_trial_expired_msg">Votre essai de 14 jours est terminé.\nPour continuer à utiliser Sky Player Pro, veuillez activer votre appareil.</string>
+    <string name="dash_mac_copied">Adresse MAC copiée</string>
+    <string name="dash_your_mac">VOTRE ADRESSE MAC</string>
+    <string name="dash_mac_label">ADRESSE MAC</string>
+
     <string name="welcome_title">Bienvenue sur Sky Player Pro</string>
     <string name="welcome_subtitle">La meilleure expérience IPTV, optimisée pour l\'Afrique</string>
     <string name="welcome_add_playlist">Commencez par ajouter votre playlist</string>
+
+    <!-- Bandeau de statut -->
+    <string name="status_banner_details">Voir les détails</string>
+    <string name="status_channels_loaded">%1$d chaînes chargées</string>
+
+    <!-- États de confiance -->
+    <string name="trust_empty_channels_title">Aucune chaîne disponible</string>
+    <string name="trust_empty_channels_message">Ajoutez une playlist pour commencer à regarder la télévision en direct.</string>
+    <string name="trust_empty_vod_title">Aucun film disponible</string>
+    <string name="trust_empty_vod_message">Votre bibliothèque VOD apparaîtra ici une fois la playlist synchronisée.</string>
+    <string name="trust_empty_series_title">Aucune série disponible</string>
+    <string name="trust_empty_series_message">Vos séries apparaîtront ici après la synchronisation de votre playlist.</string>
+    <string name="trust_empty_favorites_title">Aucun favori</string>
+    <string name="trust_empty_favorites_message">Appuyez sur le cœur sur une chaîne pour l\'ajouter à vos favoris.</string>
+    <string name="trust_action_add_playlist">Ajouter une playlist</string>
+    <string name="trust_action_explore_live">Explorer Live TV</string>
+    <string name="trust_error_title">Un problème est survenu</string>
+    <string name="trust_action_retry">Réessayer</string>
 </resources>

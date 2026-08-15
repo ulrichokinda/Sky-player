@@ -2,6 +2,8 @@ package com.skyplayer.pro.ui.screens.splash
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.skyplayer.pro.data.encrypted.EncryptedPrefs
+import com.skyplayer.pro.data.local.PlaylistDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,41 +14,53 @@ import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * ViewModel pour l'écran de splash minimaliste
- * Affiche le logo pendant 3 secondes puis navigue vers le Dashboard
+ * ViewModel pour l'écran de splash.
+ * Affiche le logo puis route vers Welcome (première utilisation) ou Dashboard.
  */
 @HiltViewModel
-class SplashViewModel @Inject constructor() : ViewModel() {
+class SplashViewModel @Inject constructor(
+    private val playlistDao: PlaylistDao,
+    private val encryptedPrefs: EncryptedPrefs
+) : ViewModel() {
 
-    /**
-     * État de navigation - uniquement vers Dashboard
-     */
     sealed class SplashNavigation {
-        object ToDashboard : SplashNavigation()
+        data object ToDashboard : SplashNavigation()
+        data object ToWelcome : SplashNavigation()
     }
 
     private val _navigationEvent = MutableStateFlow<SplashNavigation?>(null)
     val navigationEvent: StateFlow<SplashNavigation?> = _navigationEvent.asStateFlow()
 
-    // Temporisation de 3 secondes avant navigation automatique
-    private val SPLASH_DELAY_MS = 3000L // 3 secondes
+    private val splashDelayMs = 2500L
 
     init {
         viewModelScope.launch {
-            Timber.i("🚀 SplashScreen - Démarrage temporisation 3 secondes")
-            
-            // Attendre 3 secondes
-            delay(SPLASH_DELAY_MS)
-            
-            // Naviguer vers Dashboard
-            _navigationEvent.value = SplashNavigation.ToDashboard
-            Timber.i("➡️ Navigation vers Dashboard")
+            Timber.i("SplashScreen - Démarrage temporisation")
+            delay(splashDelayMs)
+
+            val destination = resolveDestination()
+            _navigationEvent.value = destination
+            Timber.i("Navigation splash → %s", destination::class.simpleName)
         }
     }
 
-    /**
-     * Consomme l'événement de navigation (évite la double navigation)
-     */
+    private suspend fun resolveDestination(): SplashNavigation {
+        if (encryptedPrefs.isOnboardingCompleted()) {
+            return SplashNavigation.ToDashboard
+        }
+        val playlistCount = try {
+            playlistDao.getPlaylistCount()
+        } catch (_: Exception) {
+            0
+        }
+        return if (playlistCount > 0) {
+            encryptedPrefs.setOnboardingCompleted()
+            SplashNavigation.ToDashboard
+        } else {
+            SplashNavigation.ToWelcome
+        }
+    }
+
     fun onNavigationConsumed() {
         _navigationEvent.value = null
     }

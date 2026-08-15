@@ -103,3 +103,35 @@ Si incident critique:
 - Ne jamais exposer `FIREBASE_SERVICE_ACCOUNT_JSON` cote frontend.
 - Regenerer l'API key si soupcon de fuite.
 - Logger activations/desactivations cote backend pour audit.
+- `backend/config.php` est exclu de Git : ses secrets sont charges uniquement via l'environnement (voir section 9).
+
+## 9) Backend PHP — variables d'environnement obligatoires
+
+Le backend PHP (`check_mac.php`, `api/devices/check.php`, `reseller/`) refuse de demarrer si un secret manque.
+Copier `backend/config.example.php` vers `backend/config.php` (jamais committe) et definir :
+
+| Variable | Role |
+|----------|------|
+| `DB_HOST` | Hote MySQL (defaut `localhost`) |
+| `DB_NAME` | Base (defaut `skyplayer_db`) |
+| `DB_USER` | Utilisateur MySQL (**requis**) |
+| `DB_PASS` | Mot de passe MySQL (**requis**) |
+| `APK_SECRET_KEY` | Cle secrete webhooks/admin (**requis**) |
+| `RESELLER_USER` | Login dashboard revendeur (**requis**) |
+| `RESELLER_PASS` | Mot de passe revendeur, jamais `admin123` (**requis**) |
+| `TRIAL_DAYS` | Duree d'essai en jours (defaut 14, aligne sur l'app) |
+| `APP_KEY` | Cle applicative supplementaire (optionnel) |
+
+Exemples : cPanel (section variables d'environnement), Apache `SetEnv`, nginx `fastcgi_param`.
+
+### Endpoints PHP
+
+- `GET/POST /api/playlist/check_mac.php?mac_address=XX:..` — playlist active pour une MAC (header `X-App-Key`).
+- `POST /api/devices/check` — statut licence (trial/premium/expire) + playlist (body JSON : `mac_address`, `android_id`, `brand`, `model`, `android_version`).
+- `/reseller/` — dashboard revendeur (login + liaison MAC/playlist), CSRF + rate-limit actifs.
+
+### Migration depuis les anciens secrets en dur
+
+Si vous utilisiez `config.php` avec des valeurs en dur, basculez-les en variables d'environnement
+avant de deployer cette version. Puis **faites pivoter** `APK_SECRET_KEY` et `RESELLER_PASS`
+(ils ont pu etre exposes).

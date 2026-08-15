@@ -1,14 +1,11 @@
 package com.skyplayer.pro.data.monitor
 
+import android.Manifest
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import androidx.annotation.RequiresPermission
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.common.C
-import androidx.media3.common.Format
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.analytics.AnalyticsListener
-import androidx.media3.exoplayer.source.MediaLoadData
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.repository.ChannelGroupRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,13 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import timber.log.Timber
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.abs
 
 /**
  * Health Monitor pour le lecteur de streaming
@@ -36,7 +28,7 @@ import kotlin.math.abs
  *
  * Action automatique :
  * 1. Détecte lien mort → Teste liens miroirs si disponibles
- * 2. Teste alternatives similaires (même groupe/categorie)
+ * 2. Teste alternatives similaires (même groupe/catégorie)
  * 3. Switch transparent sans message d'erreur brut
  */
 @UnstableApi
@@ -47,10 +39,13 @@ class StreamHealthMonitor @Inject constructor(
     private val channelRepository: ChannelGroupRepository
 ) {
     companion object {
-        private const val HEALTH_CHECK_INTERVAL_MS = 5000L // Vérifier toutes les 5s
-        private const val ERROR_THRESHOLD = 2 // Nombre d'erreurs avant fallback
-        private const val BUFFER_UNDERRUN_THRESHOLD_MS = 3000L // 3s de buffering = problème
-        private const val FALLBACK_TIMEOUT_MS = 8000L // Timeout test fallback
+        private const val HEALTH_CHECK_INTERVAL_MS = 5000L
+        private const val ERROR_THRESHOLD = 2
+        /** Seuil de buffering prolongé avant bascule miroir/alternative (ms) */
+        private const val BUFFER_UNDERRUN_THRESHOLD_MS = 8000L
+        /** Buffer minimal acceptable une fois la lecture démarrée (secondes) */
+        private const val MIN_BUFFER_SECONDS = 2L
+        private const val FALLBACK_TIMEOUT_MS = 8000L
     }
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -64,7 +59,7 @@ class StreamHealthMonitor @Inject constructor(
     private val _fallbackInfo = MutableStateFlow<FallbackInfo?>(null)
     val fallbackInfo: StateFlow<FallbackInfo?> = _fallbackInfo
 
-    private var currentPlayer: ExoPlayer? = null
+    private var currentPlayer: androidx.media3.exoplayer.ExoPlayer? = null
     private var currentChannel: Channel? = null
     private var allChannels: List<Channel> = emptyList()
 
@@ -72,11 +67,14 @@ class StreamHealthMonitor @Inject constructor(
     private var lastErrorTimestamp = 0L
     private var testedUrls = mutableSetOf<String>() // URLs déjà testées et échouées
 
+    // Stocker le listener pour le retirer proprement
+    private val analyticsListener = AnalyticsEventListener()
+
     /**
      * Démarre la surveillance d'un player
      */
     fun startMonitoring(
-        player: ExoPlayer,
+        player: androidx.media3.exoplayer.ExoPlayer,
         channel: Channel,
         availableChannels: List<Channel>
     ) {
@@ -91,7 +89,7 @@ class StreamHealthMonitor @Inject constructor(
         _fallbackInfo.value = null
 
         // Ajouter listener analytics pour surveillance en temps réel
-        player.addAnalyticsListener(AnalyticsEventListener())
+        player.addAnalyticsListener(analyticsListener)
 
         // Démarrer vérification périodique
         monitoringJob = coroutineScope.launch {
@@ -110,7 +108,7 @@ class StreamHealthMonitor @Inject constructor(
     fun stopMonitoring() {
         monitoringJob?.cancel()
         monitoringJob = null
-        currentPlayer?.removeAnalyticsListener(AnalyticsEventListener())
+        currentPlayer?.removeAnalyticsListener(analyticsListener)
         testedUrls.clear()
         Timber.d("🛑 Surveillance arrêtée")
     }
@@ -123,22 +121,31 @@ class StreamHealthMonitor @Inject constructor(
         val channel = currentChannel ?: return
 
         try {
-            // Vérifier les conditions de santé
-            val playbackState = player.playbackState
+            // Utiliser les positions pour calculer l'état du buffer
             val bufferedPosition = player.bufferedPosition
             val currentPosition = player.currentPosition
+            val playbackState = player.playbackState
 
-            // Détecter buffer underrun (lecture saccadée)
-            if (playbackState == Player.STATE_BUFFERING) {
+            // Calculer le temps de buffer disponible (en ms)
+            val bufferDurationMs = bufferedPosition - currentPosition
+            Timber.d("📊 Buffer: ${bufferDurationMs / 1000}s restant | Current: ${currentPosition / 1000}s | Buffered: ${bufferedPosition / 1000}s")
+
+            // Détecter underrun uniquement pendant une lecture active (pas au démarrage initial)
+            val isActivelyPlaying = playbackState == androidx.media3.common.Player.STATE_READY &&
+                player.isPlaying
+
+            if (playbackState == androidx.media3.common.Player.STATE_BUFFERING && player.playWhenReady) {
                 val bufferingDuration = System.currentTimeMillis() - lastErrorTimestamp
                 if (bufferingDuration > BUFFER_UNDERRUN_THRESHOLD_MS) {
-                    Timber.w("⚠️ Buffer underrun détecté sur ${channel.name}")
+                    Timber.w("⚠️ Buffering prolongé sur ${channel.name}: ${bufferingDuration / 1000}s")
                     handleStreamIssue(channel, StreamIssue.BufferUnderrun)
                 }
+            } else if (isActivelyPlaying && bufferDurationMs in 0 until MIN_BUFFER_SECONDS * 1000) {
+                Timber.d("📉 Buffer faible (${bufferDurationMs / 1000}s) — surveillance sans bascule immédiate")
             }
 
             // Vérifier si le lien est réellement mort (pas juste buffering)
-            if (playbackState == Player.STATE_IDLE && player.playWhenReady) {
+            if (playbackState == androidx.media3.common.Player.STATE_IDLE && player.playWhenReady) {
                 consecutiveErrors++
                 if (consecutiveErrors >= ERROR_THRESHOLD) {
                     Timber.e("❌ Lien mort détecté: ${channel.name}")
@@ -148,9 +155,38 @@ class StreamHealthMonitor @Inject constructor(
                 consecutiveErrors = 0 // Reset si tout va bien
             }
 
+            // Vérifier la connectivité réseau avec le context
+            val hasInternet = checkInternetConnectivity()
+            if (!hasInternet) {
+                Timber.e("📵 Aucune connexion Internet disponible")
+                _healthState.value = StreamHealth.Unrecoverable(StreamIssue.NetworkUnavailable)
+            }
+
+            // Utiliser channelRepository pour rafraîchir les chaînes si besoin
+            // (juste un exemple d'utilisation)
+            if (allChannels.isEmpty()) {
+                Timber.d("📦 Refresh channels from repository")
+                // channelRepository pourrait être utilisé pour recharger les chaînes
+            }
+
         } catch (e: Exception) {
             Timber.e(e, "Erreur vérification santé")
         }
+    }
+
+    /**
+     * Vérifie la connectivité réseau avec le contexte Android (minSdk 24, donc API 23+ safe)
+     */
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
+    private fun checkInternetConnectivity(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+               capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
     /**
@@ -356,14 +392,20 @@ class StreamHealthMonitor @Inject constructor(
     /**
      * Listener pour les événements analytics du player
      */
-    private inner class AnalyticsEventListener : AnalyticsListener {
-        override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
-            if (state == Player.STATE_BUFFERING) {
+    private inner class AnalyticsEventListener : androidx.media3.exoplayer.analytics.AnalyticsListener {
+        override fun onPlaybackStateChanged(
+            eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+            state: Int
+        ) {
+            if (state == androidx.media3.common.Player.STATE_BUFFERING) {
                 lastErrorTimestamp = System.currentTimeMillis()
             }
         }
 
-        override fun onPlayerErrorChanged(eventTime: AnalyticsListener.EventTime, error: PlaybackException?) {
+        override fun onPlayerErrorChanged(
+            eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+            error: androidx.media3.common.PlaybackException?
+        ) {
             error?.let {
                 consecutiveErrors++
                 Timber.w("🚨 Player error #${consecutiveErrors}: ${it.message}")
@@ -377,8 +419,8 @@ class StreamHealthMonitor @Inject constructor(
         }
 
         override fun onDownstreamFormatChanged(
-            eventTime: AnalyticsListener.EventTime,
-            mediaLoadData: MediaLoadData
+            eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+            mediaLoadData: androidx.media3.exoplayer.source.MediaLoadData
         ) {
             // Détecter changement de qualité (adaptation)
             Timber.d("📊 Format changé: ${mediaLoadData.trackFormat?.bitrate}")
@@ -407,7 +449,8 @@ sealed class StreamHealth {
 sealed class StreamIssue {
     object DeadLink : StreamIssue() // 404, connexion impossible
     object BufferUnderrun : StreamIssue() // Buffering constant
-    data class PlayerError(val error: PlaybackException) : StreamIssue()
+    object NetworkUnavailable : StreamIssue() // Aucun réseau
+    data class PlayerError(val error: androidx.media3.common.PlaybackException) : StreamIssue()
 }
 
 /**

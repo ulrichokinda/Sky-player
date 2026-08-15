@@ -1,6 +1,7 @@
 package com.skyplayer.pro.ui.screens.player
 
 import androidx.media3.common.util.UnstableApi
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.view.View
@@ -23,8 +24,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.Card
@@ -53,6 +54,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.skyplayer.pro.data.model.PlayerConnectionState
 import com.skyplayer.pro.ui.theme.ElectricSkyBlue
 import com.skyplayer.pro.ui.theme.PureBlack
@@ -61,16 +65,16 @@ import com.skyplayer.pro.ui.theme.PureBlack
  * Écran Multi-Player permettant de regarder 2 à 4 chaînes simultanément
  * Mode Picture-in-Picture avancé avec grille adaptable
  */
+@SuppressLint("SourceLockedOrientationActivity")
 @UnstableApi
 @Composable
 fun MultiPlayerScreen(
     initialChannelId: String,
     onBackClick: () -> Unit,
-    onAddChannel: () -> Unit, // Navigation vers sélection chaîne
-    viewModel: PlayerViewModel = hiltViewModel()
+    onAddChannel: () -> Unit // Navigation vers sélection chaîne
 ) {
     val context = LocalContext.current
-    val activity = context.findActivity()
+    val activity = remember(context) { context.findActivity() }
     
     // Configuration des joueurs multiples
     val playerSlots = remember { mutableStateListOf<PlayerSlot>() }
@@ -87,21 +91,24 @@ fun MultiPlayerScreen(
     
     // Plein écran forcé
     DisposableEffect(Unit) {
-        activity?.let {
-            it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            it.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            it.window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            )
+        activity?.let { act ->
+            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            act.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            
+            WindowCompat.setDecorFitsSystemWindows(act.window, false)
+            val controller = WindowInsetsControllerCompat(act.window, act.window.decorView)
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
         
         onDispose {
-            activity?.let {
-                it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                it.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                it.window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+            activity?.let { act ->
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                
+                WindowCompat.setDecorFitsSystemWindows(act.window, true)
+                val controller = WindowInsetsControllerCompat(act.window, act.window.decorView)
+                controller.show(WindowInsetsCompat.Type.systemBars())
             }
             // Libérer tous les players
             playerSlots.forEach { it.release() }
@@ -174,7 +181,7 @@ fun MultiPlayerScreen(
                     .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Retour",
                     tint = Color.White
                 )
@@ -709,6 +716,7 @@ enum class LayoutMode {
 /**
  * Data class représentant un slot de lecteur
  */
+@UnstableApi
 class PlayerSlot(
     val channelId: String,
     var channelName: String? = null,

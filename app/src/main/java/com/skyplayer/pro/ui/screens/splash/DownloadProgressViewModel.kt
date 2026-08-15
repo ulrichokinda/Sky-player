@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 /**
  * ViewModel pour l'écran de téléchargement progressif de la playlist.
@@ -30,6 +31,11 @@ class DownloadProgressViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DownloadProgressUiState())
     val uiState: StateFlow<DownloadProgressUiState> = _uiState.asStateFlow()
 
+    // Variables for speed and ETA
+    private var startTime: Long = System.currentTimeMillis()
+    private var lastBytes: Long = 0L
+    private var lastTime: Long = System.currentTimeMillis()
+
     // Infos playlist courante (injectées depuis SplashViewModel via startDownload)
     private var currentPlaylistInfo: MacPlaylistInfo? = null
 
@@ -39,7 +45,18 @@ class DownloadProgressViewModel @Inject constructor(
      */
     fun startDownload(info: MacPlaylistInfo) {
         currentPlaylistInfo = info
-        _uiState.update { it.copy(playlistName = info.name, error = null, isComplete = false) }
+        startTime = System.currentTimeMillis()
+        lastBytes = 0L
+        lastTime = System.currentTimeMillis()
+        _uiState.update { 
+            it.copy(
+                playlistName = info.name, 
+                error = null, 
+                isComplete = false,
+                speedKbps = 0f,
+                etaSeconds = 0
+            ) 
+        }
         doDownload(info)
     }
 
@@ -50,12 +67,43 @@ class DownloadProgressViewModel @Inject constructor(
     private fun doDownload(info: MacPlaylistInfo) {
         viewModelScope.launch {
             _uiState.update { it.copy(error = null) }
+            startTime = System.currentTimeMillis()
+            lastBytes = 0L
+            lastTime = System.currentTimeMillis()
 
             macPlaylistService.downloadPlaylistWithProgress(info.url)
                 .collect { progress ->
                     when (progress) {
                         is DownloadProgress.Downloading -> {
-                            _uiState.update { it.copy(progress = progress) }
+                            // Calculate current speed in kbps
+                            val currentTime = System.currentTimeMillis()
+                            val timeDiff = (currentTime - lastTime) / 1000f // seconds
+                            val byteDiff = progress.readBytes - lastBytes
+                            val speedKbps = if (timeDiff > 0 && byteDiff > 0) {
+                                (byteDiff * 8) / (timeDiff * 1000) // bits per second / 1000 = kbps
+                            } else {
+                                _uiState.value.speedKbps
+                            }
+                            
+                            // Estimate ETA
+                            val etaSeconds = if (progress.totalBytes > 0 && speedKbps > 0) {
+                                val remainingBytes = progress.totalBytes - progress.readBytes
+                                val remainingBits = remainingBytes * 8
+                                (remainingBits / (speedKbps * 1000)).roundToInt()
+                            } else {
+                                0
+                            }
+
+                            lastBytes = progress.readBytes
+                            lastTime = currentTime
+                            
+                            _uiState.update { 
+                                it.copy(
+                                    progress = progress,
+                                    speedKbps = speedKbps,
+                                    etaSeconds = etaSeconds
+                                ) 
+                            }
                         }
 
                         is DownloadProgress.Done -> {
@@ -75,11 +123,20 @@ class DownloadProgressViewModel @Inject constructor(
                         }
 
                         is DownloadProgress.Failed -> {
-                            _uiState.update { it.copy(error = progress.error) }
+                            _uiState.update { it.copy(error = getFriendlyError(progress.error)) }
                             Timber.e("❌ Téléchargement échoué: ${progress.error}")
                         }
                     }
                 }
+        }
+    }
+
+    private fun getFriendlyError(originalError: String?): String {
+        return when {
+            originalError == null -> "Un problème est survenu lors du chargement."
+            originalError.contains("HTTP") || originalError.contains("Erreur réseau") -> "Connexion réseau instable. Vérifiez votre accès internet."
+            originalError.contains("Corps de réponse vide") || originalError.contains("JSON") -> "Playlist temporairement indisponible. Réessayez dans quelques minutes."
+            else -> "Erreur inattendue. Veuillez réessayer."
         }
     }
 
@@ -110,5 +167,7 @@ data class DownloadProgressUiState(
     val progress: DownloadProgress.Downloading = DownloadProgress.Downloading(0, -1),
     val isComplete: Boolean = false,
     val channelCount: Int = 0,
-    val error: String? = null
+    val error: String? = null,
+    val speedKbps: Float = 0f,
+    val etaSeconds: Int = 0
 )

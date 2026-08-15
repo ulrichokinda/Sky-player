@@ -337,10 +337,6 @@ class RecommendationEngine @Inject constructor(
             else -> "Jour"
         }
     }
-
-    private fun LocalDateTime.plusMinutes(minutes: Long): LocalDateTime {
-        return this.plusMinutes(minutes)
-    }
 }
 
 /**

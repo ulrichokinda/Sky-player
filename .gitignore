@@ -7,6 +7,7 @@ build/
 
 # Local configuration
 local.properties
+keystore.properties
 
 # Android Studio
 .idea/
@@ -45,3 +46,27 @@ app/debug/
 
 # Activation backend secrets
 backend/activation-service/.env
+backend/config.php
+
+# Agent / IDE tooling (non versionné)
+.claude/
+.cursor/
+.vscode/
+.refact/
+.freebuff/
+.kilocode/
+.bandit/
+.agents/
+.kiro/
+.codex/
+.gemini/
+.opencode/
+.pi/
+.trae/
+.trae-cn/
+**/.kilo-format-temp-*.kts
+
+# Firebase local
+firebase-functions/.env
+firebase-functions/node_modules/
+backend/activation-service/node_modules/

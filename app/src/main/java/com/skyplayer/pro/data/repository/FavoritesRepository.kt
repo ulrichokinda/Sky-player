@@ -21,7 +21,9 @@ class FavoritesRepository @Inject constructor(
     // ========== Récupération ==========
     fun getAllFavorites(): Flow<List<Channel>> = favoriteDao.getAllFavorites().map { list -> list.map { it.toChannel() } }
 
-    fun getLiveTvFavorites(): Flow<List<Channel>> = favoriteDao.getFavoritesByType(ContentType.LIVE_TV.name).map { list -> list.map { it.toChannel() } }
+    fun getLiveTvFavorites(): Flow<List<Channel>> = favoriteDao.getAllFavorites().map { list ->
+        list.map { it.toChannel() }.filter { it.type in ChannelRepository.LIVE_CONTENT_TYPES }
+    }
 
     fun getMovieFavorites(): Flow<List<Channel>> = favoriteDao.getFavoritesByType(ContentType.VOD_MOVIE.name).map { list -> list.map { it.toChannel() } }
 

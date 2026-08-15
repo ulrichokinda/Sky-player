@@ -48,6 +48,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.Channel
@@ -55,6 +59,14 @@ import com.skyplayer.pro.data.model.CustomFolder
 import com.skyplayer.pro.data.model.itemCount
 import com.skyplayer.pro.ui.components.CategorySidebar
 import com.skyplayer.pro.ui.components.ChannelListShimmer
+import com.skyplayer.pro.ui.components.SectionTopBar
+import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
+import com.skyplayer.pro.ui.components.TrustAction
+import com.skyplayer.pro.ui.components.ImmersiveSeriesCard
+import com.skyplayer.pro.ui.components.TrustStateView
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.ui.res.stringResource
+import com.skyplayer.pro.R
 import com.skyplayer.pro.ui.components.ShimmerItem
 import com.skyplayer.pro.ui.theme.CardBlack
 import com.skyplayer.pro.ui.theme.ElectricSkyBlue
@@ -75,10 +87,17 @@ import androidx.activity.compose.BackHandler
 fun SeriesScreen(
     onSeriesClick: (Channel) -> Unit,
     onBackToHome: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToAddPlaylist: () -> Unit = {},
     viewModel: SeriesViewModel = hiltViewModel(),
     parentalViewModel: ParentalViewModel = hiltViewModel()
 ) {
     BackHandler { onBackToHome() }
+    val context = LocalContext.current
+    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+    val isTV = uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    
     val series by viewModel.series.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
@@ -94,63 +113,78 @@ fun SeriesScreen(
             .fillMaxSize()
             .background(PureBlack)
     ) {
-        // Sidebar Latérale (Style Hot Player)
-        CategorySidebar(
-            categories = categories,
-            selectedCategory = selectedCategory,
-            onCategorySelected = { category ->
-                if (parentalViewModel.manager.isSensitiveCategory(category.name)) {
-                    pendingCategoryName = category.name
-                    showPinDialog = true
-                } else {
-                    viewModel.selectCategory(category.name)
-                }
-            },
-            onSearchQueryChange = { viewModel.searchSeries(it) }
-        )
+        // Navigation conditionnelle: Sidebar pour TV, Onglets horizontaux pour Mobile
+        if (isTV) {
+            // Sidebar Latérale pour TV
+            CategorySidebar(
+                categories = categories,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { category ->
+                    if (parentalViewModel.manager.isSensitiveCategory(category.name)) {
+                        pendingCategoryName = category.name
+                        showPinDialog = true
+                    } else {
+                        viewModel.selectCategory(category.name)
+                    }
+                },
+                onSearchQueryChange = { viewModel.searchSeries(it) }
+            )
+        }
 
-        // Grille de séries (Right side)
         Column(modifier = Modifier.weight(1f)) {
-            // Info Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = selectedCategory?.uppercase() ?: "TOUTES LES SÉRIES",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
+            // Onglets horizontaux pour mobile uniquement
+            if (!isTV) {
+                HorizontalCategoryTabs(
+                    categories = categories.map { it.name },
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = { category ->
+                        val categoryObj = categories.find { it.name == category }
+                        categoryObj?.let {
+                            if (parentalViewModel.manager.isSensitiveCategory(it.name)) {
+                                pendingCategoryName = it.name
+                                showPinDialog = true
+                            } else {
+                                viewModel.selectCategory(it.name)
+                            }
+                        }
+                    }
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Box(
-                    modifier = Modifier
-                        .background(SeriesColor.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text("SÉRIES", color = SeriesColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
+            SectionTopBar(
+                title = selectedCategory?.uppercase()
+                    ?: stringResource(R.string.section_series),
+                subtitle = stringResource(R.string.section_items_count, series.size),
+                accentColor = SeriesColor,
+                onNavigateHome = onBackToHome,
+                onNavigateToSearch = onNavigateToSearch,
+                onNavigateToSettings = onNavigateToSettings
+            )
 
             Box(modifier = Modifier.fillMaxSize()) {
                 if (isLoading) {
                     ChannelListShimmer()
                 } else if (series.isEmpty()) {
-                    EmptyState(message = "Aucune série disponible")
+                    TrustStateView(
+                        icon = Icons.Default.Tv,
+                        title = stringResource(R.string.trust_empty_series_title),
+                        message = stringResource(R.string.trust_empty_series_message),
+                        iconTint = SeriesColor.copy(alpha = 0.5f),
+                        primaryAction = TrustAction(
+                            label = stringResource(R.string.trust_action_add_playlist),
+                            onClick = onNavigateToAddPlaylist
+                        )
+                    )
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 140.dp),
+                        columns = GridCells.Adaptive(minSize = 160.dp),
                         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(series, key = { it.id }) { item ->
-                            SeriesTile(
+                            ImmersiveSeriesCard(
                                 series = item,
                                 onClick = { onSeriesClick(item) }
                             )
@@ -261,21 +295,6 @@ private fun SeriesTile(
                     .padding(12.dp)
             )
         }
-    }
-}
-
-@Composable
-private fun EmptyState(message: String = "Aucune série disponible\nAjoutez une playlist pour commencer") {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
     }
 }
 

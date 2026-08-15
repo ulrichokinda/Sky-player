@@ -7,10 +7,14 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
+import coil.decode.VideoFrameDecoder
 import coil.util.DebugLogger
 import com.google.firebase.FirebaseApp
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import com.skyplayer.pro.BuildConfig
+import com.skyplayer.pro.receiver.NetworkReceiver
 
 /**
  * Application principale de Sky Player Pro
@@ -25,6 +29,11 @@ class SkyPlayerApplication : Application(), ImageLoaderFactory {
         // Initialisation du logger en debug
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            // Désactiver Crashlytics en debug
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(false)
+        } else {
+            // Activer en production
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true)
         }
         
         // Initialisation Firebase (OBLIGATOIRE pour le système de licence)
@@ -38,6 +47,14 @@ class SkyPlayerApplication : Application(), ImageLoaderFactory {
         }
         
         Timber.d("📱 Sky Player Pro démarré - Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+
+        // Enregistrer le callback réseau pour les versions modernes d'Android
+        NetworkReceiver.registerNetworkCallback(this)
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        NetworkReceiver.unregisterNetworkCallback(this)
     }
 
     /**
@@ -61,6 +78,9 @@ class SkyPlayerApplication : Application(), ImageLoaderFactory {
             .memoryCachePolicy(CachePolicy.ENABLED)
             .crossfade(true)
             .respectCacheHeaders(true) // Respecte les headers de cache du serveur
+            .components {
+                add(VideoFrameDecoder.Factory()) // Pour extraire frames des vidéos si besoin
+            }
             .apply {
                 if (BuildConfig.DEBUG) {
                     logger(DebugLogger())

@@ -1,6 +1,7 @@
 package com.skyplayer.pro.ui.screens.player
 
 import androidx.media3.common.util.UnstableApi
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.pm.ActivityInfo
@@ -47,6 +48,8 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Troubleshoot
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -69,7 +72,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,6 +82,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.C
 import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.skyplayer.pro.data.model.PlayerConnectionState
 import com.skyplayer.pro.data.monitor.FallbackInfo
@@ -92,12 +95,22 @@ import com.skyplayer.pro.ui.theme.PureBlack
 import com.skyplayer.pro.ui.theme.WarningOrange
 import kotlinx.coroutines.delay
 
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.nativeKeyCode
+import androidx.compose.foundation.focusable
+import android.view.KeyEvent
+
 /**
  * Écran de lecture vidéo avancé avec ExoPlayer
  * Fonctionnalités : PiP, vitesse ajustable, pistes audio, sous-titres
  * Qualité adaptative : SD vers 4K avec indicateur en overlay
  * Gestion manuelle rapide + dialogue complet
  */
+@SuppressLint("SourceLockedOrientationActivity")
 @UnstableApi
 @Composable
 fun PlayerScreen(
@@ -107,74 +120,94 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val activity = context.findActivity()
-    val configuration = LocalConfiguration.current
-    
-    val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
-    val exoPlayer by viewModel.exoPlayer.collectAsStateWithLifecycle()
-    val bufferState by viewModel.bufferState.collectAsStateWithLifecycle()
-    
+    val activity = remember(context) { context.findActivity() }
+
+    val connectionState by viewModel.connectionState.collectAsStateWithLifecycle(initialValue = PlayerConnectionState.Idle)
+    val exoPlayer by viewModel.exoPlayer.collectAsStateWithLifecycle(initialValue = null)
+    val bufferState by viewModel.bufferState.collectAsStateWithLifecycle(initialValue = PlayerViewModel.BufferState())
+    val currentChannel by viewModel.currentChannel.collectAsStateWithLifecycle(initialValue = null)
+
     // Failover intelligent
-    val healthState by viewModel.healthState.collectAsStateWithLifecycle()
-    val fallbackInfo by viewModel.fallbackInfo.collectAsStateWithLifecycle()
-    
+    val healthState by viewModel.healthState.collectAsStateWithLifecycle(initialValue = StreamHealth.Healthy)
+    val fallbackInfo by viewModel.fallbackInfo.collectAsStateWithLifecycle(initialValue = null)
+
     // Qualité adaptative - collecte des états
-    val currentQuality by viewModel.adaptiveBitrateManager.currentQuality.collectAsStateWithLifecycle()
-    val networkStability by viewModel.adaptiveBitrateManager.networkStability.collectAsStateWithLifecycle()
-    val availableQualities by viewModel.adaptiveBitrateManager.availableQualities.collectAsStateWithLifecycle()
-    val bandwidthEstimate by viewModel.adaptiveBitrateManager.bandwidthEstimate.collectAsStateWithLifecycle()
-    val isDataSaverEnabled by viewModel.isDataSaverEnabled.collectAsStateWithLifecycle()
-    val currentProgram by viewModel.currentProgram.collectAsStateWithLifecycle()
-    
+    val currentQuality by viewModel.abrManager.currentQuality.collectAsStateWithLifecycle(initialValue = AdaptiveBitrateManager.VideoQuality.AUTO)
+    val networkStability by viewModel.abrManager.networkStability.collectAsStateWithLifecycle(initialValue = AdaptiveBitrateManager.NetworkStability.UNKNOWN)
+    val availableQualities by viewModel.abrManager.availableQualities.collectAsStateWithLifecycle(initialValue = emptyList())
+    val bandwidthEstimate by viewModel.abrManager.bandwidthEstimate.collectAsStateWithLifecycle(initialValue = 0L)
+    val isDataSaverEnabled by viewModel.isDataSaverEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val currentProgram by viewModel.currentProgram.collectAsStateWithLifecycle(initialValue = null)
+    val safetyMessage by viewModel.safetyMessage.collectAsStateWithLifecycle(initialValue = null)
+
     var showControls by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(true) }
+    var isCinemaMode by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showAudioTrackDialog by remember { mutableStateOf(false) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
     var showQuickQualitySelector by remember { mutableStateOf(false) }
-    var isInPipMode by remember { mutableStateOf(false) }
+        var isInPipMode by remember { mutableStateOf(false) }
+        var showHealthDashboard by remember { mutableStateOf(false) }
     
-    // Contrôles timeout
-    LaunchedEffect(showControls) {
+    // OSD Zapping
+    var showOsd by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(showOsd) {
+        if (showOsd) {
+            delay(3000)
+            showOsd = false
+        }
+    }
+
+    // Contrôles timeout (plus rapide en mode cinéma)
+    LaunchedEffect(showControls, isCinemaMode) {
         if (showControls) {
-            delay(5000)
+            delay(if (isCinemaMode) 2000 else 5000)
             showControls = false
         }
     }
-    
-    // Configuration plein écran
-    DisposableEffect(Unit) {
-        activity?.let {
+
+    // Configuration plein écran optimisée (API moderne)
+    DisposableEffect(isFullscreen) {
+        activity?.let { act ->
+            val window = act.window
+            val controller = WindowInsetsControllerCompat(window, window.decorView)
             if (isFullscreen) {
-                it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                it.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                it.window.decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                )
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                
+                // Cacher les barres système.
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+            } else {
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                
+                // Réafficher les barres système.
+                controller.show(WindowInsetsCompat.Type.systemBars())
+                WindowCompat.setDecorFitsSystemWindows(window, true)
             }
         }
-        
+
         onDispose {
-            activity?.let {
-                it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                it.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                it.window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+            activity?.let { act ->
+                val window = act.window
+                val controller = WindowInsetsControllerCompat(window, window.decorView)
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                controller.show(WindowInsetsCompat.Type.systemBars())
+                WindowCompat.setDecorFitsSystemWindows(window, true)
             }
             if (!isInPipMode) {
                 viewModel.releasePlayer()
             }
         }
     }
-    
-    // Gestion PiP mode
-    DisposableEffect(configuration) {
-        onDispose { }
-    }
-    
-    // Gestion du retour arrière
+
+    // Gestion du retour arrière.
     BackHandler {
         if (isFullscreen) {
             isFullscreen = false
@@ -183,17 +216,39 @@ fun PlayerScreen(
             onBackClick()
         }
     }
-    
+
     // Charger le canal
     LaunchedEffect(channelId) {
         viewModel.loadChannel(channelId)
     }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .clickable { showControls = !showControls }
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_UP -> {
+                            viewModel.zapPrevious()
+                            showOsd = true
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_DOWN -> {
+                            viewModel.zapNext()
+                            showOsd = true
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                            showControls = !showControls
+                            true
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+            .focusable()
+            .clickable(enabled = !isInPipMode) { showControls = !showControls }
     ) {
         // Lecteur vidéo
         exoPlayer?.let { player ->
@@ -208,7 +263,7 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxSize()
             )
         }
-        
+
         // Overlay de connexion et failover
         ConnectionStateOverlay(
             state = connectionState,
@@ -217,7 +272,33 @@ fun PlayerScreen(
             fallbackInfo = fallbackInfo,
             modifier = Modifier.align(Alignment.Center)
         )
-        
+
+        // Message de sécurité (Safety Mode)
+        AnimatedVisibility(
+            visible = safetyMessage != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 100.dp)
+        ) {
+            safetyMessage?.let { message ->
+                Box(
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+                        .border(1.dp, WarningOrange.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = message,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
         // Contrôles overlay
         AnimatedVisibility(
             visible = showControls && !isInPipMode,
@@ -227,6 +308,7 @@ fun PlayerScreen(
         ) {
             PlayerControlsOverlay(
                 isFullscreen = isFullscreen,
+                isCinemaMode = isCinemaMode,
                 onBackClick = {
                     if (isFullscreen) {
                         isFullscreen = false
@@ -244,9 +326,10 @@ fun PlayerScreen(
                         }
                     }
                 },
+                onToggleCinemaMode = { isCinemaMode = !isCinemaMode },
                 onEnterPip = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        enterPipMode(activity)
+                        activity?.let { enterPipMode(it) }
                         isInPipMode = true
                     }
                 },
@@ -256,29 +339,48 @@ fun PlayerScreen(
                 onShowQualityDialog = { showQualityDialog = true },
                 onQuickQualityClick = { showQuickQualitySelector = true },
                 onMultiViewClick = onNavigateToMultiView,
+                onShowHealthDashboard = { showHealthDashboard = true },
                 onSeekBackward = { viewModel.seekBackward() },
                 onSeekForward = { viewModel.seekForward() },
                 onTogglePlay = { viewModel.togglePlayPause() },
-                onToggleTurbo = { viewModel.toggleDataSaver() },
+                onToggleTurbo = { viewModel.toggleTurboMode() },
                 isTurboActive = isDataSaverEnabled,
                 isPlaying = viewModel.isPlaying,
                 currentQuality = currentQuality,
-                networkStability = networkStability,
                 currentProgram = currentProgram,
                 modifier = Modifier.fillMaxSize()
             )
         }
-        
-        // Indicateur de qualité (toujours visible, même sans contrôles)
-        QualityIndicator(
-            quality = currentQuality,
-            networkStability = networkStability,
-            bandwidthKbps = bandwidthEstimate / 1000,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 60.dp, end = 16.dp)
-        )
-        
+
+        // OSD Zapping
+        AnimatedVisibility(
+            visible = showOsd,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp)
+        ) {
+            PlayerOsd(
+                channel = currentChannel,
+                program = currentProgram
+            )
+        }
+
+        // Indicateur de qualité (toujours visible, même sans contrôles sauf en mode cinéma)
+        AnimatedVisibility(
+            visible = !isCinemaMode,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            QualityIndicator(
+                quality = currentQuality,
+                networkStability = networkStability,
+                bandwidthKbps = bandwidthEstimate / 1000,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 60.dp, end = 16.dp)
+            )
+        }
+
         // Quick Quality Selector (changement rapide de qualité)
         if (showQuickQualitySelector) {
             QuickQualitySelector(
@@ -291,7 +393,7 @@ fun PlayerScreen(
                 onDismiss = { showQuickQualitySelector = false }
             )
         }
-        
+
         // Dialogues
         if (showSpeedDialog) {
             PlaybackSpeedDialog(
@@ -300,26 +402,45 @@ fun PlayerScreen(
                 onDismiss = { showSpeedDialog = false }
             )
         }
-        
+
         if (showAudioTrackDialog) {
             AudioTrackDialog(
                 exoPlayer = exoPlayer,
                 onDismiss = { showAudioTrackDialog = false }
             )
         }
-        
+
         if (showSubtitleDialog) {
             SubtitleDialog(
                 exoPlayer = exoPlayer,
                 onDismiss = { showSubtitleDialog = false }
             )
         }
-        
+
         if (showQualityDialog) {
             QualitySelectionDialog(
                 viewModel = viewModel,
                 onDismiss = { showQualityDialog = false }
             )
+        }
+
+        // Stream Health Dashboard
+        if (showHealthDashboard) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .clickable { showHealthDashboard = false },
+                contentAlignment = Alignment.Center
+            ) {
+                com.skyplayer.pro.ui.components.player.StreamHealthDashboard(
+                    healthState = healthState,
+                    currentQuality = currentQuality.name,
+                    bandwidthEstimate = bandwidthEstimate,
+                    bufferHealth = bufferState.bufferedPercentage / 100f,
+                    onDismiss = { showHealthDashboard = false }
+                )
+            }
         }
     }
 }
@@ -336,9 +457,6 @@ private fun enterPipMode(activity: Activity?) {
     }
 }
 
-/**
- * Overlay affichant l'état de connexion avec infos buffer
- */
 @UnstableApi
 @Composable
 private fun ConnectionStateOverlay(
@@ -350,18 +468,19 @@ private fun ConnectionStateOverlay(
 ) {
     // Message de santé prioritaire
     val healthMessage = when (healthState) {
+        is StreamHealth.Healthy -> null
         is StreamHealth.Degraded -> when (healthState.issue) {
-            is StreamIssue.DeadLink -> "Lien mort détecté, recherche d'un miroir..."
-            is StreamIssue.BufferUnderrun -> "Connexion instable, optimisation..."
+            StreamIssue.DeadLink -> "Lien mort détecté, recherche d'un miroir..."
+            StreamIssue.BufferUnderrun -> "Connexion instable, optimisation..."
             is StreamIssue.PlayerError -> "Erreur de lecture, tentative de récupération..."
+            StreamIssue.NetworkUnavailable -> "Aucune connexion réseau disponible"
         }
         is StreamHealth.UsingAlternative -> "Bascule sur une chaîne alternative..."
         is StreamHealth.Unrecoverable -> "Flux indisponible actuellement"
-        else -> null
     }
 
-    val showOverlay = state is PlayerConnectionState.Connecting || 
-                      state is PlayerConnectionState.Buffering || 
+    val showOverlay = state is PlayerConnectionState.Connecting ||
+                      state is PlayerConnectionState.Buffering ||
                       state is PlayerConnectionState.Reconnecting ||
                       state is PlayerConnectionState.Error ||
                       healthMessage != null
@@ -407,11 +526,11 @@ private fun ConnectionStateOverlay(
 
             // Détails secondaires
             val detailText = when {
-                healthMessage != null && state is PlayerConnectionState.Buffering -> 
+                healthMessage != null && state is PlayerConnectionState.Buffering ->
                     "Buffer: ${bufferState.formatDuration()}"
-                state is PlayerConnectionState.Buffering -> 
+                state is PlayerConnectionState.Buffering ->
                     "${bufferState.bufferedPercentage}% chargé (${bufferState.formatDuration()})"
-                state is PlayerConnectionState.Error -> 
+                state is PlayerConnectionState.Error ->
                     "Échec après ${state.retryCount} tentatives"
                 else -> null
             }
@@ -424,7 +543,7 @@ private fun ConnectionStateOverlay(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            
+
             // Info sur le fallback en cours
             fallbackInfo?.let {
                 val fallbackText = when (it) {
@@ -444,16 +563,15 @@ private fun ConnectionStateOverlay(
     }
 }
 
-/**
- * Overlay des contrôles du lecteur complet
- */
 @UnstableApi
 @Composable
 private fun PlayerControlsOverlay(
     isFullscreen: Boolean,
+    isCinemaMode: Boolean,
     isPlaying: Boolean,
     onBackClick: () -> Unit,
     onToggleFullscreen: () -> Unit,
+    onToggleCinemaMode: () -> Unit,
     onEnterPip: () -> Unit,
     onShowSpeedDialog: () -> Unit,
     onShowAudioDialog: () -> Unit,
@@ -461,15 +579,15 @@ private fun PlayerControlsOverlay(
     onShowQualityDialog: () -> Unit,
     onQuickQualityClick: () -> Unit,
     onMultiViewClick: () -> Unit,
+    onShowHealthDashboard: () -> Unit,
     onSeekBackward: () -> Unit,
     onSeekForward: () -> Unit,
     onTogglePlay: () -> Unit,
     onToggleTurbo: () -> Unit,
     isTurboActive: Boolean,
     currentQuality: AdaptiveBitrateManager.VideoQuality,
-    networkStability: AdaptiveBitrateManager.NetworkStability,
-    currentProgram: com.skyplayer.pro.data.model.EpgProgram? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currentProgram: com.skyplayer.pro.data.model.EpgProgram? = null
 ) {
     Box(
         modifier = modifier
@@ -497,9 +615,13 @@ private fun PlayerControlsOverlay(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+                // Barre de progression du programme
                 LinearProgressIndicator(
-                    progress = currentProgram.getProgress(),
-                    modifier = Modifier.width(200.dp).height(4.dp).clip(CircleShape),
+                    progress = { currentProgram.getProgress() },
+                    modifier = Modifier
+                        .width(200.dp)
+                        .height(4.dp)
+                        .clip(CircleShape),
                     color = ElectricSkyBlue,
                     trackColor = Color.White.copy(alpha = 0.1f)
                 )
@@ -514,17 +636,31 @@ private fun PlayerControlsOverlay(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick) {
+            LongClickIconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Retour",
                     tint = Color.White
                 )
             }
-            
+
             Row {
+                // Bouton Mode Cinéma
+                LongClickIconButton(
+                    onClick = onToggleCinemaMode,
+                    modifier = Modifier.background(
+                        if (isCinemaMode) PremiumGold.copy(alpha = 0.2f) else Color.Transparent,
+                        CircleShape
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Movie,
+                        contentDescription = "Mode Cinéma",
+                        tint = if (isCinemaMode) PremiumGold else Color.White
+                    )
+                }
                 // Bouton Turbo (Data Saver)
-                IconButton(
+                LongClickIconButton(
                     onClick = onToggleTurbo,
                     modifier = Modifier.background(
                         if (isTurboActive) WarningOrange.copy(alpha = 0.2f) else Color.Transparent,
@@ -538,7 +674,7 @@ private fun PlayerControlsOverlay(
                     )
                 }
                 // Vitesse
-                IconButton(onClick = onShowSpeedDialog) {
+                LongClickIconButton(onClick = onShowSpeedDialog) {
                     Icon(
                         imageVector = Icons.Default.Speed,
                         contentDescription = "Vitesse",
@@ -546,7 +682,7 @@ private fun PlayerControlsOverlay(
                     )
                 }
                 // Piste audio
-                IconButton(onClick = onShowAudioDialog) {
+                LongClickIconButton(onClick = onShowAudioDialog) {
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = "Audio",
@@ -554,7 +690,7 @@ private fun PlayerControlsOverlay(
                     )
                 }
                 // Sous-titres
-                IconButton(onClick = onShowSubtitleDialog) {
+                LongClickIconButton(onClick = onShowSubtitleDialog) {
                     Icon(
                         imageVector = Icons.Default.Subtitles,
                         contentDescription = "Sous-titres",
@@ -563,7 +699,7 @@ private fun PlayerControlsOverlay(
                 }
                 // PiP
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    IconButton(onClick = onEnterPip) {
+                    LongClickIconButton(onClick = onEnterPip) {
                         Icon(
                             imageVector = Icons.Default.PictureInPicture,
                             contentDescription = "PiP",
@@ -571,8 +707,16 @@ private fun PlayerControlsOverlay(
                         )
                     }
                 }
+                // Santé du streaming
+                LongClickIconButton(onClick = onShowHealthDashboard) {
+                    Icon(
+                        imageVector = Icons.Default.Troubleshoot,
+                        contentDescription = "Santé du streaming",
+                        tint = Color.White
+                    )
+                }
                 // Multi-vue (2-4 chaînes)
-                IconButton(onClick = onMultiViewClick) {
+                LongClickIconButton(onClick = onMultiViewClick) {
                     Icon(
                         imageVector = Icons.Default.Dashboard,
                         contentDescription = "Multi-vue",
@@ -580,18 +724,17 @@ private fun PlayerControlsOverlay(
                     )
                 }
                 // Qualité vidéo - clic court = quick select, clic long = dialog complet
-                IconButton(
+                LongClickIconButton(
                     onClick = onQuickQualityClick,
                     onLongClick = onShowQualityDialog
                 ) {
                     QualityBadge(
                         quality = currentQuality,
-                        stability = networkStability,
                         tint = Color.White
                     )
                 }
                 // Fullscreen
-                IconButton(onClick = onToggleFullscreen) {
+                LongClickIconButton(onClick = onToggleFullscreen) {
                     Icon(
                         imageVector = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
                         contentDescription = "Plein écran",
@@ -600,7 +743,7 @@ private fun PlayerControlsOverlay(
                 }
             }
         }
-        
+
         // Centre - Contrôles lecture
         Row(
             modifier = Modifier.align(Alignment.Center),
@@ -614,9 +757,9 @@ private fun PlayerControlsOverlay(
             ) {
                 Icon(Icons.Default.FastRewind, null)
             }
-            
+
             Spacer(modifier = Modifier.width(24.dp))
-            
+
             // Play/Pause
             FilledIconButton(
                 onClick = onTogglePlay,
@@ -628,9 +771,9 @@ private fun PlayerControlsOverlay(
                     modifier = Modifier.size(36.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.width(24.dp))
-            
+
             // Avance 10s
             FilledIconButton(
                 onClick = onSeekForward,
@@ -652,7 +795,7 @@ private fun PlaybackSpeedDialog(
     onDismiss: () -> Unit
 ) {
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Vitesse de lecture") },
@@ -690,21 +833,21 @@ private fun PlaybackSpeedDialog(
 @Composable
 @UnstableApi
 private fun AudioTrackDialog(
-    exoPlayer: androidx.media3.exoplayer.ExoPlayer?,
+    exoPlayer: ExoPlayer?,
     onDismiss: () -> Unit
 ) {
     var selectedTrack by remember { mutableIntStateOf(0) }
-    
+
     val tracks = remember(exoPlayer) {
         exoPlayer?.let { player ->
             val trackGroups = player.currentTracks.groups
             val audioTracks = mutableListOf<Pair<String, Int>>()
-            
-            trackGroups.forEachIndexed { groupIndex, group ->
+
+            trackGroups.forEachIndexed { _, group ->
                 if (group.type == C.TRACK_TYPE_AUDIO) {
                     for (i in 0 until group.length) {
                         val format = group.getTrackFormat(i)
-                        val label = format.language?.let { 
+                        val label = format.language?.let {
                             "${it.uppercase()} - ${format.label ?: "Piste ${i+1}"}"
                         } ?: "Piste ${i+1}"
                         audioTracks.add(label to i)
@@ -714,7 +857,7 @@ private fun AudioTrackDialog(
             audioTracks.ifEmpty { listOf("Piste par défaut" to 0) }
         } ?: listOf("Aucune piste" to 0)
     }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Piste audio") },
@@ -725,12 +868,12 @@ private fun AudioTrackDialog(
                         onClick = {
                             exoPlayer?.let { player ->
                                 val trackGroups = player.currentTracks.groups
-                                trackGroups.forEachIndexed { gIdx, group ->
+                                trackGroups.forEachIndexed { _, group ->
                                     if (group.type == C.TRACK_TYPE_AUDIO) {
                                         val params = player.trackSelectionParameters
                                             .buildUpon()
                                             .setOverrideForType(
-                                                androidx.media3.common.TrackSelectionOverride(group.mediaTrackGroup, index)
+                                                TrackSelectionOverride(group.mediaTrackGroup, index)
                                             )
                                             .build()
                                         player.trackSelectionParameters = params
@@ -766,21 +909,21 @@ private fun AudioTrackDialog(
 @UnstableApi
 @Composable
 private fun SubtitleDialog(
-    exoPlayer: androidx.media3.exoplayer.ExoPlayer?,
+    exoPlayer: ExoPlayer?,
     onDismiss: () -> Unit
 ) {
     var selectedSub by remember { mutableIntStateOf(-1) }
-    
+
     val subtitles = remember(exoPlayer) {
         exoPlayer?.let { player ->
             val trackGroups = player.currentTracks.groups
             val textTracks = mutableListOf<Pair<String, Int>>()
-            
-            trackGroups.forEachIndexed { groupIndex, group ->
+
+            trackGroups.forEachIndexed { _, group ->
                 if (group.type == C.TRACK_TYPE_TEXT) {
                     for (i in 0 until group.length) {
                         val format = group.getTrackFormat(i)
-                        val label = format.language?.let { 
+                        val label = format.language?.let {
                             "${it.uppercase()} - ${format.label ?: "ST ${i+1}"}"
                         } ?: "Sous-titre ${i+1}"
                         textTracks.add(label to i)
@@ -790,7 +933,7 @@ private fun SubtitleDialog(
             textTracks.ifEmpty { listOf("Aucun sous-titre" to -1) }
         } ?: listOf("Aucun sous-titre" to -1)
     }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Sous-titres") },
@@ -815,7 +958,7 @@ private fun SubtitleDialog(
                         color = if (selectedSub == -1) MaterialTheme.colorScheme.primary else Color.Unspecified
                     )
                 }
-                
+
                 subtitles.forEachIndexed { index, (label, _) ->
                     TextButton(
                         onClick = {
@@ -826,7 +969,7 @@ private fun SubtitleDialog(
                                         val params = player.trackSelectionParameters
                                             .buildUpon()
                                             .setOverrideForType(
-                                                androidx.media3.common.TrackSelectionOverride(group.mediaTrackGroup, index)
+                                                TrackSelectionOverride(group.mediaTrackGroup, index)
                                             )
                                             .build()
                                         player.trackSelectionParameters = params
@@ -867,8 +1010,8 @@ private fun android.content.Context.findActivity(): Activity? {
 }
 
 /**
- * Indicateur de qualité en overlay (toujours visible)
- * Affiche la qualité actuelle et l'état du réseau
+ * Indicateur de qualité en overlay (toujours visible).
+ * Affiche la qualité actuelle et l'état du réseau.
  */
 @UnstableApi
 @Composable
@@ -886,12 +1029,12 @@ private fun QualityIndicator(
         AdaptiveBitrateManager.NetworkStability.POOR -> Color(0xFFFF3D71) to "LOW"
         AdaptiveBitrateManager.NetworkStability.UNKNOWN -> Color.Gray to quality.label
     }
-    
+
     // N'afficher que si on a une qualité définie (pas au démarrage)
     if (quality == AdaptiveBitrateManager.VideoQuality.AUTO && bandwidthKbps == 0L) {
         return
     }
-    
+
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
@@ -917,9 +1060,9 @@ private fun QualityIndicator(
                     )
                     .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
             )
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             // Label qualité
             Text(
                 text = if (quality == AdaptiveBitrateManager.VideoQuality.AUTO) {
@@ -937,14 +1080,15 @@ private fun QualityIndicator(
 }
 
 /**
- * Badge de qualité pour le bouton des contrôles
- * Affiche une abréviation colorée de la qualité
+ * Badge de qualité pour le bouton des contrôles.
+ * Affiche une abréviation colorée de la qualité.
  */
+@UnstableApi
 @Composable
 private fun QualityBadge(
     quality: AdaptiveBitrateManager.VideoQuality,
-    stability: AdaptiveBitrateManager.NetworkStability,
-    tint: Color
+    tint: Color,
+    modifier: Modifier = Modifier
 ) {
     val badgeText = when {
         quality == AdaptiveBitrateManager.VideoQuality.AUTO -> "AUTO"
@@ -954,7 +1098,7 @@ private fun QualityBadge(
         quality.height >= 480 -> "SD+"
         else -> "SD"
     }
-    
+
     val badgeColor = when {
         quality == AdaptiveBitrateManager.VideoQuality.AUTO -> tint
         quality.height >= 2160 -> PremiumGold // Or
@@ -962,9 +1106,10 @@ private fun QualityBadge(
         quality.height >= 720 -> ElectricSkyBlue  // Bleu
         else -> Color(0xFF9E9E9E) // Gris
     }
-    
+
     Box(
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
+        modifier = modifier
     ) {
         // Icône de fond
         Icon(
@@ -973,7 +1118,7 @@ private fun QualityBadge(
             tint = tint,
             modifier = Modifier.size(24.dp)
         )
-        
+
         // Badge texte
         Text(
             text = badgeText,
@@ -993,8 +1138,8 @@ private fun QualityBadge(
 }
 
 /**
- * Quick Quality Selector - Popup rapide pour changer de qualité
- * S'affiche en bas de l'écran comme une bottom sheet
+ * Quick Quality Selector — Popup rapide pour changer de qualité.
+ * S'affiche en bas de l'écran comme une bottom sheet.
  */
 @UnstableApi
 @Composable
@@ -1005,7 +1150,7 @@ private fun QuickQualitySelector(
     onDismiss: () -> Unit
 ) {
     val autoMode = currentQuality == AdaptiveBitrateManager.VideoQuality.AUTO
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1041,14 +1186,14 @@ private fun QuickQualitySelector(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-                    
+
                     TextButton(onClick = onDismiss) {
                         Text("Fermer", color = ElectricSkyBlue)
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 // Mode Auto Toggle
                 Card(
                     modifier = Modifier
@@ -1056,13 +1201,13 @@ private fun QuickQualitySelector(
                         .clickable { onQualitySelected(AdaptiveBitrateManager.VideoQuality.AUTO) },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (autoMode) 
-                            ElectricSkyBlue.copy(alpha = 0.2f) 
-                        else 
+                        containerColor = if (autoMode)
+                            ElectricSkyBlue.copy(alpha = 0.2f)
+                        else
                             GlassWhite.copy(alpha = 0.2f)
                     ),
-                    border = if (autoMode) 
-                        androidx.compose.foundation.BorderStroke(2.dp, ElectricSkyBlue) 
+                    border = if (autoMode)
+                        androidx.compose.foundation.BorderStroke(2.dp, ElectricSkyBlue)
                     else null
                 ) {
                     Row(
@@ -1077,9 +1222,9 @@ private fun QuickQualitySelector(
                             tint = if (autoMode) ElectricSkyBlue else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
-                        
+
                         Spacer(modifier = Modifier.width(12.dp))
-                        
+
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Automatique",
@@ -1093,7 +1238,7 @@ private fun QuickQualitySelector(
                                 color = Color.White.copy(alpha = 0.6f)
                             )
                         }
-                        
+
                         if (autoMode) {
                             Icon(
                                 imageVector = Icons.Default.Check,
@@ -1104,9 +1249,9 @@ private fun QuickQualitySelector(
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 // Qualités disponibles (grille)
                 Text(
                     text = "Qualités disponibles",
@@ -1114,10 +1259,10 @@ private fun QuickQualitySelector(
                     color = Color.White.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-                
+
                 // Grille de qualités
                 val manualQualities = availableQualities.filter { it != AdaptiveBitrateManager.VideoQuality.AUTO }
-                
+
                 manualQualities.chunked(3).forEach { rowQualities ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1144,8 +1289,9 @@ private fun QuickQualitySelector(
 }
 
 /**
- * Option de qualité rapide (bouton compact)
+ * Option de qualité rapide (bouton compact).
  */
+@UnstableApi
 @Composable
 private fun QualityQuickOption(
     quality: AdaptiveBitrateManager.VideoQuality,
@@ -1153,6 +1299,7 @@ private fun QualityQuickOption(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
     val backgroundColor = when {
         isSelected -> when {
             quality.height >= 2160 -> PremiumGold.copy(alpha = 0.2f)
@@ -1162,7 +1309,7 @@ private fun QualityQuickOption(
         }
         else -> GlassWhite.copy(alpha = 0.1f)
     }
-    
+
     val borderColor = when {
         isSelected -> when {
             quality.height >= 2160 -> PremiumGold
@@ -1172,7 +1319,7 @@ private fun QualityQuickOption(
         }
         else -> Color.Transparent
     }
-    
+
     Card(
         modifier = modifier
             .aspectRatio(1.2f)
@@ -1196,9 +1343,9 @@ private fun QualityQuickOption(
                 color = Color.White,
                 fontSize = 14.sp
             )
-            
+
             Spacer(modifier = Modifier.height(2.dp))
-            
+
             Text(
                 text = when {
                     quality.height >= 2160 -> "4K"
@@ -1216,26 +1363,86 @@ private fun QualityQuickOption(
 }
 
 /**
- * IconButton avec support long clic
+ * IconButton avec support long clic.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun IconButton(
+private fun LongClickIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
+    enabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
     Box(
         modifier = modifier
+            .clip(CircleShape)
             .combinedClickable(
+                enabled = enabled,
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .size(48.dp)
-            .padding(4.dp),
+            .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
         content()
+    }
+}
+
+@Composable
+private fun PlayerOsd(
+    channel: com.skyplayer.pro.data.model.Channel?,
+    program: com.skyplayer.pro.data.model.EpgProgram?
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.padding(16.dp).width(400.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Logo
+            Box(
+                modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (channel?.logoUrl != null) {
+                    coil.compose.AsyncImage(
+                        model = channel.logoUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(Icons.Default.PlayArrow, null, tint = Color.White)
+                }
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column {
+                Text(
+                    text = channel?.name ?: "Inconnu",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                if (program != null) {
+                    Text(
+                        text = program.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ElectricSkyBlue
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { program.getProgress() },
+                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                        color = ElectricSkyBlue,
+                        trackColor = Color.White.copy(alpha = 0.2f)
+                    )
+                }
+            }
+        }
     }
 }

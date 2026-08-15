@@ -30,8 +30,10 @@ class LicenseManager @Inject constructor(
     companion object {
         private const val PREFS_FILE = "license_prefs"
         private const val KEY_DEVICE_ID = "device_id"
-        private const val KEY_INSTALL_DATE = "install_date"
-        private const val KEY_TRIAL_DAYS = 15
+        // Changement de clé pour forcer une nouvelle période d'essai (Geste commercial v2)
+        private const val KEY_INSTALL_DATE = "trial_start_v2"
+        /** Durée d'essai en jours — source unique pour toute l'application */
+        const val TRIAL_DAYS = TrialPeriod.TRIAL_DAYS
         private const val KEY_IS_ACTIVATED = "is_activated_local" // Cache local
         private const val KEY_ACTIVATION_DATE = "activation_date"
         
@@ -182,18 +184,17 @@ class LicenseManager @Inject constructor(
     
     /**
      * Vérifie si la période d'essai est encore valide
-     * @return true si dans les 15 jours d'essai
+     * @return true si dans les 14 jours d'essai
      */
     fun isTrialValid(): Boolean {
         val installDate = getInstallDate()
         val currentTime = System.currentTimeMillis()
-        val trialEndDate = installDate + (KEY_TRIAL_DAYS * 24 * 60 * 60 * 1000L)
-        
-        val isValid = currentTime < trialEndDate
-        val daysRemaining = ((trialEndDate - currentTime) / (24 * 60 * 60 * 1000L)).coerceAtLeast(0)
-        
+
+        val isValid = TrialPeriod.isValid(installDate, currentTime)
+        val daysRemaining = TrialPeriod.daysRemaining(installDate, currentTime)
+
         Timber.d("⏳ Jours restants essai: $daysRemaining, Valide: $isValid")
-        
+
         return isValid
     }
     
@@ -201,11 +202,7 @@ class LicenseManager @Inject constructor(
      * Calcule les jours restants de l'essai
      */
     fun getTrialDaysRemaining(): Int {
-        val installDate = getInstallDate()
-        val currentTime = System.currentTimeMillis()
-        val trialEndDate = installDate + (KEY_TRIAL_DAYS * 24 * 60 * 60 * 1000L)
-        
-        return ((trialEndDate - currentTime) / (24 * 60 * 60 * 1000L)).coerceAtLeast(0).toInt()
+        return TrialPeriod.daysRemaining(getInstallDate(), System.currentTimeMillis())
     }
     
     /**
@@ -238,14 +235,6 @@ class LicenseManager @Inject constructor(
      */
     fun hasValidAccess(): Boolean {
         return isTrialValid() || isActivatedLocally()
-    }
-    
-    /**
-     * Réinitialise la licence (pour tests)
-     */
-    suspend fun resetLicense() = withContext(Dispatchers.IO) {
-        encryptedPrefs.edit().clear().apply()
-        Timber.w("⚠️ Licence réinitialisée")
     }
     
     /**

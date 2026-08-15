@@ -1,6 +1,7 @@
 package com.skyplayer.pro.data.remote
 
 import android.content.Context
+import com.skyplayer.pro.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,20 +22,18 @@ import javax.inject.Singleton
  */
 @Singleton
 class DeviceCheckService @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val httpClient: OkHttpClient
 ) {
     companion object {
-        private const val BASE_URL = "https://skyplayerapp.xyz"
-        private const val CHECK_URL = "$BASE_URL/api/devices/check"
-        private const val APP_ID = "skyplayer_pro_v1"
-        private const val TRIAL_DAYS = 15
+        private val BASE_URL = BuildConfig.BACKEND_BASE_URL.trimEnd('/')
+        private val CHECK_URL = "$BASE_URL/api/devices/check"
+        // Changement d'App ID pour réinitialiser les essais côté serveur (Geste commercial)
+        private const val APP_ID = "skyplayer_pro_v2"
+        private const val TRIAL_DAYS = 14
     }
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
-        .build()
+    // httpClient est maintenant injecté via Hilt (Suggestion de sécurité & performance)
 
     /**
      * Résultat unifié de la vérification appareil
@@ -46,7 +45,11 @@ class DeviceCheckService @Inject constructor(
         data class TrialActive(
             val daysRemaining: Int,
             val playlistUrl: String?,
-            val playlistName: String?
+            val playlistName: String?,
+            val playlistType: String? = "m3u",
+            val xtreamUsername: String? = null,
+            val xtreamPassword: String? = null,
+            val xtreamServerUrl: String? = null
         ) : DeviceStatus()
 
         /**
@@ -54,7 +57,11 @@ class DeviceCheckService @Inject constructor(
          */
         data class PremiumActive(
             val playlistUrl: String?,
-            val playlistName: String?
+            val playlistName: String?,
+            val playlistType: String? = "m3u",
+            val xtreamUsername: String? = null,
+            val xtreamPassword: String? = null,
+            val xtreamServerUrl: String? = null
         ) : DeviceStatus()
 
         /**
@@ -127,8 +134,12 @@ class DeviceCheckService @Inject constructor(
             val status = json.getString("status")
             val playlistUrl = json.optString("playlist_url", "").takeIf { it.isNotBlank() }
             val playlistName = json.optString("playlist_name", "").takeIf { it.isNotBlank() }
+            val playlistType = json.optString("type", "m3u")
+            val xtreamUsername = json.optString("xtream_username", "").takeIf { it.isNotBlank() }
+            val xtreamPassword = json.optString("xtream_password", "").takeIf { it.isNotBlank() }
+            val xtreamServerUrl = json.optString("xtream_server_url", "").takeIf { it.isNotBlank() }
 
-            Timber.i("✅ DeviceCheck status: $status, playlist: ${playlistName ?: "none"}")
+            Timber.i("✅ DeviceCheck status: $status, playlist: ${playlistName ?: "none"}, type: $playlistType")
 
             when (status) {
                 "trial_active" -> {
@@ -136,13 +147,21 @@ class DeviceCheckService @Inject constructor(
                     DeviceStatus.TrialActive(
                         daysRemaining = daysRemaining,
                         playlistUrl = playlistUrl,
-                        playlistName = playlistName
+                        playlistName = playlistName,
+                        playlistType = playlistType,
+                        xtreamUsername = xtreamUsername,
+                        xtreamPassword = xtreamPassword,
+                        xtreamServerUrl = xtreamServerUrl
                     )
                 }
                 "premium_active", "activated" -> {
                     DeviceStatus.PremiumActive(
                         playlistUrl = playlistUrl,
-                        playlistName = playlistName
+                        playlistName = playlistName,
+                        playlistType = playlistType,
+                        xtreamUsername = xtreamUsername,
+                        xtreamPassword = xtreamPassword,
+                        xtreamServerUrl = xtreamServerUrl
                     )
                 }
                 "expired", "trial_expired" -> {

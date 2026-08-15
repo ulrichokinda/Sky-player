@@ -48,6 +48,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.Channel
@@ -60,7 +64,14 @@ import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.VodColor
 import com.skyplayer.pro.ui.theme.CardBlack
 import com.skyplayer.pro.ui.components.CategorySidebar
+import com.skyplayer.pro.ui.components.SectionTopBar
+import com.skyplayer.pro.ui.components.TrustAction
+import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
+import com.skyplayer.pro.ui.components.TrustStateView
+import com.skyplayer.pro.ui.components.ImmersiveMovieCard
 import com.skyplayer.pro.ui.theme.PureBlack
+import androidx.compose.ui.res.stringResource
+import com.skyplayer.pro.R
 import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.components.PinDialog
 import com.skyplayer.pro.ui.viewmodel.ParentalViewModel
@@ -75,10 +86,17 @@ import androidx.activity.compose.BackHandler
 fun VODScreen(
     onContentClick: (Channel) -> Unit,
     onBackToHome: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToAddPlaylist: () -> Unit = {},
     viewModel: VODViewModel = hiltViewModel(),
     parentalViewModel: ParentalViewModel = hiltViewModel()
 ) {
     BackHandler { onBackToHome() }
+    val context = LocalContext.current
+    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+    val isTV = uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    
     val movies by viewModel.movies.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
@@ -94,63 +112,78 @@ fun VODScreen(
             .fillMaxSize()
             .background(PureBlack)
     ) {
-        // Sidebar Latérale (Style Hot Player)
-        CategorySidebar(
-            categories = categories,
-            selectedCategory = selectedCategory,
-            onCategorySelected = { category ->
-                if (parentalViewModel.manager.isSensitiveCategory(category.name)) {
-                    pendingCategoryName = category.name
-                    showPinDialog = true
-                } else {
-                    viewModel.selectCategory(category.name)
-                }
-            },
-            onSearchQueryChange = { viewModel.searchMovies(it) }
-        )
+        // Navigation conditionnelle: Sidebar pour TV, Onglets horizontaux pour Mobile
+        if (isTV) {
+            // Sidebar Latérale pour TV
+            CategorySidebar(
+                categories = categories,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { category ->
+                    if (parentalViewModel.manager.isSensitiveCategory(category.name)) {
+                        pendingCategoryName = category.name
+                        showPinDialog = true
+                    } else {
+                        viewModel.selectCategory(category.name)
+                    }
+                },
+                onSearchQueryChange = { viewModel.searchMovies(it) }
+            )
+        }
 
-        // Grille de films (Right side)
         Column(modifier = Modifier.weight(1f)) {
-            // Info Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = selectedCategory?.uppercase() ?: "TOUS LES FILMS",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
+            // Onglets horizontaux pour mobile uniquement
+            if (!isTV) {
+                HorizontalCategoryTabs(
+                    categories = categories.map { it.name },
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = { category ->
+                        val categoryObj = categories.find { it.name == category }
+                        categoryObj?.let {
+                            if (parentalViewModel.manager.isSensitiveCategory(it.name)) {
+                                pendingCategoryName = it.name
+                                showPinDialog = true
+                            } else {
+                                viewModel.selectCategory(it.name)
+                            }
+                        }
+                    }
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Box(
-                    modifier = Modifier
-                        .background(VodColor.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text("VOD", color = VodColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
+            SectionTopBar(
+                title = selectedCategory?.uppercase()
+                    ?: stringResource(R.string.section_vod),
+                subtitle = stringResource(R.string.section_items_count, movies.size),
+                accentColor = VodColor,
+                onNavigateHome = onBackToHome,
+                onNavigateToSearch = onNavigateToSearch,
+                onNavigateToSettings = onNavigateToSettings
+            )
 
             Box(modifier = Modifier.fillMaxSize()) {
                 if (isLoading) {
                     ChannelListShimmer()
                 } else if (movies.isEmpty()) {
-                    EmptyState(message = "Aucun contenu disponible")
+                    TrustStateView(
+                        icon = Icons.Default.Movie,
+                        title = stringResource(R.string.trust_empty_vod_title),
+                        message = stringResource(R.string.trust_empty_vod_message),
+                        iconTint = VodColor.copy(alpha = 0.5f),
+                        primaryAction = TrustAction(
+                            label = stringResource(R.string.trust_action_add_playlist),
+                            onClick = onNavigateToAddPlaylist
+                        )
+                    )
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 140.dp),
+                        columns = GridCells.Adaptive(minSize = 160.dp),
                         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(movies, key = { it.id }) { movie ->
-                            MovieTile(
+                            ImmersiveMovieCard(
                                 movie = movie,
                                 onClick = { onContentClick(movie) }
                             )
@@ -274,21 +307,6 @@ private fun MovieTile(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun EmptyState(message: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
     }
 }
 

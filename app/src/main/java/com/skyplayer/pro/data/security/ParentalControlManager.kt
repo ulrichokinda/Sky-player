@@ -13,6 +13,8 @@ class ParentalControlManager @Inject constructor(
 ) {
     companion object {
         private const val KEY_PARENTAL_PIN = "parental_pin"
+        private const val KEY_SECURITY_QUESTION = "parental_security_question"
+        private const val KEY_SECURITY_ANSWER = "parental_security_answer"
         private const val KEY_LOCKED_CATEGORIES = "locked_categories"
         private val SENSITIVE_KEYWORDS = listOf("ADULT", "XXX", "ADULTE", "X-", "+18", "PORN", "EROTIC")
     }
@@ -22,6 +24,37 @@ class ParentalControlManager @Inject constructor(
      */
     fun isPinSet(): Boolean {
         return !encryptedPrefs.getString(KEY_PARENTAL_PIN).isNullOrBlank()
+    }
+
+    /**
+     * Définit le code PIN et la question de sécurité
+     */
+    fun setupParentalControl(pin: String, question: String, answer: String) {
+        encryptedPrefs.saveString(KEY_PARENTAL_PIN, pin)
+        encryptedPrefs.saveString(KEY_SECURITY_QUESTION, question)
+        encryptedPrefs.saveString(KEY_SECURITY_ANSWER, answer.lowercase().trim())
+    }
+
+    /**
+     * Récupère la question de sécurité configurée
+     */
+    fun getSecurityQuestion(): String? {
+        return encryptedPrefs.getString(KEY_SECURITY_QUESTION)
+    }
+
+    /**
+     * Vérifie la réponse à la question de sécurité pour réinitialiser le PIN
+     */
+    fun verifySecurityAnswer(answer: String): Boolean {
+        val savedAnswer = encryptedPrefs.getString(KEY_SECURITY_ANSWER)
+        return savedAnswer != null && savedAnswer == answer.lowercase().trim()
+    }
+
+    /**
+     * Réinitialise le code PIN (après validation de la question de sécurité)
+     */
+    fun resetPin(newPin: String) {
+        encryptedPrefs.saveString(KEY_PARENTAL_PIN, newPin)
     }
 
     /**

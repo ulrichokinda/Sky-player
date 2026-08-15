@@ -1,5 +1,10 @@
 package com.skyplayer.pro.data.model
 
+import android.content.Context
+import androidx.media3.common.TrackSelectionParameters
+import androidx.media3.common.util.UnstableApi
+import androidx.annotation.OptIn
+
 /**
  * Représente les différentes qualités vidéo disponibles
  * Pour optimiser la connexion sur réseaux lents
@@ -13,7 +18,7 @@ enum class VideoQuality(val label: String, val bitrate: Int, val height: Int) {
 
     companion object {
         fun fromString(value: String): VideoQuality {
-            return values().find { it.name == value } ?: AUTO
+            return entries.find { it.name == value } ?: AUTO
         }
 
         /**
@@ -58,8 +63,9 @@ data class StreamingPreferences(
 /**
  * Extension pour convertir la qualité en paramètre ExoPlayer
  */
-fun VideoQuality.toTrackSelectionParameters(): androidx.media3.common.TrackSelectionParameters.Builder {
-    val builder = androidx.media3.common.TrackSelectionParameters.Builder()
+@OptIn(UnstableApi::class)
+fun VideoQuality.toTrackSelectionParameters(context: Context): TrackSelectionParameters.Builder {
+    val builder = TrackSelectionParameters.Builder(context)
 
     return when (this) {
         VideoQuality.AUTO -> builder
@@ -67,5 +73,18 @@ fun VideoQuality.toTrackSelectionParameters(): androidx.media3.common.TrackSelec
         VideoQuality.MEDIUM -> builder.setMaxVideoSize(1280, 720)
         VideoQuality.HIGH -> builder.setMaxVideoSize(1920, 1080)
         VideoQuality.UHD -> builder // Pas de limite pour 4K
+    }
+}
+
+/**
+ * Extension pour convertir la qualité globale en qualité spécifique ABR
+ */
+fun VideoQuality.toAdaptiveQuality(): com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality {
+    return when (this) {
+        VideoQuality.AUTO -> com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality.AUTO
+        VideoQuality.LOW -> com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality.SD_420
+        VideoQuality.MEDIUM -> com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality.HD_720
+        VideoQuality.HIGH -> com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality.FHD_1080
+        VideoQuality.UHD -> com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality.UHD_4K
     }
 }

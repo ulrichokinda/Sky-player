@@ -1,7 +1,7 @@
 {
-  "name": "skyplayer-pawapay-functions",
+  "name": "skyplayer-joboost-cash-functions",
   "version": "1.0.0",
-  "description": "Firebase Cloud Functions pour intégration PawaPay",
+  "description": "Firebase Cloud Functions pour intégration Joboost Cash",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
@@ -14,7 +14,7 @@
     "lint": "eslint --ext .js,.ts ."
   },
   "engines": {
-    "node": "22"
+    "node": "20"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",
@@ -23,6 +23,8 @@
   "devDependencies": {
     "typescript": "^5.3.0",
     "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
     "eslint": "^8.56.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.29.0"

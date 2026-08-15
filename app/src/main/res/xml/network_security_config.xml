@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- IPTV: accepte aussi des serveurs HTTP legacy. -->
-    <base-config cleartextTrafficPermitted="true" />
+    <!-- APIs backend : HTTPS obligatoire -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">skyplayerapp.xyz</domain>
+        <domain includeSubdomains="true">firebaseio.com</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">google.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Flux IPTV : HTTP autorisé (serveurs providers non-HTTPS) -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
 </network-security-config>

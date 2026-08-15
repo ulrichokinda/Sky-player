@@ -7,8 +7,11 @@ import androidx.media3.common.TrackGroup
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
 
@@ -22,6 +25,10 @@ class AdaptiveBitrateManager(
     private val exoPlayer: ExoPlayer,
     private val trackSelector: DefaultTrackSelector
 ) {
+    // Événements de Safety Mode (ex: passage forcé en SD car buffer faible)
+    private val _safetyEvents = MutableSharedFlow<SafetyEvent>()
+    val safetyEvents: SharedFlow<SafetyEvent> = _safetyEvents.asSharedFlow()
+
     // État de la qualité actuelle
     private val _currentQuality = MutableStateFlow<VideoQuality>(VideoQuality.AUTO)
     val currentQuality: StateFlow<VideoQuality> = _currentQuality.asStateFlow()
@@ -33,6 +40,9 @@ class AdaptiveBitrateManager(
     // État de la bande passante estimée
     private val _bandwidthEstimate = MutableStateFlow<Long>(0L)
     val bandwidthEstimate: StateFlow<Long> = _bandwidthEstimate.asStateFlow()
+
+    // Mode économie de données (limite la qualité max)
+    private var isDataSaverEnabled = false
     
     // Surveillance de la stabilité réseau
     private val _networkStability = MutableStateFlow<NetworkStability>(NetworkStability.UNKNOWN)
@@ -169,6 +179,16 @@ class AdaptiveBitrateManager(
     }
     
     /**
+     * Active/Désactive le mode économie de données
+     */
+    fun setDataSaverEnabled(enabled: Boolean) {
+        this.isDataSaverEnabled = enabled
+        if (_currentQuality.value == VideoQuality.AUTO) {
+            evaluateAutoQuality()
+        }
+    }
+
+    /**
      * Évalue et ajuste la qualité en mode automatique
      */
     private fun evaluateAutoQuality() {
@@ -177,14 +197,22 @@ class AdaptiveBitrateManager(
         val buffer = bufferHistory.lastOrNull() ?: 0L
         
         // Sélectionner la qualité optimale basée sur les conditions réseau
-        val targetQuality = when {
+        var targetQuality = when {
             // Buffer critique → baisser immédiatement la qualité
             buffer < BUFFER_CRITICAL -> {
                 val current = getCurrentPlaybackQuality()
                 val lowerQuality = VideoQuality.values()
                     .filter { it != VideoQuality.AUTO && it.height < current.height }
                     .maxByOrNull { it.height }
-                lowerQuality ?: VideoQuality.SD_240
+                
+                val target = lowerQuality ?: VideoQuality.SD_240
+                
+                // Déclencher événement Safety Mode
+                if (target.height < current.height) {
+                    _safetyEvents.tryEmit(SafetyEvent.QUALITY_DOWNGRADE_BUFFER_LOW)
+                }
+                
+                target
             }
             
             // Buffer excellent + bonne bande passante → qualité max possible
@@ -211,6 +239,11 @@ class AdaptiveBitrateManager(
             
             // Mauvais réseau → qualité minimale
             else -> VideoQuality.SD_360
+        }
+
+        // Appliquer la limite Économie de Data si activé
+        if (isDataSaverEnabled && targetQuality.height > VideoQuality.SD_420.height) {
+            targetQuality = VideoQuality.SD_420
         }
         
         // Appliquer la qualité si différente
@@ -303,11 +336,11 @@ class AdaptiveBitrateManager(
             recommendedQuality = VideoQuality.fromBandwidth(bandwidth),
             currentStability = stability,
             reason = when (stability) {
-                NetworkStability.EXCELLENT -> "Excellent réseau - Qualité maximale"
-                NetworkStability.GOOD -> "Bon réseau - Qualité adaptée"
-                NetworkStability.STABLE -> "Réseau stable"
-                NetworkStability.UNSTABLE -> "Réseau instable - Qualité réduite"
-                NetworkStability.POOR -> "Connexion faible - Qualité minimale"
+                NetworkStability.EXCELLENT -> "Excellent réseau — Qualité maximale."
+                NetworkStability.GOOD -> "Bon réseau — Qualité adaptée."
+                NetworkStability.STABLE -> "Réseau stable."
+                NetworkStability.UNSTABLE -> "Réseau instable — Qualité réduite."
+                NetworkStability.POOR -> "Connexion faible — Qualité minimale."
                 NetworkStability.UNKNOWN -> "Analyse en cours..."
             }
         )
@@ -318,6 +351,15 @@ class AdaptiveBitrateManager(
         val currentStability: NetworkStability,
         val reason: String
     )
+
+    /**
+     * Événements de sécurité pour l'UI
+     */
+    enum class SafetyEvent {
+        QUALITY_DOWNGRADE_BUFFER_LOW,
+        NETWORK_UNSTABLE_STAYING_LOW,
+        MIRROR_SWITCH_RECOMMENDED
+    }
     
     /**
      * Réinitialise le gestionnaire

@@ -5,21 +5,15 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.view.KeyEvent
 import android.view.WindowManager
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.input.key.*
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,10 +22,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -42,6 +37,7 @@ import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.ui.components.ChannelLogo
 import com.skyplayer.pro.ui.screens.player.PlayerViewModel
 import com.skyplayer.pro.ui.viewmodel.PrefetchPlayerViewModel
+import com.skyplayer.pro.ui.theme.ElectricSkyBlue
 import kotlinx.coroutines.delay
 import timber.log.Timber
 
@@ -80,6 +76,7 @@ fun TvPlayerScreen(
     // État pour la barre d'info
     var showInfoBar by remember { mutableStateOf(true) }
     var currentChannelIndex by remember { mutableIntStateOf(allChannels.indexOf(currentChannel)) }
+    var showSideSettings by remember { mutableStateOf(false) }
     
     // FocusRequester pour capturer les événements clavier
     val focusRequester = remember { FocusRequester() }
@@ -132,23 +129,59 @@ fun TvPlayerScreen(
     }
     
     // Navigation D-Pad
+    // Zapping par pavé numérique
+    var numPadInput by remember { mutableStateOf("") }
+    
+    LaunchedEffect(numPadInput) {
+        if (numPadInput.isNotEmpty()) {
+            delay(2000) // Attendre 2 secondes après le dernier chiffre
+            val channelNumber = numPadInput.toIntOrNull()
+            if (channelNumber != null) {
+                // Logique de zapping direct par numéro
+                playerViewModel.zapToNumber(channelNumber)
+            }
+            numPadInput = ""
+        }
+    }
+
     val handleKeyEvent: (androidx.compose.ui.input.key.KeyEvent) -> Boolean = { keyEvent ->
         val isKeyUp = keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_UP
-        when (keyEvent.nativeKeyEvent.keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> {
+        val keyCode = keyEvent.nativeKeyEvent.keyCode
+        
+        when {
+            keyCode == KeyEvent.KEYCODE_DPAD_UP -> {
                 if (isKeyUp) changeChannel(-1)
                 true
             }
-            KeyEvent.KEYCODE_DPAD_DOWN -> {
+            keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
                 if (isKeyUp) changeChannel(1)
                 true
             }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+            keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER -> {
                 if (isKeyUp) showInfoBar = !showInfoBar
                 true
             }
-            KeyEvent.KEYCODE_BACK -> {
-                if (isKeyUp) onBackToGuide()
+            keyCode == KeyEvent.KEYCODE_BACK -> {
+                if (isKeyUp) {
+                    if (showInfoBar || showSideSettings) {
+                        showInfoBar = false
+                        showSideSettings = false
+                    } else {
+                        onBackToGuide()
+                    }
+                }
+                true
+            }
+            keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9 -> {
+                if (isKeyUp) {
+                    val digit = (keyCode - KeyEvent.KEYCODE_0).toString()
+                    numPadInput += digit
+                    showInfoBar = true
+                }
+                true
+            }
+            keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_SETTINGS -> {
+                if (isKeyUp) showSideSettings = !showSideSettings
                 true
             }
             else -> false
@@ -181,6 +214,21 @@ fun TvPlayerScreen(
                     }
                 },
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+        
+        // Panel Latéral de Paramètres
+        AnimatedVisibility(
+            visible = showSideSettings,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it }),
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(300.dp)
+        ) {
+            PlayerSideSettings(
+                onClose = { showSideSettings = false },
+                onSwitchPlayer = { playerViewModel.togglePlayerEngine() }, // ExoPlayer <-> VLC
+                onSelectAudio = { /* logic */ },
+                onSelectSubtitle = { /* logic */ }
             )
         }
         
@@ -405,7 +453,48 @@ private fun ChannelInfoBar(
     }
 }
 
-// Extension pour trouver l'Activity
+
+@Composable
+private fun PlayerSideSettings(
+    onClose: () -> Unit,
+    onSwitchPlayer: () -> Unit,
+    onSelectAudio: () -> Unit,
+    onSelectSubtitle: () -> Unit
+) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.9f),
+        modifier = Modifier.fillMaxHeight().width(300.dp)
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text("Paramètres", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            SettingsItem(label = "Pistes Audio", icon = Icons.Default.MusicNote, onClick = onSelectAudio)
+            SettingsItem(label = "Sous-titres", icon = Icons.Default.Subtitles, onClick = onSelectSubtitle)
+            SettingsItem(label = "Changer de Lecteur", icon = Icons.Default.RocketLaunch, onClick = onSwitchPlayer)
+            
+            Spacer(modifier = Modifier.weight(1f))
+            Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
+                Text("Fermer")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsItem(label: String, icon: ImageVector, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+            Icon(icon, contentDescription = null, tint = Color.White)
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(label, color = Color.White)
+        }
+    }
+}
 private fun android.content.Context.findActivity(): Activity? {
     var context = this
     while (context is android.content.ContextWrapper) {

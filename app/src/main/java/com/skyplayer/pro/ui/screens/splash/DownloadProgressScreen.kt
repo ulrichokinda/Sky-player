@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +45,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.skyplayer.pro.data.remote.DownloadProgress
+import com.skyplayer.pro.ui.components.TrustStateView
+import com.skyplayer.pro.ui.components.TrustAction
 import com.skyplayer.pro.ui.theme.ElectricSkyBlue
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
@@ -63,6 +67,7 @@ import com.skyplayer.pro.ui.theme.WarningOrange
 @Composable
 fun DownloadProgressScreen(
     onDownloadComplete: () -> Unit,
+    onCheckNetwork: () -> Unit = {},
     viewModel: DownloadProgressViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -72,94 +77,111 @@ fun DownloadProgressScreen(
         if (state.isComplete) onDownloadComplete()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureBlack),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .padding(vertical = 32.dp)
-        ) {
+    // Format ETA in user-friendly way
+    fun formatETA(seconds: Int): String {
+        return when {
+            seconds <= 0 -> ""
+            seconds < 60 -> "~${seconds}s restant"
+            seconds < 3600 -> {
+                val mins = seconds / 60
+                val secs = seconds % 60
+                "~${mins}min ${secs}s restant"
+            }
+            else -> {
+                val hours = seconds / 3600
+                val mins = (seconds % 3600) / 60
+                "~${hours}h ${mins}min restant"
+            }
+        }
+    }
 
-            // ── Icône animée ─────────────────────────────────────────
-            Box(
+    if (state.error != null) {
+        TrustStateView(
+            icon = Icons.Default.ErrorOutline,
+            title = "Le flux est momentanément indisponible",
+            message = state.error!!,
+            iconTint = WarningOrange,
+            primaryAction = TrustAction("Réessayer") { viewModel.retry() },
+            secondaryAction = TrustAction("Vérifier la connexion") { onCheckNetwork() }
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(PureBlack),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp),
                 modifier = Modifier
-                    .size(96.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            listOf(
-                                ElectricSkyBlue.copy(alpha = 0.15f),
-                                Color.Transparent
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth(0.85f)
+                    .padding(vertical = 32.dp)
             ) {
-                when {
-                    state.error != null -> Icon(
-                        Icons.Default.ErrorOutline,
-                        contentDescription = null,
-                        tint = WarningOrange,
-                        modifier = Modifier.size(52.dp)
-                    )
-                    state.isComplete -> Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = SuccessGreen,
-                        modifier = Modifier.size(52.dp)
-                    )
-                    else -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(52.dp),
-                            color = ElectricSkyBlue,
-                            strokeWidth = 3.dp,
-                            strokeCap = StrokeCap.Round
-                        )
-                        Icon(
-                            Icons.Default.CloudDownload,
+
+                // ── Icône animée ─────────────────────────────────────────
+                Box(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                listOf(
+                                    ElectricSkyBlue.copy(alpha = 0.15f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        state.isComplete -> Icon(
+                            Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = ElectricSkyBlue.copy(alpha = 0.6f),
-                            modifier = Modifier.size(26.dp)
+                            tint = SuccessGreen,
+                            modifier = Modifier.size(52.dp)
                         )
+                        else -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(52.dp),
+                                color = ElectricSkyBlue,
+                                strokeWidth = 3.dp,
+                                strokeCap = StrokeCap.Round
+                            )
+                            Icon(
+                                Icons.Default.CloudDownload,
+                                contentDescription = null,
+                                tint = ElectricSkyBlue.copy(alpha = 0.6f),
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
                     }
                 }
-            }
 
-            // ── Titre playlist ───────────────────────────────────────
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = when {
-                        state.error != null  -> "Erreur de téléchargement"
-                        state.isComplete     -> "Playlist prête !"
-                        else                 -> "Chargement de votre playlist"
-                    },
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    ),
-                    textAlign = TextAlign.Center
-                )
-                if (state.playlistName.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                // ── Titre playlist ───────────────────────────────────────
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = state.playlistName,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = PremiumGold,
-                            fontWeight = FontWeight.SemiBold
+                        text = if (state.isComplete) "Playlist prête !" else "Chargement de votre playlist",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         ),
                         textAlign = TextAlign.Center
                     )
+                    if (state.playlistName.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = state.playlistName,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = PremiumGold,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
-            }
 
-            // ── Bloc progression ─────────────────────────────────────
-            if (state.error == null) {
+                // ── Bloc progression ─────────────────────────────────────
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -248,9 +270,34 @@ fun DownloadProgressScreen(
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
+                        
+                        // Show speed and ETA if available
+                        if (state.speedKbps > 0) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Vitesse : ${"%.0f".format(state.speedKbps)} kbps",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = Color.White.copy(alpha = 0.55f)
+                                    )
+                                )
+                                val eta = formatETA(state.etaSeconds)
+                                if (eta.isNotEmpty()) {
+                                    Text(
+                                        text = eta,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = PremiumGold
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
 
-                    // Nb chaînes après parsing
+                    // Nb chaînes after parsing (already there, good!)
                     if (state.isComplete && state.channelCount > 0) {
                         Text(
                             text = "${state.channelCount} chaînes importées avec succès",
@@ -261,25 +308,6 @@ fun DownloadProgressScreen(
                             textAlign = TextAlign.Center
                         )
                     }
-                }
-            }
-
-            // ── Erreur ───────────────────────────────────────────────
-            if (state.error != null) {
-                Text(
-                    text = state.error!!,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = WarningOrange
-                    ),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Button(
-                    onClick = { viewModel.retry() },
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Réessayer", fontWeight = FontWeight.Bold)
                 }
             }
         }

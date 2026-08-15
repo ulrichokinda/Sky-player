@@ -27,7 +27,7 @@ class LicenseSecurityManager @Inject constructor(
     companion object {
         private const val LICENSES_NODE = "licenses"
         private const val SERVER_TIME_NODE = "serverTime"
-        private const val TRIAL_DAYS = 15L
+        private const val TRIAL_DAYS = LicenseManager.TRIAL_DAYS.toLong()
         private const val DAY_IN_MILLIS = 24 * 60 * 60 * 1000L
     }
 
@@ -40,7 +40,7 @@ class LicenseSecurityManager @Inject constructor(
 
     enum class InvalidReason {
         DEACTIVATED,           // isActive passé à false
-        TRIAL_EXPIRED,         // Essai de 15 jours terminé
+        TRIAL_EXPIRED,         // Essai de 14 jours terminé
         SERVER_VALIDATION_FAILED  // Erreur validation serveur
     }
 

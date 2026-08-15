@@ -1,5 +1,6 @@
 package com.skyplayer.pro.data.remote
 
+import com.skyplayer.pro.BuildConfig
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -20,11 +21,11 @@ import retrofit2.http.Query
 interface LicenseApiService {
     
     companion object {
-        // URL de votre backend déployé
-        const val BASE_URL = "https://skyplayerapp.xyz/"
+        // URL de votre backend déployé (injecté via BuildConfig)
+        const val BASE_URL = BuildConfig.BACKEND_BASE_URL
         
-        // Clé API pour authentification (doit matcher côté backend)
-        const val API_KEY = "AIzaSyCx3NV7zoZpazgMTABspe6fnteuYrJskp8"// ← MODIFIEZ CECI
+        // Clé API pour authentification (injectée via BuildConfig)
+        const val API_KEY = BuildConfig.LICENSE_API_KEY
     }
     
     /**
@@ -46,6 +47,7 @@ interface LicenseApiService {
 /**
  * Réponse du backend pour le statut licence
  */
+@androidx.annotation.Keep
 data class LicenseStatusResponse(
     val deviceId: String,
     val exists: Boolean,
@@ -61,6 +63,7 @@ data class LicenseStatusResponse(
 /**
  * Info appareil depuis backend
  */
+@androidx.annotation.Keep
 data class DeviceInfoResponse(
     val brand: String,
     val model: String,
@@ -71,6 +74,7 @@ data class DeviceInfoResponse(
 /**
  * Réponse health check
  */
+@androidx.annotation.Keep
 data class HealthCheckResponse(
     val status: String,
     val timestamp: String,
@@ -80,6 +84,7 @@ data class HealthCheckResponse(
 /**
  * Requête d'activation (pour admin)
  */
+@androidx.annotation.Keep
 data class ActivateRequest(
     val activatedBy: String
 )

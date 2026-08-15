@@ -8,98 +8,75 @@ import com.skyplayer.pro.data.localshare.ShareState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * ViewModel pour le partage réseau local (Wi-Fi Direct / NSD)
- *
- * Gère :
- * - Démarrage/arrêt du service de partage
- * - Découverte des appareils disponibles
- * - Connexion et transfert des données
+ * ViewModel pour gérer le partage de playlists en réseau local
  */
 @HiltViewModel
 class NetworkShareViewModel @Inject constructor(
-    private val networkShareManager: NetworkShareManager
+    private val shareManager: NetworkShareManager
 ) : ViewModel() {
 
-    val shareState: StateFlow<ShareState> = networkShareManager.shareState
-    val discoveredServices: StateFlow<List<NsdServiceInfo>> = networkShareManager.discoveredServices
+    val shareState: StateFlow<ShareState> = shareManager.shareState
+    val discoveredServices: StateFlow<List<NsdServiceInfo>> = shareManager.discoveredServices
 
     /**
      * Démarre le partage d'une playlist
      */
-    fun startSharingPlaylist(playlistUrl: String, playlistName: String) {
-        val shareData = NetworkShareManager.ShareData(
-            playlistUrl = playlistUrl,
-            playlistName = playlistName,
-            credentials = emptyMap() // À compléter selon besoin
-        )
-
+    fun startSharingPlaylist(url: String, name: String) {
         viewModelScope.launch {
-            networkShareManager.startSharing(shareData)
-            Timber.i("📡 Partage démarré pour: $playlistName")
+            shareManager.startSharing(
+                NetworkShareManager.ShareData(
+                    playlistUrl = url,
+                    playlistName = name
+                )
+            )
         }
     }
 
     /**
-     * Arrête le service de partage
+     * Arrête le partage
      */
     fun stopSharing() {
-        networkShareManager.stopSharing()
-        Timber.i("🛑 Partage arrêté")
+        shareManager.stopSharing()
     }
 
     /**
-     * Démarre la découverte des appareils sur le réseau
+     * Démarre la découverte d'appareils
      */
     fun startDiscovery() {
-        viewModelScope.launch {
-            networkShareManager.startDiscovery()
-            Timber.i("🔍 Recherche d'appareils sur le réseau local...")
-        }
+        shareManager.startDiscovery()
     }
 
     /**
      * Arrête la découverte
      */
     fun stopDiscovery() {
-        networkShareManager.stopDiscovery()
+        shareManager.stopDiscovery()
     }
 
     /**
-     * Connecte à un appareil et récupère les données partagées
+     * Se connecte à un appareil découvert
      */
     fun connectToDevice(
         serviceInfo: NsdServiceInfo,
         onSuccess: (NetworkShareManager.ReceivedShare) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             try {
-                networkShareManager.connectAndReceive(serviceInfo) { receivedShare ->
+                shareManager.connectAndReceive(serviceInfo) { receivedShare ->
                     onSuccess(receivedShare)
-                    Timber.i("✅ Playlist reçue: ${receivedShare.shareData.playlistName}")
                 }
             } catch (e: Exception) {
-                onError(e.message ?: "Erreur de connexion")
-                Timber.e(e, "❌ Erreur connexion à l'appareil")
+                onError(e.message ?: "Erreur de connexion inconnue")
             }
         }
     }
 
-    /**
-     * Vérifie si le Wi-Fi est activé
-     */
-    fun isWifiEnabled(): Boolean {
-        // Vérification simplifiée - à implémenter avec WifiManager
-        return true
-    }
-
     override fun onCleared() {
         super.onCleared()
-        networkShareManager.release()
-        Timber.i("🧹 NetworkShareViewModel nettoyé")
+        shareManager.release()
     }
 }

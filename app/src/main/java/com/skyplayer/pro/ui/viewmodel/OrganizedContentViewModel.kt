@@ -6,25 +6,20 @@ import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.ContentType
 import com.skyplayer.pro.data.model.EpgProgram
 import com.skyplayer.pro.data.organizer.ChannelCategory
-import com.skyplayer.pro.data.organizer.OrganizedContent
+import com.skyplayer.pro.data.organizer.SeriesItem
 import com.skyplayer.pro.data.organizer.SmartContentOrganizer
 import com.skyplayer.pro.data.repository.ChannelRepository
 import com.skyplayer.pro.data.repository.EpgRepository
+import com.skyplayer.pro.data.remote.XtreamCodesApi
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
-/**
- * ViewModel pour gérer le contenu organisé avec tri régional et EPG
- */
 @HiltViewModel
 class OrganizedContentViewModel @Inject constructor(
     private val channelRepository: ChannelRepository,
@@ -32,11 +27,6 @@ class OrganizedContentViewModel @Inject constructor(
     private val contentOrganizer: SmartContentOrganizer
 ) : ViewModel() {
 
-    // EPG
-    private val _currentPrograms = MutableStateFlow<Map<String, EpgProgram>>(emptyMap())
-    val currentPrograms: StateFlow<Map<String, EpgProgram>> = _currentPrograms.asStateFlow()
-
-    // Live TV
     private val _liveCategories = MutableStateFlow<List<ChannelCategory>>(emptyList())
     val liveCategories: StateFlow<List<ChannelCategory>> = _liveCategories.asStateFlow()
 
@@ -46,168 +36,134 @@ class OrganizedContentViewModel @Inject constructor(
     private val _liveChannels = MutableStateFlow<List<Channel>>(emptyList())
     val liveChannels: StateFlow<List<Channel>> = _liveChannels.asStateFlow()
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    // Onglets séparés pour VOD
+    private val _movies = MutableStateFlow<List<ChannelCategory>>(emptyList())
+    val movies: StateFlow<List<ChannelCategory>> = _movies.asStateFlow()
 
-    // Movies
-    private val _movieCategories = MutableStateFlow<List<ChannelCategory>>(emptyList())
-    val movieCategories: StateFlow<List<ChannelCategory>> = _movieCategories.asStateFlow()
+    private val _series = MutableStateFlow<List<SeriesItem>>(emptyList())
+    val series: StateFlow<List<SeriesItem>> = _series.asStateFlow()
 
-    private val _selectedMovieCategory = MutableStateFlow<String?>(null)
-    val selectedMovieCategory: StateFlow<String?> = _selectedMovieCategory.asStateFlow()
+    private val _currentPrograms = MutableStateFlow<Map<String, EpgProgram>>(emptyMap())
+    val currentPrograms: StateFlow<Map<String, EpgProgram>> = _currentPrograms.asStateFlow()
 
-    private val _movies = MutableStateFlow<List<Channel>>(emptyList())
-    val movies: StateFlow<List<Channel>> = _movies.asStateFlow()
-
-    // Series
-    private val _seriesCategories = MutableStateFlow<List<ChannelCategory>>(emptyList())
-    val seriesCategories: StateFlow<List<ChannelCategory>> = _seriesCategories.asStateFlow()
-
-    private val _selectedSeriesCategory = MutableStateFlow<String?>(null)
-    val selectedSeriesCategory: StateFlow<String?> = _selectedSeriesCategory.asStateFlow()
-
-    private val _series = MutableStateFlow<List<Channel>>(emptyList())
-    val series: StateFlow<List<Channel>> = _series.asStateFlow()
-
-    // État global
-    private val _isLoading = MutableStateFlow(false)
+    private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    // Détails VOD sélectionnés (Movie ou Series)
+    private val _selectedVodDetails = MutableStateFlow<Any?>(null)
+    val selectedVodDetails: StateFlow<Any?> = _selectedVodDetails.asStateFlow()
 
-    private val _sidebarExpanded = MutableStateFlow(true)
-    val sidebarExpanded: StateFlow<Boolean> = _sidebarExpanded.asStateFlow()
+    private var allChannels: List<Channel> = emptyList()
+    private var currentSearchQuery: String = ""
 
     init {
-        loadAllContent()
+        loadAllChannels()
     }
 
-    /**
-     * Charge et organise tout le contenu
-     */
-    fun loadAllContent() {
+    private fun loadAllChannels() {
         viewModelScope.launch {
             _isLoading.value = true
-            _error.value = null
-
-            try {
-                // Observer les chaînes depuis le repository
-                channelRepository.getAllChannels().collectLatest { channels ->
-                    organizeContent(channels)
+            // On récupère toutes les chaînes pour les organiser en onglets séparés
+            channelRepository.getAllChannels()
+                .catch { e ->
+                    Timber.e(e, "Erreur chargement contenu")
+                    _isLoading.value = false
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "❌ Erreur chargement contenu")
-                _error.value = "Erreur: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
+                .collect { channels ->
+                    allChannels = channels
+
+                    // Organisation asynchrone des 3 listes
+                    val organized = contentOrganizer.organizeChannels(channels)
+
+                    _liveCategories.value = organized.liveChannels
+                    _movies.value = organized.movies
+                    _series.value = organized.series
+
+                    if (_selectedLiveCategory.value == null && organized.liveChannels.isNotEmpty()) {
+                        _selectedLiveCategory.value = organized.liveChannels.firstOrNull()?.name
+                    }
+
+                    applyFilters()
+                    _isLoading.value = false
+                }
         }
     }
 
-    /**
-     * Organise le contenu de manière asynchrone
-     */
-    private suspend fun organizeContent(channels: List<Channel>) {
-        withContext(Dispatchers.Default) {
-            val startTime = System.currentTimeMillis()
-
-            val organized = contentOrganizer.organizeChannels(channels)
-
-            // Charger l'EPG pour les chaînes Live
-            loadEpgForChannels(channels.filter { it.type == ContentType.LIVE_TV })
-
-            // Mettre à jour Live TV
-            _liveCategories.value = organized.liveChannels
-            if (_selectedLiveCategory.value == null && organized.liveChannels.isNotEmpty()) {
-                _selectedLiveCategory.value = organized.liveChannels.firstOrNull { it.isRegionalPriority }?.name
-                    ?: organized.liveChannels.first().name
-            }
-            updateLiveChannels()
-
-            // Mettre à jour Movies
-            _movieCategories.value = organized.movies
-            if (_selectedMovieCategory.value == null && organized.movies.isNotEmpty()) {
-                _selectedMovieCategory.value = organized.movies.first().name
-            }
-            updateMovies()
-
-            // Mettre à jour Series
-            _seriesCategories.value = organized.series
-            if (_selectedSeriesCategory.value == null && organized.series.isNotEmpty()) {
-                _selectedSeriesCategory.value = organized.series.first().name
-            }
-            updateSeries()
-
-            val duration = System.currentTimeMillis() - startTime
-            Timber.i("✅ Contenu organisé en ${duration}ms: ${organized.totalLiveChannels} live, ${organized.totalMovies} films, ${organized.totalSeries} séries")
-        }
-    }
-
-    // ========== Live TV ==========
     fun selectLiveCategory(categoryName: String) {
-        _selectedLiveCategory.value = categoryName
-        _searchQuery.value = "" // Réinitialiser recherche lors du changement de catégorie
-        updateLiveChannels()
+        _selectedLiveCategory.value = if (categoryName == "ALL") null else categoryName
+        applyFilters()
     }
 
     fun searchLive(query: String) {
-        _searchQuery.value = query
+        currentSearchQuery = query.trim()
+        applyFilters()
+    }
+
+    fun refresh() {
+        loadAllChannels()
+    }
+
+    /**
+     * Récupère les détails d'un film ou d'une série de manière asynchrone (Lazy)
+     * Stocke le résultat dans selectedVodDetails.
+     */
+    fun fetchVodDetails(channel: Channel, xtreamApi: XtreamCodesApi, credentials: Triple<String, String, String>) {
         viewModelScope.launch {
-            if (query.isBlank()) {
-                updateLiveChannels()
-            } else {
-                channelRepository.searchChannels(query).collectLatest { results ->
-                    _liveChannels.value = results.filter { it.type == ContentType.LIVE_TV }
+            try {
+                _selectedVodDetails.value = null // Reset previous
+
+                // Extraire l'ID Xtream (le dernier segment après l'underscore)
+                val id = channel.id.substringAfterLast("_").toIntOrNull() ?: return@launch
+
+                if (channel.type == ContentType.VOD_MOVIE) {
+                    val response = xtreamApi.getVodDetails(
+                        fullUrl = credentials.first,
+                        username = credentials.second,
+                        password = credentials.third,
+                        action = "get_vod_info",
+                        vodId = id
+                    )
+                    if (response.isSuccessful) {
+                        _selectedVodDetails.value = response.body()
+                    }
+                } else if (channel.type == ContentType.VOD_SERIES || channel.type == ContentType.SERIES_EPISODE) {
+                    val response = xtreamApi.getSeriesDetails(
+                        fullUrl = credentials.first,
+                        username = credentials.second,
+                        password = credentials.third,
+                        seriesId = id
+                    )
+                    if (response.isSuccessful) {
+                        response.body()?.let { body ->
+                            _selectedVodDetails.value = XtreamCodesApi.parseSeriesDetailsStream(body)
+                        }
+                    }
                 }
+            } catch (e: Exception) {
+                Timber.e(e, "Erreur fetch métadonnées VOD pour ${channel.name}")
             }
         }
     }
 
-    private fun updateLiveChannels() {
-        val category = _liveCategories.value.find { it.name == _selectedLiveCategory.value }
-        _liveChannels.value = category?.channels ?: emptyList()
+    private fun applyFilters() {
+        val categoryFilter = _selectedLiveCategory.value
+        val filteredLive = allChannels
+            .filter { it.type in ChannelRepository.LIVE_CONTENT_TYPES }
+            .filter { channel ->
+                categoryFilter == null || channel.category == categoryFilter || channel.groupTitle == categoryFilter
+            }
+            .filter { channel ->
+                currentSearchQuery.isBlank() ||
+                    channel.name.contains(currentSearchQuery, ignoreCase = true) ||
+                    channel.category.contains(currentSearchQuery, ignoreCase = true)
+            }
+            .sortedWith(compareBy<Channel> { it.category }.thenBy { it.name })
+
+        _liveChannels.value = filteredLive
+        loadEpgForVisibleChannels(filteredLive)
     }
 
-    // ========== Movies ==========
-    fun selectMovieCategory(categoryName: String) {
-        _selectedMovieCategory.value = categoryName
-        updateMovies()
-    }
-
-    private fun updateMovies() {
-        val category = _movieCategories.value.find { it.name == _selectedMovieCategory.value }
-        _movies.value = category?.channels ?: emptyList()
-    }
-
-    // ========== Series ==========
-    fun selectSeriesCategory(categoryName: String) {
-        _selectedSeriesCategory.value = categoryName
-        updateSeries()
-    }
-
-    private fun updateSeries() {
-        val category = _seriesCategories.value.find { it.name == _selectedSeriesCategory.value }
-        _series.value = category?.channels ?: emptyList()
-    }
-
-    // ========== UI ==========
-    fun toggleSidebar() {
-        _sidebarExpanded.value = !_sidebarExpanded.value
-    }
-
-    fun setSidebarExpanded(expanded: Boolean) {
-        _sidebarExpanded.value = expanded
-    }
-
-    fun clearError() {
-        _error.value = null
-    }
-
-    /**
-     * Charge l'EPG actuel pour une liste de chaînes
-     */
-    private fun loadEpgForChannels(channels: List<Channel>) {
+    private fun loadEpgForVisibleChannels(channels: List<Channel>) {
         viewModelScope.launch {
             val programsMap = mutableMapOf<String, EpgProgram>()
             channels.forEach { channel ->
@@ -221,14 +177,3 @@ class OrganizedContentViewModel @Inject constructor(
         }
     }
 }
-
-/**
- * Data class pour les états UI
- */
-data class ContentUiState(
-    val categories: List<ChannelCategory> = emptyList(),
-    val selectedCategory: String? = null,
-    val channels: List<Channel> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null
-)

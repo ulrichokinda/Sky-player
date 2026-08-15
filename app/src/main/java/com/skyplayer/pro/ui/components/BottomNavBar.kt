@@ -14,7 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.skyplayer.pro.ui.navigation.BottomNavItem
+import androidx.compose.ui.res.stringResource
+import com.skyplayer.pro.R
+import com.skyplayer.pro.ui.navigation.MainTab
 import com.skyplayer.pro.ui.navigation.Routes
 import com.skyplayer.pro.ui.theme.FavoritesColor
 import com.skyplayer.pro.ui.theme.LiveTvColor
@@ -27,32 +29,32 @@ import com.skyplayer.pro.ui.theme.VodColor
  */
 @Composable
 fun BottomNavBar(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
+    currentTab: MainTab,
+    onNavigate: (MainTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val items = listOf(
         NavItemData(
-            route = Routes.LiveTV.route,
-            label = "Live TV",
+            tab = MainTab.LIVE,
+            label = stringResource(R.string.nav_live_tv),
             icon = Icons.Default.LiveTv,
             selectedColor = LiveTvColor
         ),
         NavItemData(
-            route = Routes.VOD.route,
-            label = "Films",
+            tab = MainTab.VOD,
+            label = stringResource(R.string.nav_vod),
             icon = Icons.Default.Movie,
             selectedColor = VodColor
         ),
         NavItemData(
-            route = Routes.Series.route,
-            label = "Séries",
+            tab = MainTab.SERIES,
+            label = stringResource(R.string.nav_series),
             icon = Icons.Default.Tv,
             selectedColor = SeriesColor
         ),
         NavItemData(
-            route = Routes.Favorites.route,
-            label = "Favoris",
+            tab = MainTab.FAVORITES,
+            label = stringResource(R.string.nav_favorites),
             icon = Icons.Default.Favorite,
             selectedColor = FavoritesColor
         )
@@ -64,7 +66,7 @@ fun BottomNavBar(
         tonalElevation = 8.dp
     ) {
         items.forEach { item ->
-            val selected = currentRoute == item.route
+            val selected = currentTab == item.tab
             
             NavigationBarItem(
                 icon = {
@@ -81,7 +83,7 @@ fun BottomNavBar(
                     )
                 },
                 selected = selected,
-                onClick = { onNavigate(item.route) },
+                onClick = { onNavigate(item.tab) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = item.selectedColor,
                     selectedTextColor = item.selectedColor,
@@ -95,7 +97,7 @@ fun BottomNavBar(
 }
 
 private data class NavItemData(
-    val route: String,
+    val tab: MainTab,
     val label: String,
     val icon: ImageVector,
     val selectedColor: androidx.compose.ui.graphics.Color

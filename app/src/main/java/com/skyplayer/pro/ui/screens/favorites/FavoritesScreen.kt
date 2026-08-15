@@ -27,10 +27,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -46,7 +43,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.ui.theme.FavoritesColor
+import com.skyplayer.pro.ui.components.SectionTopBar
+import com.skyplayer.pro.ui.components.TrustAction
+import com.skyplayer.pro.ui.components.TrustStateView
+import com.skyplayer.pro.ui.theme.PureBlack
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.res.stringResource
+import com.skyplayer.pro.R
+import com.skyplayer.pro.ui.viewmodel.FavoritesViewModel
 
 /**
  * Écran Favoris - Liste des chaînes favorites
@@ -56,38 +60,43 @@ import androidx.activity.compose.BackHandler
 fun FavoritesScreen(
     onChannelClick: (Channel) -> Unit,
     onBackToHome: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToLive: () -> Unit = {},
     viewModel: FavoritesViewModel = hiltViewModel()
 ) {
     BackHandler { onBackToHome() }
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Mes Favoris",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = FavoritesColor
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+    ) {
+        SectionTopBar(
+            title = stringResource(R.string.section_favorites),
+            subtitle = stringResource(R.string.section_items_count, favorites.size),
+            accentColor = FavoritesColor,
+            onNavigateHome = onBackToHome,
+            onNavigateToSearch = onNavigateToSearch,
+            onNavigateToSettings = onNavigateToSettings
+        )
+
+        Box(modifier = Modifier.fillMaxSize()) {
             if (isLoading) {
                 LoadingState()
             } else if (favorites.isEmpty()) {
-                EmptyState()
+                TrustStateView(
+                    icon = Icons.Default.Favorite,
+                    title = stringResource(R.string.trust_empty_favorites_title),
+                    message = stringResource(R.string.trust_empty_favorites_message),
+                    iconTint = FavoritesColor.copy(alpha = 0.45f),
+                    primaryAction = TrustAction(
+                        label = stringResource(R.string.trust_action_explore_live),
+                        onClick = onNavigateToLive
+                    )
+                )
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -199,34 +208,3 @@ private fun LoadingState() {
     }
 }
 
-@Composable
-private fun EmptyState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Favorite,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = FavoritesColor.copy(alpha = 0.5f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Aucun favori",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Appuyez sur le cœur\npour ajouter des chaînes",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}

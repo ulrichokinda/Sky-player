@@ -4,13 +4,18 @@ import android.content.Context
 import android.util.Base64
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
-import android.net.wifi.WifiManager
 import android.os.Build
 import com.skyplayer.pro.data.model.Playlist
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -41,7 +46,7 @@ import kotlin.random.Random
  */
 @Singleton
 class NetworkShareManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     companion object {
         private const val SERVICE_TYPE = "_skyplayer._tcp"
@@ -56,7 +61,6 @@ class NetworkShareManager @Inject constructor(
     }
 
     private val nsdManager: NsdManager? = context.getSystemService(Context.NSD_SERVICE) as? NsdManager
-    private val wifiManager: WifiManager? = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -71,7 +75,6 @@ class NetworkShareManager @Inject constructor(
     private var serverSocket: ServerSocket? = null
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
-    private var resolveListener: NsdManager.ResolveListener? = null
 
     /**
      * Données à partager
@@ -175,7 +178,7 @@ class NetworkShareManager @Inject constructor(
     private suspend fun handleClientConnection(socket: Socket, shareData: ShareData) {
         withContext(Dispatchers.IO) {
             try {
-                Timber.i("🔗 Client connecté: ${socket.inetAddress.hostAddress}")
+                Timber.i("🔗 Client connecté : ${socket.inetAddress.hostAddress}")
                 _shareState.value = ShareState.Transferring(shareData, 0)
 
                 // Générer une clé de chiffrement temporaire
@@ -207,7 +210,7 @@ class NetworkShareManager @Inject constructor(
 
             } catch (e: Exception) {
                 Timber.e(e, "❌ Erreur transfert")
-                _shareState.value = ShareState.Error("Erreur transfert: ${e.message}")
+                _shareState.value = ShareState.Error("Erreur transfert : ${e.message}")
             } finally {
                 socket.close()
             }
@@ -223,20 +226,20 @@ class NetworkShareManager @Inject constructor(
 
         registrationListener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(info: NsdServiceInfo) {
-                Timber.i("✅ Service NSD enregistré: ${info.serviceName}")
+                Timber.i("✅ Service NSD enregistré : ${info.serviceName}")
             }
 
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                Timber.e("❌ Échec enregistrement NSD: $errorCode")
+                Timber.e("❌ Échec enregistrement NSD : $errorCode")
                 _shareState.value = ShareState.Error("Échec enregistrement service")
             }
 
             override fun onServiceUnregistered(info: NsdServiceInfo) {
-                Timber.d("Service NSD désenregistré")
+                Timber.d("Service NSD désinscrit")
             }
 
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                Timber.w("Échec désenregistrement NSD: $errorCode")
+                Timber.w("Échec désinscription NSD : $errorCode")
             }
         }
 
@@ -311,18 +314,44 @@ class NetworkShareManager @Inject constructor(
     }
 
     private fun resolveService(serviceInfo: NsdServiceInfo) {
-        resolveListener = object : NsdManager.ResolveListener {
-            override fun onServiceResolved(resolvedInfo: NsdServiceInfo) {
-                Timber.i("✅ Service résolu: ${resolvedInfo.host}:${resolvedInfo.port}")
-                _discoveredServices.value = _discoveredServices.value + resolvedInfo
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            nsdManager?.registerServiceInfoCallback(serviceInfo, { it.run() }, object : NsdManager.ServiceInfoCallback {
+                override fun onServiceInfoCallbackRegistrationFailed(errorCode: Int) {
+                    Timber.e("❌ Échec enregistrement callback NSD : $errorCode")
+                }
 
-            override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                Timber.e("❌ Échec résolution: $errorCode")
+                override fun onServiceUpdated(resolvedInfo: NsdServiceInfo) {
+                    val host = resolvedInfo.hostAddresses.firstOrNull()
+                    Timber.i("✅ Service résolu (callback) : $host:${resolvedInfo.port}")
+                    _discoveredServices.value += resolvedInfo
+                    // Une fois résolu, on peut désinscrire si on n'a besoin que d'une résolution ponctuelle
+                    try { nsdManager.unregisterServiceInfoCallback(this) } catch (e: Exception) {}
+                }
+
+                override fun onServiceLost() {
+                    Timber.d("📡 Service perdu (callback)")
+                }
+
+                override fun onServiceInfoCallbackUnregistered() {
+                    Timber.d("Service callback désinscrit")
+                }
+            })
+        } else {
+            val resolveListener = object : NsdManager.ResolveListener {
+                override fun onServiceResolved(resolvedInfo: NsdServiceInfo) {
+                     @Suppress("DEPRECATION")
+                     val host = resolvedInfo.host
+                     Timber.i("✅ Service résolu : $host:${resolvedInfo.port}")
+                     _discoveredServices.value += resolvedInfo
+                 }
+ 
+                 override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                     Timber.e("❌ Échec résolution : $errorCode")
+                 }
             }
+            @Suppress("DEPRECATION")
+            nsdManager?.resolveService(serviceInfo, resolveListener)
         }
-
-        nsdManager?.resolveService(serviceInfo, resolveListener)
     }
 
     /**
@@ -333,7 +362,13 @@ class NetworkShareManager @Inject constructor(
             try {
                 _shareState.value = ShareState.Receiving
 
-                val socket = Socket(serviceInfo.host, serviceInfo.port)
+                val host = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    serviceInfo.hostAddresses.firstOrNull()
+                } else {
+                    @Suppress("DEPRECATION")
+                    serviceInfo.host
+                }
+                val socket = Socket(host, serviceInfo.port)
                 socket.soTimeout = TIMEOUT_MS.toInt()
 
                 val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
@@ -371,7 +406,7 @@ class NetworkShareManager @Inject constructor(
 
             } catch (e: Exception) {
                 Timber.e(e, "❌ Erreur réception")
-                _shareState.value = ShareState.Error("Erreur réception: ${e.message}")
+                _shareState.value = ShareState.Error("Erreur réception : ${e.message}")
             }
         }
     }
@@ -462,7 +497,7 @@ class NetworkShareManager @Inject constructor(
     private fun getDeviceName(): String {
         return try {
             Build.MODEL?.replace(" ", "_") ?: "Unknown"
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "Device_${Random.nextInt(1000, 9999)}"
         }
     }

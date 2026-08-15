@@ -1,41 +1,82 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlinCompose)
-    
+
     // Google Services Gradle plugin for Firebase
     alias(libs.plugins.googleServices)
+    alias(libs.plugins.firebaseCrashlytics)
+    alias(libs.plugins.baselineProfile)
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
 android {
     namespace = "com.skyplayer.pro"
-    compileSdk = 35
+    compileSdk = 37
+
+    if (hasReleaseKeystore) {
+        signingConfigs {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.skyplayer.pro"
-        minSdk = 24  // Android 7.0+ pour compatibilité universelle
-        targetSdk = 35
+        minSdk = 26  // Android 8.0+ pour compatibilité universelle
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0.0-Pro"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        manifestPlaceholders["ALLOW_CLEARTEXT_TRAFFIC"] = "false"
         vectorDrawables {
             useSupportLibrary = true
         }
-        
+
         // Support multi-architecture pour tous les appareils
         ndk {
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
         }
 
-        // Configuration BUFFER AGRESSIF pour réseaux instables (Afrique)
-        // Objectif: 2 minutes d'avance maximum pour résister aux coupures
-        buildConfigField("int", "MIN_BUFFER_MS", "90000")    // 90s avant démarrage
-        buildConfigField("int", "MAX_BUFFER_MS", "120000")   // 120s MAXIMUM (2 min)
-        buildConfigField("int", "BUFFER_FOR_PLAYBACK_MS", "5000")
-        buildConfigField("int", "BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS", "10000")
+        // Buffering normal (défauts ExoPlayer pour une meilleure compatibilité)
+        buildConfigField("int", "BUFFER_FOR_PLAYBACK_MS", "2500")
+        buildConfigField("int", "BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS", "5000")
+        buildConfigField("int", "MIN_BUFFER_MS", "15000")
+        buildConfigField("int", "MAX_BUFFER_MS", "50000")
+        buildConfigField("boolean", "ALLOW_CLEARTEXT_TRAFFIC", "false")
+
+        // Injection des secrets depuis local.properties
+        val licenseKey = (localProperties.getProperty("LICENSE_API_KEY") ?: project.findProperty("LICENSE_API_KEY")?.toString() ?: "").let {
+            if (it.startsWith("\"") && it.endsWith("\"")) it else "\"$it\""
+        }
+        val backendUrl = (localProperties.getProperty("BACKEND_BASE_URL") ?: project.findProperty("BACKEND_BASE_URL")?.toString() ?: "").let {
+            if (it.startsWith("\"") && it.endsWith("\"")) it else "\"$it\""
+        }
+
+        buildConfigField("String", "LICENSE_API_KEY", licenseKey)
+        buildConfigField("String", "BACKEND_BASE_URL", backendUrl)
     }
 
     buildTypes {
@@ -46,9 +87,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            manifestPlaceholders["ALLOW_CLEARTEXT_TRAFFIC"] = "false"
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
             isMinifyEnabled = false
+            buildConfigField("boolean", "ALLOW_CLEARTEXT_TRAFFIC", "true")
+            manifestPlaceholders["ALLOW_CLEARTEXT_TRAFFIC"] = "true"
             // Note: Pas de applicationIdSuffix pour compatibilité google-services.json
             // Si vous voulez un suffixe, ajoutez le package name correspondant dans Firebase Console
         }
@@ -68,10 +115,26 @@ android {
         buildConfig = true
     }
 
+    // Baseline Profiles : génération avec ./gradlew :app:generateBaselineProfile (appareil requis)
+    baselineProfile {
+        // Le profil généré est sauvegardé dans src/main/baselineProfiles/baseline-prof.txt
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    lint {
+        checkReleaseBuilds = true
+        abortOnError = true
+        baseline = file("lint-baseline.xml")
+        checkAllWarnings = true
+        warningsAsErrors = false
+        showAll = true
+        xmlReport = true
+        htmlReport = true
     }
 }
 
@@ -80,7 +143,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
 
     // Compose BOM
@@ -90,9 +153,10 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons)
-    
+    implementation(libs.androidx.compose.foundation)
+
     // Material Components (pour les thèmes)
-    implementation("com.google.android.material:material:1.11.0")
+    implementation(libs.material)
 
     // Navigation Compose
     implementation(libs.navigation.compose)
@@ -117,6 +181,7 @@ dependencies {
     // Coil - Chargement et cache d'images
     implementation(libs.coil.compose)
     implementation(libs.coil.svg)
+    implementation(libs.coil.video)
 
     // DataStore - Préférences
     implementation(libs.androidx.datastore.preferences)
@@ -148,23 +213,33 @@ dependencies {
     implementation(libs.zxing.core)
 
     // Firebase - Backend configuration et abonnements
-    // Versions compatibles Kotlin 1.9.22
-    // Realtime Database pour config utilisateur et abonnements
-    implementation("com.google.firebase:firebase-database-ktx:20.3.0")
-    // Analytics pour statistiques d'usage - version 21.x stable
-    implementation("com.google.firebase:firebase-analytics-ktx:21.5.0")
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.database.ktx)
+    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.analytics.ktx)
+    implementation(libs.firebase.crashlytics.ktx)
 
-    // Testing
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
+    // Debug only (UI tooling)
     debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Tests unitaires
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+
+    // Baseline Profiles (tests instrumentés, exécution sur appareil)
+    implementation(libs.androidx.profileinstaller)
+    androidTestImplementation(libs.androidx.benchmark.macro.junit4)
+    androidTestImplementation(libs.androidx.junit)
 }
 
 // Configuration Google Services Plugin
 googleServices {
     disableVersionCheck = false
+}
+
+// Désactiver l'upload automatique des fichiers de mapping Crashlytics (évite les erreurs réseau)
+afterEvaluate {
+    tasks.withType<com.google.firebase.crashlytics.buildtools.gradle.tasks.UploadMappingFileTask>().configureEach {
+        enabled = false
+    }
 }

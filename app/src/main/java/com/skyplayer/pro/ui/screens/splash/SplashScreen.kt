@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SplashScreen(
     onNavigateToDashboard: () -> Unit,
+    onNavigateToWelcome: () -> Unit = {},
     viewModel: SplashViewModel = hiltViewModel()
 ) {
     val navigationEvent by viewModel.navigationEvent.collectAsStateWithLifecycle()
@@ -51,13 +52,12 @@ fun SplashScreen(
             when (event) {
                 is SplashViewModel.SplashNavigation.ToDashboard -> {
                     onNavigateToDashboard()
-                    viewModel.onNavigationConsumed()
                 }
-                else -> {
-                    onNavigateToDashboard()
-                    viewModel.onNavigationConsumed()
+                is SplashViewModel.SplashNavigation.ToWelcome -> {
+                    onNavigateToWelcome()
                 }
             }
+            viewModel.onNavigationConsumed()
         }
     }
     

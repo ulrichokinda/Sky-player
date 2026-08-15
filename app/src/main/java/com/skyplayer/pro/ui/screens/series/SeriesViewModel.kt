@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.ContentType
 import com.skyplayer.pro.data.organizer.ChannelCategory
+import com.skyplayer.pro.data.organizer.SeriesItem
 import com.skyplayer.pro.data.organizer.SmartContentOrganizer
 import com.skyplayer.pro.data.repository.ChannelRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,9 +53,34 @@ class SeriesViewModel @Inject constructor(
                 }
                 .collectLatest { allSeries ->
                     val organized = contentOrganizer.organizeChannels(allSeries)
-                    _categories.value = organized.series
-                    if (_selectedCategory.value == null && organized.series.isNotEmpty()) {
-                        _selectedCategory.value = organized.series.first().name
+                    
+                    // Convertir SeriesItem en ChannelCategory pour la Sidebar
+                    val seriesCategories = organized.series
+                        .groupBy { it.category }
+                        .map { (catName, items) ->
+                            ChannelCategory(
+                                name = catName,
+                                channels = items.map { seriesItem ->
+                                    val firstEp = seriesItem.seasons.firstOrNull()?.episodes?.firstOrNull()
+                                    Channel(
+                                        id = "series_${seriesItem.title}",
+                                        name = seriesItem.title,
+                                        url = firstEp?.url ?: "",
+                                        logoUrl = seriesItem.coverUrl,
+                                        category = seriesItem.category,
+                                        type = ContentType.VOD_SERIES,
+                                        groupTitle = seriesItem.category
+                                    )
+                                },
+                                type = ContentType.VOD_SERIES
+                            )
+                        }
+                        .sortedBy { it.name }
+
+                    _categories.value = seriesCategories
+                    
+                    if (_selectedCategory.value == null && seriesCategories.isNotEmpty()) {
+                        _selectedCategory.value = seriesCategories.first().name
                     }
                     updateCurrentSeries()
                     _isLoading.value = false

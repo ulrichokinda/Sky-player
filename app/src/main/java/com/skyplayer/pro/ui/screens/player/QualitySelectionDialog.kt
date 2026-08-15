@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +24,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Sd
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -59,11 +58,11 @@ fun QualitySelectionDialog(
     viewModel: PlayerViewModel,
     onDismiss: () -> Unit
 ) {
-    val adaptiveManager = viewModel.adaptiveBitrateManager
-    val currentQuality by adaptiveManager.currentQuality.collectAsStateWithLifecycle()
-    val availableQualities by adaptiveManager.availableQualities.collectAsStateWithLifecycle()
-    val networkStability by adaptiveManager.networkStability.collectAsStateWithLifecycle()
-    val bandwidthEstimate by adaptiveManager.bandwidthEstimate.collectAsStateWithLifecycle()
+    val adaptiveManager = viewModel.abrManager
+    val currentQuality by adaptiveManager.currentQuality.collectAsStateWithLifecycle(initialValue = AdaptiveBitrateManager.VideoQuality.AUTO)
+    val availableQualities by adaptiveManager.availableQualities.collectAsStateWithLifecycle(initialValue = emptyList())
+    val networkStability by adaptiveManager.networkStability.collectAsStateWithLifecycle(initialValue = AdaptiveBitrateManager.NetworkStability.UNKNOWN)
+    val bandwidthEstimate by adaptiveManager.bandwidthEstimate.collectAsStateWithLifecycle(initialValue = 0L)
     val recommendation = adaptiveManager.getQualityRecommendation()
     
     Dialog(
@@ -179,7 +178,7 @@ private fun NetworkStatusCard(
 ) {
     val (backgroundColor, statusText, icon) = when (stability) {
         NetworkStability.EXCELLENT -> 
-            Triple(Color(0xFF00E676), "Excellent", Icons.Filled.Speed)
+            Triple(Color(0xFF00E676), "Excellent", Icons.Default.Speed)
         NetworkStability.GOOD -> 
             Triple(Color(0xFF00AEEF), "Bon", Icons.Default.NetworkCheck)
         NetworkStability.STABLE -> 
@@ -252,9 +251,9 @@ private fun QualityOptionItem(
     onClick: () -> Unit
 ) {
     val icon = when {
-        quality == VideoQuality.AUTO -> Icons.Filled.Speed
-        quality.height >= 1080 -> Icons.Filled.HighQuality
-        else -> Icons.Filled.Sd
+        quality == VideoQuality.AUTO -> Icons.Default.Speed
+        quality.height >= 1080 -> Icons.Default.HighQuality
+        else -> Icons.Default.Tv
     }
     
     val resolutionBadge = when {

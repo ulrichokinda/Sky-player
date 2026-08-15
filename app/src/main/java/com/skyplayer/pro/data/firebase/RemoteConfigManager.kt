@@ -92,6 +92,7 @@ class RemoteConfigManager @Inject constructor(
                 
                 try {
                     // Lecture sécurisée des données
+                    @Suppress("UNCHECKED_CAST")
                     val data = snapshot.value as? Map<String, Any>
                     val config = RemoteConfig.fromMap(data)
                     
@@ -139,23 +140,20 @@ class RemoteConfigManager @Inject constructor(
     }
     
     /**
-     * Traite une config valide : arrête écoute, supprime, notifie
+     * Traite une config valide : notifie, supprime, continue d'écouter
      */
     private fun handleValidConfig(
         deviceId: String, 
         config: RemoteConfig,
         configRef: com.google.firebase.database.DatabaseReference
     ) {
-        // 1. Arrêter immédiatement l'écoute pour économiser ressources
-        stopListening()
-        
-        // 2. Notifier l'UI
+        // 1. Notifier l'UI
         _configState.value = RemoteConfigState.Received(config)
         
-        // 3. Notifier événement succès
+        // 2. Notifier événement succès
         _events.tryEmit("Configuration reçue avec succès")
         
-        // 4. Supprimer de Firebase APRÈS confirmation lecture (sécurité)
+        // 3. Supprimer de Firebase APRÈS confirmation lecture (sécurité)
         configRef.removeValue()
             .addOnSuccessListener {
                 Timber.i("🗑️ Config supprimée de Firebase (sécurité)")
@@ -232,9 +230,8 @@ class RemoteConfigManager @Inject constructor(
      */
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+        return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
     
     /**

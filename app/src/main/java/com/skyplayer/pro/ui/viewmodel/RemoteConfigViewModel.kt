@@ -7,6 +7,7 @@ import com.skyplayer.pro.data.firebase.RemoteConfigManager
 import com.skyplayer.pro.data.license.LicenseManager
 import com.skyplayer.pro.data.model.RemoteConfig
 import com.skyplayer.pro.data.model.RemoteConfigState
+import com.skyplayer.pro.data.repository.PlaylistLoadProgress
 import com.skyplayer.pro.data.repository.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -116,60 +116,82 @@ class RemoteConfigViewModel @Inject constructor(
     /**
      * Charge la playlist Xtream et notifie le succès
      */
-    private suspend fun loadXtreamPlaylist(
+    private fun loadXtreamPlaylist(
         config: RemoteConfig.XtreamConfig,
         onComplete: () -> Unit
     ) {
         val playlistUrl = config.toPlaylistUrl()
         val playlistName = "Xtream ${config.user}"
         
-        try {
-            // Sauvegarder dans Room
-            playlistRepository.addPlaylist(
-                name = playlistName,
-                url = playlistUrl,
-                type = "XTREAM",
-                username = config.user,
-                password = config.pass,
-                serverUrl = config.host
-            )
-            
-            // Confirmer l'application
-            remoteConfigManager.confirmApplied(playlistName)
-            
-            Timber.i("✅ Playlist Xtream chargée: $playlistName")
-            onComplete()
-            
-        } catch (e: Exception) {
-            Timber.e(e, "❌ Erreur chargement Xtream")
-        } finally {
-            _isLoading.value = false
+        viewModelScope.launch {
+            try {
+                // Sauvegarder dans Room
+                playlistRepository.addPlaylist(
+                    name = playlistName,
+                    url = playlistUrl,
+                    type = "XTREAM",
+                    username = config.user,
+                    password = config.pass,
+                    serverUrl = config.host
+                ).collect { progress ->
+                    when (progress) {
+                        is PlaylistLoadProgress.Loading -> {
+                            Timber.i("⏳ Chargement Xtream: ${progress.message}")
+                        }
+                        is PlaylistLoadProgress.Success -> {
+                            // Confirmer l'application
+                            remoteConfigManager.confirmApplied(playlistName)
+                            Timber.i("✅ Playlist Xtream chargée: $playlistName")
+                            onComplete()
+                            _isLoading.value = false
+                        }
+                        is PlaylistLoadProgress.Error -> {
+                            Timber.e(progress.exception, "❌ Erreur chargement Xtream")
+                            _isLoading.value = false
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "❌ Erreur chargement Xtream")
+                _isLoading.value = false
+            }
         }
     }
     
     /**
      * Charge la playlist M3U et notifie le succès
      */
-    private suspend fun loadM3uPlaylist(
+    private fun loadM3uPlaylist(
         config: RemoteConfig.M3uConfig,
         onComplete: () -> Unit
     ) {
-        try {
-            playlistRepository.addPlaylist(
-                name = config.name,
-                url = config.url,
-                type = "M3U"
-            )
-            
-            remoteConfigManager.confirmApplied(config.name)
-            
-            Timber.i("✅ Playlist M3U chargée: ${config.name}")
-            onComplete()
-            
-        } catch (e: Exception) {
-            Timber.e(e, "❌ Erreur chargement M3U")
-        } finally {
-            _isLoading.value = false
+        viewModelScope.launch {
+            try {
+                playlistRepository.addPlaylist(
+                    name = config.name,
+                    url = config.url,
+                    type = "M3U"
+                ).collect { progress ->
+                    when (progress) {
+                        is PlaylistLoadProgress.Loading -> {
+                            Timber.i("⏳ Chargement M3U: ${progress.message}")
+                        }
+                        is PlaylistLoadProgress.Success -> {
+                            remoteConfigManager.confirmApplied(config.name)
+                            Timber.i("✅ Playlist M3U chargée: ${config.name}")
+                            onComplete()
+                            _isLoading.value = false
+                        }
+                        is PlaylistLoadProgress.Error -> {
+                            Timber.e(progress.exception, "❌ Erreur chargement M3U")
+                            _isLoading.value = false
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "❌ Erreur chargement M3U")
+                _isLoading.value = false
+            }
         }
     }
     

@@ -134,10 +134,12 @@ fun ChannelLoadMonitor(
                 }
 
                 // Dernière mise à jour
-                if (lastLoadTime.isNotEmpty()) {
+                if (lastLoadTime > 0) {
+                    val formattedTime = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+                        .format(java.util.Date(lastLoadTime))
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Mis à jour: $lastLoadTime",
+                        text = "Mis à jour: $formattedTime",
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 10.sp
                     )

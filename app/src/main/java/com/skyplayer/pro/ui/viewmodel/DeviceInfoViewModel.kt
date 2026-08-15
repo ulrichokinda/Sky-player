@@ -8,12 +8,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * ViewModel pour les informations appareil
- * Fournit l'ID/MAC persistant pour affichage
+ * ViewModel simple pour exposer les informations de l'appareil (DeviceId/MAC)
  */
 @HiltViewModel
 class DeviceInfoViewModel @Inject constructor(
@@ -24,26 +22,8 @@ class DeviceInfoViewModel @Inject constructor(
     val deviceId: StateFlow<String> = _deviceId.asStateFlow()
 
     init {
-        loadDeviceId()
-    }
-
-    private fun loadDeviceId() {
         viewModelScope.launch {
-            try {
-                val id = licenseManager.getDeviceId()
-                _deviceId.value = id
-                Timber.d("📱 Device ID chargé: $id")
-            } catch (e: Exception) {
-                Timber.e(e, "❌ Erreur chargement Device ID")
-                _deviceId.value = ""
-            }
+            _deviceId.value = licenseManager.getDeviceId()
         }
-    }
-
-    /**
-     * Force le rafraîchissement de l'ID
-     */
-    fun refreshDeviceId() {
-        loadDeviceId()
     }
 }

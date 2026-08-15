@@ -64,8 +64,8 @@ fun TvChannelCard(
     isFavorite: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    focusRequester: FocusRequester,
     onFocusChanged: (Boolean) -> Unit,
+    focusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -131,10 +131,8 @@ fun TvChannelCard(
                 shape = RoundedCornerShape(12.dp),
                 spotColor = if (isFocused) MaterialTheme.colorScheme.primary else Color.Black
             )
-            .focusRequester(focusRequester)
-            .onFocusChanged { focusState ->
-                onFocusChanged(focusState.isFocused)
-            }
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged { onFocusChanged(it.isFocused) }
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = {

@@ -12,7 +12,13 @@
  *     "expire": "2026-12-31", "type": "m3u|xtream" }
  */
 
-header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/config.php';
+
+// Début du script
+$requestId = uniqid('req_', true);
+skyLog("{$requestId} - Début de la requête check_mac.php depuis {$_SERVER['REQUEST_METHOD']}", 'info');
+
+header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, X-App-Key');
@@ -23,20 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// ── Configuration base de données ────────────────────────────────────────────
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'skyplayer_db');
-define('DB_USER', 'skyplayer_user');
-define('DB_PASS', 'VOTRE_MOT_DE_PASSE_ICI');
-define('DB_CHARSET', 'utf8mb4');
-
-// ── Clé d'authentification applicative optionnelle ───────────────────────────
-define('APP_KEY', 'skyplayer_pro');
-
-// ── Validation clé d'app (optionnel) ─────────────────────────────────────────
-$appKey = $_SERVER['HTTP_X_APP_KEY'] ?? '';
-// Décommenter pour activer la validation stricte :
-// if ($appKey !== APP_KEY) { jsonError(401, 'Unauthorized'); }
+requireAppKey();
 
 // ── Récupération de l'adresse MAC ────────────────────────────────────────────
 $rawMac = '';
@@ -54,6 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if (empty($rawMac)) {
+    skyLog("{$requestId} - MAC brute reçue: {$rawMac}", 'info');
+}
+
+if (empty($rawMac)) {
+    skyLog("{$requestId} - Erreur: Paramètre mac_address manquant", 'error');
     jsonError(400, 'Paramètre mac_address manquant');
 }
 
@@ -63,18 +61,16 @@ $cleanMac = preg_replace('/[-\s]/', ':', $cleanMac);  // tirets → deux-points
 
 // Validation format (accepte 6 ou 8 groupes pour les IDs virtuels de l'app)
 if (!preg_match('/^([0-9A-F]{2}:){5,7}[0-9A-F]{2}$/', $cleanMac)) {
+    skyLog("{$requestId} - Erreur: Format mac_address invalide {$cleanMac}", 'error');
     jsonError(400, 'Format mac_address invalide : ' . $cleanMac);
 }
 
 // ── Connexion PDO ─────────────────────────────────────────────────────────────
 try {
-    $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-    $pdo = new PDO($dsn, DB_USER, DB_PASS, [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
-    ]);
+    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
+    skyLog("{$requestId} - Erreur de connexion DB: " . $e->getMessage(), 'error');
     error_log('[SkyPlayer] DB connection error: ' . $e->getMessage());
     jsonError(503, 'Service temporairement indisponible');
 }
@@ -102,9 +98,12 @@ $stmt->execute([':mac' => $cleanMac]);
 $row = $stmt->fetch();
 
 if (!$row) {
+    skyLog("{$requestId} - Aucune playlist active pour {$cleanMac}", 'info');
     echo json_encode(['status' => 'no_playlist']);
     exit;
 }
+
+skyLog("{$requestId} - Playlist trouvée pour {$cleanMac}: {$row['playlist_name']} ({$row['playlist_type']})", 'info');
 
 // ── Construction de la réponse selon le type de playlist ─────────────────────
 $response = [
@@ -129,11 +128,15 @@ if ($row['playlist_type'] === 'xtream') {
     $response['url'] = $row['playlist_url'];
 }
 
+skyLog("{$requestId} - Réponse envoyée avec succès", 'info');
+
 echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 exit;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function jsonError(int $code, string $message): void {
+    global $requestId;
+    skyLog("{$requestId} - Erreur {$code}: {$message}", 'error');
     http_response_code($code);
     echo json_encode(['status' => 'error', 'message' => $message]);
     exit;

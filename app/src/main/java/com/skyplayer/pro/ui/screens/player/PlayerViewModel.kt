@@ -2,7 +2,6 @@ package com.skyplayer.pro.ui.screens.player
 
 import androidx.media3.common.util.UnstableApi
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -11,9 +10,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
-import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import com.skyplayer.pro.BuildConfig
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.PlayerConnectionState
 import com.skyplayer.pro.data.monitor.StreamHealthMonitor
@@ -24,7 +23,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -49,15 +50,19 @@ class PlayerViewModel @Inject constructor(
     private val encryptedPrefs: com.skyplayer.pro.data.encrypted.EncryptedPrefs
 ) : ViewModel() {
 
+    companion object {
+        private val LIVE_CONTENT_TYPES = com.skyplayer.pro.data.repository.ChannelRepository.LIVE_CONTENT_TYPES
+    }
+
     // EPG
     private val _currentProgram = MutableStateFlow<com.skyplayer.pro.data.model.EpgProgram?>(null)
     val currentProgram: StateFlow<com.skyplayer.pro.data.model.EpgProgram?> = _currentProgram.asStateFlow()
 
     private val _exoPlayer = MutableStateFlow<ExoPlayer?>(null)
     val exoPlayer: StateFlow<ExoPlayer?> = _exoPlayer.asStateFlow()
-    
+
     // Gestionnaire de qualité adaptative (ABR)
-    val adaptiveBitrateManager = AdaptiveBitrateManager(player, trackSelector)
+    val abrManager = AdaptiveBitrateManager(player, trackSelector)
 
     private val _connectionState = MutableStateFlow<PlayerConnectionState>(PlayerConnectionState.Idle)
     val connectionState: StateFlow<PlayerConnectionState> = _connectionState.asStateFlow()
@@ -66,20 +71,26 @@ class PlayerViewModel @Inject constructor(
     private val _isDataSaverEnabled = MutableStateFlow(encryptedPrefs.isDataSaverEnabled())
     val isDataSaverEnabled: StateFlow<Boolean> = _isDataSaverEnabled.asStateFlow()
 
+    // Événements Safety Mode pour l'UI
+    private val _safetyMessage = MutableStateFlow<String?>(null)
+    val safetyMessage: StateFlow<String?> = _safetyMessage.asStateFlow()
+
     // États de santé du stream (Failover)
     val healthState = streamHealthMonitor.healthState
     val fallbackInfo = streamHealthMonitor.fallbackInfo
 
-    private var currentChannel: Channel? = null
+    private val _currentChannel = MutableStateFlow<Channel?>(null)
+    public val currentChannel: StateFlow<Channel?> = _currentChannel.asStateFlow()
+
     private var retryCount = 0
     private var retryJob: Job? = null
     private var bufferMonitorJob: Job? = null
     private val maxRetries = 15 // Augmenté pour réseaux très instables
-    
+
     // Configuration de la reconnexion exponentielle
     private val baseDelayMs = 2000L // 2 secondes initiales
     private val maxDelayMs = 120000L // 2 minutes max entre tentatives
-    
+
     // État du buffer pour l'UI
     private val _bufferState = MutableStateFlow(BufferState())
     val bufferState: StateFlow<BufferState> = _bufferState.asStateFlow()
@@ -105,13 +116,13 @@ class PlayerViewModel @Inject constructor(
                 Player.STATE_ENDED -> {
                     isPlaying = false
                     stopBufferMonitoring()
-                    if (currentChannel?.type?.name == "LIVE_TV") {
+                    if (_currentChannel.value?.type in LIVE_CONTENT_TYPES) {
                         attemptReconnect()
                     }
                 }
             }
         }
-        
+
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             isPlaying = playWhenReady
         }
@@ -119,7 +130,7 @@ class PlayerViewModel @Inject constructor(
         override fun onPlayerErrorChanged(error: PlaybackException?) {
             error?.let {
                 Timber.e(it, "Erreur lecture ExoPlayer: ${it.errorCodeName} - ${it.message}")
-                
+
                 // Log détaillé pour debugging réseau
                 when (it.errorCode) {
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ->
@@ -131,7 +142,7 @@ class PlayerViewModel @Inject constructor(
                     PlaybackException.ERROR_CODE_TIMEOUT ->
                         Timber.w("Timeout général - Buffer insuffisant ou réseau coupé")
                 }
-                
+
                 // Déterminer si l'erreur est récupérable
                 val isRecoverable = when (it.errorCode) {
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
@@ -142,7 +153,7 @@ class PlayerViewModel @Inject constructor(
                     PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> true
                     else -> it.cause is IOException || it.cause is java.net.SocketTimeoutException
                 }
-                
+
                 if (isRecoverable && retryCount < maxRetries) {
                     _connectionState.value = PlayerConnectionState.Error(it, retryCount)
                     attemptReconnect()
@@ -154,17 +165,16 @@ class PlayerViewModel @Inject constructor(
                 }
             }
         }
-        
+
         override fun onIsLoadingChanged(isLoading: Boolean) {
             Timber.d("Chargement réseau: $isLoading")
         }
-        
+
         override fun onTracksChanged(tracks: Tracks) {
-            // Analyser les pistes disponibles pour extraction des qualités
-            adaptiveBitrateManager.analyzeAvailableTracks(tracks)
+            abrManager.analyzeAvailableTracks(tracks)
         }
     }
-    
+
     /**
      * Surveillance du buffer pour affichage UI et debugging
      */
@@ -175,22 +185,22 @@ class PlayerViewModel @Inject constructor(
                 try {
                     val bufferedPosition = player.bufferedPosition
                     val totalBufferedDuration = player.totalBufferedDuration
-                    
+
                     _bufferState.value = BufferState(
                         bufferedPositionMs = bufferedPosition,
                         totalBufferedDurationMs = totalBufferedDuration,
                         bufferedPercentage = player.bufferedPercentage
                     )
-                    
+
                     // Mettre à jour le gestionnaire de qualité adaptative
-                    adaptiveBitrateManager.updateBufferState(totalBufferedDuration)
-                    
+                    abrManager.updateBufferState(totalBufferedDuration)
+
                     // Log toutes les 5 secondes
                     if (totalBufferedDuration > 0) {
                         val seconds = totalBufferedDuration / 1000
-                        Timber.d("Buffer: ${seconds}s / 120s max (${player.bufferedPercentage}%)")
+                        Timber.d("Buffer: ${seconds}s / ${BuildConfig.MAX_BUFFER_MS / 1000}s max (${player.bufferedPercentage}%)")
                     }
-                    
+
                     delay(1000) // Mettre à jour chaque seconde
                 } catch (e: Exception) {
                     // Ignorer les erreurs de monitoring
@@ -198,7 +208,7 @@ class PlayerViewModel @Inject constructor(
             }
         }
     }
-    
+
     private fun stopBufferMonitoring() {
         bufferMonitorJob?.cancel()
         bufferMonitorJob = null
@@ -209,9 +219,7 @@ class PlayerViewModel @Inject constructor(
         _exoPlayer.value = player
 
         // Appliquer Turbo Mode si activé par défaut
-        if (_isDataSaverEnabled.value) {
-            adaptiveBitrateManager.setQuality(AdaptiveBitrateManager.VideoQuality.SD_420)
-        }
+        abrManager.setDataSaverEnabled(_isDataSaverEnabled.value)
 
         // Configurer les callbacks du Health Monitor pour le failover automatique
         streamHealthMonitor.onSwitchToMirror = { mirrorUrl ->
@@ -220,6 +228,23 @@ class PlayerViewModel @Inject constructor(
 
         streamHealthMonitor.onSwitchToAlternative = { alternative ->
             switchToAlternative(alternative)
+        }
+
+        // Observer les événements Safety du gestionnaire de qualité
+        viewModelScope.launch {
+            abrManager.safetyEvents.collect { event ->
+                when (event) {
+                    AdaptiveBitrateManager.SafetyEvent.QUALITY_DOWNGRADE_BUFFER_LOW -> {
+                        _safetyMessage.value = "⚠️ Réseau instable : Passage en qualité réduite pour éviter les coupures"
+                        delay(5000)
+                        _safetyMessage.value = null
+                    }
+                    AdaptiveBitrateManager.SafetyEvent.NETWORK_UNSTABLE_STAYING_LOW -> {
+                        _safetyMessage.value = "🐢 Connexion lente : Maintien en basse qualité"
+                    }
+                    else -> {}
+                }
+            }
         }
     }
 
@@ -230,7 +255,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             Timber.i("🔄 Failover: Bascule vers miroir $mirrorUrl")
             val currentPos = player.currentPosition
-            
+
             player.stop()
             player.setMediaItem(MediaItem.fromUri(mirrorUrl))
             player.prepare()
@@ -245,8 +270,8 @@ class PlayerViewModel @Inject constructor(
     private fun switchToAlternative(alternative: Channel) {
         viewModelScope.launch {
             Timber.i("🔄 Failover: Bascule vers alternative ${alternative.name}")
-            currentChannel = alternative
-            
+            _currentChannel.value = alternative
+
             player.stop()
             player.setMediaItem(MediaItem.fromUri(alternative.url))
             player.prepare()
@@ -254,46 +279,76 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private var allChannelsInContext: List<Channel> = emptyList()
+
+    /**
+     * Zapping direct par numéro
+     */
+    fun zapToNumber(number: Int) {
+        viewModelScope.launch {
+            val channel = channelRepository.getAllChannels().first().find { 
+                // Pour Xtream, on peut chercher dans un champ 'num' si dispo, sinon on utilise l'index
+                it.id.endsWith("_$number") || it.name.contains("#$number")
+            }
+            channel?.let { loadChannel(it.id) }
+        }
+    }
+
+    /**
+     * Bascule entre ExoPlayer et VLC
+     */
+    fun togglePlayerEngine() {
+        // Logique pour changer de moteur de lecture (nécessite une implémentation de LibVLC)
+        Timber.d("Bascule du moteur de lecture demandée")
+    }
+
     /**
      * Charge un canal pour la lecture avec gestion intelligente du buffer et Health Monitoring
-     * Intègre le pré-chargement pour zapping instantané (Suggestion 1)
+     * Intègre le pré-chargement pour zapping instantané
      */
     fun loadChannel(channelId: String) {
         viewModelScope.launch {
             try {
                 _connectionState.value = PlayerConnectionState.Connecting
-                
+
                 val channel = channelRepository.getChannelById(channelId)
-                currentChannel = channel
+                _currentChannel.value = channel
                 
+                // Charger le contexte de zapping (même catégorie)
+                channel?.let { ch ->
+                    channelRepository.getAllChannels().first().let { all ->
+                        allChannelsInContext = all.filter { it.category == ch.category && it.type == ch.type }
+                    }
+                }
+
                 channel?.let {
                     Timber.d("Chargement canal: ${it.name} - URL: ${it.url}")
-                    
+
                     // 1. Tenter récupération du player pré-chargé (Zapping instantané)
                     val prefetchedPlayer = prefetchManager.getPrefetchedPlayer(it.id)
-                    
+
                     if (prefetchedPlayer != null) {
                         Timber.i("⚡ Zapping INSTANTANÉ pour ${it.name}")
                     }
-                    
+
                     // 2. Créer MediaItem et DÉMARRER IMMÉDIATEMENT (priorité = playback rapide)
-                        val mediaItem = MediaItem.Builder()
-                            .setUri(it.url)
-                            .setLiveConfiguration(
-                                MediaItem.LiveConfiguration.Builder()
-                                    .setMaxPlaybackSpeed(1.02f) // Léger catch-up pour live
-                                    .setMinPlaybackSpeed(0.98f)
-                                    .build()
-                            )
-                            .build()
-                        
-                        player.setMediaItem(mediaItem)
-                        player.prepare()
-                        player.playWhenReady = true
-                        
-                        Timber.i("Lecture démarrée: ${it.name}")
-                        
-                    // 3. Opérations non-bloquantes en arrière-plan (ne retardent pas le playback)
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(it.url)
+                        .setLiveConfiguration(
+                            MediaItem.LiveConfiguration.Builder()
+                                .setMaxPlaybackSpeed(1.02f) // Léger catch-up pour live
+                                .setMinPlaybackSpeed(0.98f)
+                                .build()
+                        )
+                        .build()
+
+                    player.setMediaItem(mediaItem)
+                    player.prepare()
+                    player.playWhenReady = true
+
+                    Timber.i("Lecture démarrée: ${it.name}")
+
+                    // 3. Opérations non-bloquantes en arrière-plan
                     viewModelScope.launch {
                         try {
                             val allChannels = channelRepository.getAllChannels().first()
@@ -303,12 +358,12 @@ class PlayerViewModel @Inject constructor(
                             Timber.w(e, "Health/Prefetch init secondaire échoué (non bloquant)")
                         }
                     }
-                        
-                        // Enregistrer dans l'historique
-                        channelRepository.updateLastWatched(channelId)
-                        
-                        // Charger EPG
-                        loadEpg(it.epgId)
+
+                    // Enregistrer dans l'historique
+                    channelRepository.updateLastWatched(channelId)
+
+                    // Charger EPG
+                    loadEpg(it.epgId)
                 } ?: run {
                     _connectionState.value = PlayerConnectionState.Error(
                         Exception("Canal non trouvé"), 0
@@ -328,67 +383,48 @@ class PlayerViewModel @Inject constructor(
      * Formule: min(baseDelay * 2^retryCount, maxDelay)
      */
     private fun attemptReconnect() {
-        retryJob?.cancel()
-        
-        if (retryCount >= maxRetries) {
-            Timber.w("Nombre max de tentatives atteint ($maxRetries)")
-            _connectionState.value = PlayerConnectionState.Error(
-                Exception("Connexion impossible après $maxRetries tentatives. Vérifiez votre réseau."),
-                retryCount
-            )
-            return
-        }
-        
-        retryCount++
-        
-        // Calcul du délai exponentiel avec jitter pour éviter les storms
-        val baseDelay = baseDelayMs * (2.0.pow(retryCount - 1)).toLong()
-        val jitter = (0..2000).random() // Jitter aléatoire 0-2s
-        val delayMs = min(baseDelay + jitter, maxDelayMs)
-        
-        Timber.d("Tentative de reconnexion $retryCount/$maxRetries dans ${delayMs/1000}s (buffer: ${_bufferState.value.totalBufferedDurationMs/1000}s)")
-        
-        retryJob = viewModelScope.launch {
-            _connectionState.value = PlayerConnectionState.Reconnecting
-            delay(delayMs)
+        if (retryCount < maxRetries) {
+            retryCount++
+            // Backoff exponentiel type YouTube : 2s, 4s, 8s, 16s...
+            val delayMs = (2000L * Math.pow(2.0, (retryCount - 1).toDouble())).toLong()
             
-            currentChannel?.let { channel ->
-                try {
-                    Timber.d("Reconnexion à: ${channel.url}")
-                    
-                    // Reset complet du player pour clean state
-                    player.stop()
-                    player.clearMediaItems()
-                    
-                    // Recréer le MediaItem
-                    val mediaItem = MediaItem.Builder()
-                        .setUri(channel.url)
-                        .setLiveConfiguration(
-                            MediaItem.LiveConfiguration.Builder()
-                                .setMaxPlaybackSpeed(1.02f)
-                                .setMinPlaybackSpeed(0.98f)
-                                .build()
-                        )
-                        .build()
-                    
-                    player.setMediaItem(mediaItem)
-                    player.prepare()
-                    player.playWhenReady = true
-                    
-                    Timber.i("Reconnexion réussie tentative $retryCount")
-                    
-                } catch (e: Exception) {
-                    Timber.e(e, "Échec reconnexion tentative $retryCount")
-                    if (retryCount < maxRetries) {
+            Timber.w("🔄 Tentative de reconnexion $retryCount/$maxRetries dans ${delayMs}ms...")
+            
+            retryJob?.cancel()
+            retryJob = viewModelScope.launch {
+                delay(delayMs)
+                _connectionState.value = PlayerConnectionState.Reconnecting
+                
+                _currentChannel.value?.let { channel ->
+                    try {
+                        Timber.d("Reconnexion à: ${channel.url}")
+                        player.stop()
+                        player.clearMediaItems()
+                        val mediaItem = MediaItem.Builder()
+                            .setUri(channel.url)
+                            .setLiveConfiguration(
+                                MediaItem.LiveConfiguration.Builder()
+                                    .setMaxPlaybackSpeed(1.02f)
+                                    .setMinPlaybackSpeed(0.98f)
+                                    .build()
+                            )
+                            .build()
+                        player.setMediaItem(mediaItem)
+                        player.prepare()
+                        player.playWhenReady = true
+                        Timber.i("Reconnexion réussie tentative $retryCount")
+                    } catch (e: Exception) {
+                        Timber.e(e, "Échec reconnexion tentative $retryCount")
                         attemptReconnect()
-                    } else {
-                        _connectionState.value = PlayerConnectionState.Error(e, retryCount)
                     }
                 }
             }
+        } else {
+            Timber.e("❌ Échec définitif après $maxRetries tentatives")
+            _connectionState.value = PlayerConnectionState.Error(Exception("Max retries reached"), retryCount)
         }
     }
-    
+
     /**
      * Données du buffer pour monitoring
      */
@@ -414,19 +450,20 @@ class PlayerViewModel @Inject constructor(
      */
     fun retry() {
         retryCount = 0
-        currentChannel?.let {
+        _currentChannel.value?.let {
+            Timber.d("Reprise de la lecture: ${it.name}")
             loadChannel(it.id)
         }
     }
-    
+
     // === CONTRÔLES LECTURE ===
-    
+
     var isPlaying by mutableStateOf(false)
         private set
-    
+
     var playbackSpeed by mutableStateOf(1.0f)
         private set
-    
+
     /**
      * Toggle Play/Pause
      */
@@ -437,7 +474,7 @@ class PlayerViewModel @Inject constructor(
             Timber.d("Lecture: ${if (isPlaying) "Play" else "Pause"}")
         }
     }
-    
+
     /**
      * Seek backward 10s
      */
@@ -448,7 +485,7 @@ class PlayerViewModel @Inject constructor(
             Timber.d("Retour -10s: ${newPosition/1000}s")
         }
     }
-    
+
     /**
      * Seek forward 10s
      */
@@ -459,7 +496,7 @@ class PlayerViewModel @Inject constructor(
             Timber.d("Avance +10s: ${newPosition/1000}s")
         }
     }
-    
+
     /**
      * Définir la vitesse de lecture
      */
@@ -471,31 +508,20 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Définir la qualité vidéo
-     */
     fun setVideoQuality(quality: AdaptiveBitrateManager.VideoQuality) {
-        adaptiveBitrateManager.setQuality(quality)
-        Timber.d("Qualité vidéo changée: ${quality}")
+        abrManager.setQuality(quality)
     }
 
     /**
-     * Bascule le mode économie de données (force SD/480p)
+     * Active/Désactive le Turbo Mode (Économie de données)
      */
-    fun toggleDataSaver() {
+    fun toggleTurboMode() {
         val newState = !_isDataSaverEnabled.value
         _isDataSaverEnabled.value = newState
         encryptedPrefs.saveDataSaverEnabled(newState)
-        
-        if (newState) {
-            adaptiveBitrateManager.setQuality(AdaptiveBitrateManager.VideoQuality.SD_420)
-            Timber.i("🚀 Mode Turbo activé (Persisté)")
-        } else {
-            adaptiveBitrateManager.setQuality(AdaptiveBitrateManager.VideoQuality.AUTO)
-            Timber.i("🚀 Mode Turbo désactivé")
-        }
+        abrManager.setDataSaverEnabled(newState)
     }
-    
+
     /**
      * Charge l'EPG pour le canal actuel
      */
@@ -505,21 +531,59 @@ class PlayerViewModel @Inject constructor(
             _currentProgram.value = epgRepository.getCurrentProgram(epgId)
         }
     }
+    /**
+     * Zapping : Chaîne suivante
+     */
+    fun zapNext() {
+        val currentIndex = allChannelsInContext.indexOfFirst { it.id == _currentChannel.value?.id }
+        if (currentIndex != -1 && allChannelsInContext.isNotEmpty()) {
+            val nextIndex = (currentIndex + 1) % allChannelsInContext.size
+            loadChannel(allChannelsInContext[nextIndex].id)
+        }
+    }
+
+    /**
+     * Zapping : Chaîne précédente
+     */
+    fun zapPrevious() {
+        val currentIndex = allChannelsInContext.indexOfFirst { it.id == _currentChannel.value?.id }
+        if (currentIndex != -1 && allChannelsInContext.isNotEmpty()) {
+            val prevIndex = if (currentIndex > 0) currentIndex - 1 else allChannelsInContext.size - 1
+            loadChannel(allChannelsInContext[prevIndex].id)
+        }
+    }
+
     fun releasePlayer() {
+        Timber.i("🛡️ Libération sécurisée du lecteur")
+        
+        // 1. Arrêter les jobs de surveillance et de reconnexion
         retryJob?.cancel()
-        adaptiveBitrateManager.reset()
+        retryJob = null
+        bufferMonitorJob?.cancel()
+        bufferMonitorJob = null
+        
+        // 2. Réinitialiser les gestionnaires externes
+        abrManager.reset()
         streamHealthMonitor.stopMonitoring()
-        player.removeListener(playerListener)
-        player.stop()
-        player.clearMediaItems()
-        // NOTE: Ne pas appeler player.release() ici si player est injecté via Hilt sans @Singleton
-        // Car Hilt pourrait fournir la même instance à d'autres composants.
-        // On laisse le Garbage Collector ou le module gérer la libération.
+        
+        // 3. Libérer ExoPlayer proprement
+        player.let {
+            it.removeListener(playerListener)
+            it.stop()
+            it.clearMediaItems()
+            // On ne release pas forcément ici si l'instance est injectée en Singleton,
+            // mais on s'assure qu'elle ne consomme plus de ressources réseau/CPU.
+            // Si l'instance est unique par ViewModel, on peut release().
+            // Dans ce projet, elle semble être injectée.
+        }
+        
         _exoPlayer.value = null
+        _connectionState.value = PlayerConnectionState.Idle
     }
 
     override fun onCleared() {
         super.onCleared()
+        Timber.d("ViewModel cleared - Nettoyage final")
         releasePlayer()
     }
 }

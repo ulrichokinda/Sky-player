@@ -1,10 +1,12 @@
 package com.skyplayer.pro.data.model
 
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 
 /**
  * Modèle pour les détails des films VOD depuis Xtream Codes
  */
+@Keep
 data class XtreamVodDetails(
     @SerializedName("num")
     val num: Int = 0,

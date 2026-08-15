@@ -69,10 +69,16 @@ class EpgRepository @Inject constructor(
      */
     suspend fun fetchXtreamEpg(baseUrl: String, user: String, pass: String, streamId: Int): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val apiUrl = "$baseUrl/player_api.php"
-            val response = xtreamApi.getShortEpg(apiUrl, user, pass, streamId)
+            val cleanBaseUrl = baseUrl.trim().trimEnd('/')
+            val apiUrl = "$cleanBaseUrl/player_api.php"
+            val response = xtreamApi.getShortEpg(
+                fullUrl = apiUrl,
+                username = user,
+                password = pass,
+                streamId = streamId
+            ).body()
             
-            val programs = response.epgList?.map { item: com.skyplayer.pro.data.model.XtreamEpgListing ->
+            val programs = response?.epgList?.map { item: com.skyplayer.pro.data.model.XtreamEpgListing ->
                 EpgProgram(
                     epgId = streamId.toString(),
                     start = (item.startTimestamp ?: 0L) * 1000,

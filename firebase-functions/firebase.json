@@ -2,8 +2,8 @@
   "functions": [
     {
       "source": ".",
-      "codebase": "pawapay-integration",
-      "runtime": "nodejs22",
+      "codebase": "joboost-cash-integration",
+      "runtime": "nodejs20",
       "ignore": [
         "node_modules",
         ".git",
@@ -11,9 +11,7 @@
         "firebase-debug.*.log",
         "*.local"
       ],
-      "predeploy": [
-        "npm --prefix $RESOURCE_DIR run build"
-      ]
+      "predeploy": ["npm --prefix $RESOURCE_DIR run build"]
     }
   ]
 }

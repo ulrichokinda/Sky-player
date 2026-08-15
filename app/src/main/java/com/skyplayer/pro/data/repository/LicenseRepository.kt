@@ -68,9 +68,9 @@ class LicenseRepository @Inject constructor(
         val ref = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId")
         ref.setValue(licenseData).await()
         
-        Timber.i("📱 Appareil enregistré dans Firebase: $deviceId")
+        Timber.i("📱 Appareil enregistré dans Firebase : $deviceId")
         Result.success(Unit)
-    } catch (e: Exception) {
+    } catch (e : Exception) {
         Timber.e(e, "❌ Erreur lors de l'enregistrement de l'appareil")
         Result.failure(e)
     }
@@ -79,7 +79,7 @@ class LicenseRepository @Inject constructor(
      * Vérifie si l'appareil est activé dans Firebase
      * Cette fonction est appelée à chaque lancement pour synchroniser le statut
      */
-    suspend fun checkActivationStatus(): Result<Boolean> = try {
+    suspend fun checkActivationStatus() : Result<Boolean> = try {
         val deviceId = licenseManager.getDeviceId()
         val ref = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId/isActive")
         
@@ -92,9 +92,9 @@ class LicenseRepository @Inject constructor(
         // Mettre à jour le lastSeen
         updateLastSeen(deviceId)
         
-        Timber.i("🔍 Statut d'activation vérifié: $isActive")
+        Timber.i("🔍 Statut d'activation vérifié : $isActive")
         Result.success(isActive)
-    } catch (e: Exception) {
+    } catch (e : Exception) {
         Timber.e(e, "❌ Erreur lors de la vérification du statut")
         Result.failure(e)
     }
@@ -108,18 +108,18 @@ class LicenseRepository @Inject constructor(
         val ref = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId/isActive")
         
         val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
+            override fun onDataChange(snapshot : DataSnapshot) {
                 val isActive = snapshot.getValue(Boolean::class.java) ?: false
                 
                 // Mettre à jour le cache local
                 licenseManager.setActivatedLocally(isActive)
                 
-                Timber.d("📡 Changement de statut d'activation: $isActive")
+                Timber.d("📡 Changement de statut d'activation : $isActive")
                 trySend(isActive)
             }
             
-            override fun onCancelled(error: DatabaseError) {
-                Timber.e("❌ Erreur listener Firebase: ${error.message}")
+            override fun onCancelled(error : DatabaseError) {
+                Timber.e("❌ Erreur listener Firebase : ${error.message}")
             }
         }
         

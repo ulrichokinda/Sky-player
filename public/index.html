@@ -1,107 +1,119 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SkyPlayer Pro - API</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1c2e 0%, #0d0e17 100%);
-            color: #fff;
-            margin: 0;
-            padding: 40px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .container {
-            max-width: 800px;
-            text-align: center;
-        }
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-            background: linear-gradient(90deg, #FF6B35, #F7931E);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .status {
-            background: rgba(76, 175, 80, 0.1);
-            border: 1px solid #4CAF50;
-            color: #4CAF50;
-            padding: 15px 30px;
-            border-radius: 8px;
-            margin: 20px 0;
-            display: inline-block;
-        }
-        .api-list {
-            text-align: left;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 30px;
-            margin-top: 30px;
-        }
-        .api-item {
-            margin: 15px 0;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            border-left: 3px solid #FF6B35;
-        }
-        .method {
-            color: #4CAF50;
-            font-weight: bold;
-            font-family: monospace;
-        }
-        .url {
-            color: #F7931E;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-        footer {
-            margin-top: 40px;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🚀 SkyPlayer Pro API</h1>
-        <div class="status">✅ API En Ligne</div>
-        
-        <p>Les endpoints API sont opérationnels et prêts à recevoir les webhooks PawaPay.</p>
-        
-        <div class="api-list">
-            <h3>Endpoints Disponibles :</h3>
-            
-            <div class="api-item">
-                <span class="method">POST</span> 
-                <span class="url">/api/pawapay</span><br>
-                <small>Webhook PawaPay - Réception des callbacks de paiement</small>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>SkyPlayer Pro - API</title>
+        <style>
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                background: linear-gradient(135deg, #1a1c2e 0%, #0d0e17 100%);
+                color: #fff;
+                margin: 0;
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            .container {
+                max-width: 800px;
+                text-align: center;
+            }
+            h1 {
+                font-size: 2.5rem;
+                margin-bottom: 20px;
+                background: linear-gradient(90deg, #ff6b35, #f7931e);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .status {
+                background: rgba(76, 175, 80, 0.1);
+                border: 1px solid #4caf50;
+                color: #4caf50;
+                padding: 15px 30px;
+                border-radius: 8px;
+                margin: 20px 0;
+                display: inline-block;
+            }
+            .api-list {
+                text-align: left;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+                padding: 30px;
+                margin-top: 30px;
+            }
+            .api-item {
+                margin: 15px 0;
+                padding: 15px;
+                background: rgba(255, 255, 255, 0.03);
+                border-radius: 8px;
+                border-left: 3px solid #ff6b35;
+            }
+            .method {
+                color: #4caf50;
+                font-weight: bold;
+                font-family: monospace;
+            }
+            .url {
+                color: #f7931e;
+                font-family: monospace;
+                font-size: 0.9rem;
+            }
+            footer {
+                margin-top: 40px;
+                color: rgba(255, 255, 255, 0.5);
+                font-size: 0.9rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🚀 SkyPlayer Pro API</h1>
+            <div class="status">✅ API En Ligne</div>
+
+            <p>
+                Les endpoints API sont opérationnels et prêts à recevoir les
+                webhooks Joboost Cash.
+            </p>
+
+            <div class="api-list">
+                <h3>Endpoints Disponibles :</h3>
+
+                <div class="api-item">
+                    <span class="method">POST</span>
+                    <span class="url">/api/joboost-cash</span><br />
+                    <small
+                        >Webhook Joboost Cash - Réception des callbacks de
+                        paiement</small
+                    >
+                </div>
+
+                <div class="api-item">
+                    <span class="method">GET</span>
+                    <span class="url">/api/check-status?licenseId=xxx</span
+                    ><br />
+                    <small>Vérifier le statut de paiement d'une licence</small>
+                </div>
+
+                <div class="api-item">
+                    <span class="method">POST</span>
+                    <span class="url">/api/update-status</span><br />
+                    <small
+                        >Mise à jour manuelle du statut (Callable
+                        Function)</small
+                    >
+                </div>
             </div>
-            
-            <div class="api-item">
-                <span class="method">GET</span> 
-                <span class="url">/api/check-status?licenseId=xxx</span><br>
-                <small>Vérifier le statut de paiement d'une licence</small>
-            </div>
-            
-            <div class="api-item">
-                <span class="method">POST</span> 
-                <span class="url">/api/update-status</span><br>
-                <small>Mise à jour manuelle du statut (Callable Function)</small>
-            </div>
+
+            <footer>
+                <p>Domaine: <strong>skyplayerapp.xyz</strong></p>
+                <p>© 2024 SkyPlayer Pro. Tous droits réservés.</p>
+            </footer>
         </div>
-        
-        <footer>
-            <p>Domaine: <strong>skyplayerapp.xyz</strong></p>
-            <p>© 2024 SkyPlayer Pro. Tous droits réservés.</p>
-        </footer>
-    </div>
-</body>
+    </body>
 </html>

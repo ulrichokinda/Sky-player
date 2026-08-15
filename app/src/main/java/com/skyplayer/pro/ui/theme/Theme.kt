@@ -94,22 +94,68 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 /**
+ * Thème AMOLED Premium - Noir absolu (#000000)
+ * Économiseur de batterie pour écrans OLED
+ */
+private val AmoledColorScheme = darkColorScheme(
+    primary = ElectricSkyBlue,
+    onPrimary = Color.White,
+    primaryContainer = ElectricSkyBlueDark,
+    onPrimaryContainer = Color.White,
+    secondary = PremiumGold,
+    onSecondary = AbsoluteBlack,
+    secondaryContainer = PremiumGold.copy(alpha = 0.12f),
+    onSecondaryContainer = PremiumGold,
+    tertiary = ElectricSkyBlueLight,
+    onTertiary = AbsoluteBlack,
+    tertiaryContainer = ElectricSkyBlueLight.copy(alpha = 0.15f),
+    onTertiaryContainer = ElectricSkyBlue,
+    background = AbsoluteBlack,                   // Noir absolu
+    onBackground = TextPrimary,
+    surface = AbsoluteBlack,
+    onSurface = TextPrimary,
+    surfaceVariant = CardBlack,
+    onSurfaceVariant = TextSecondary,
+    surfaceTint = ElectricSkyBlue,
+    error = ErrorRed,
+    onError = Color.White,
+    errorContainer = ErrorRed.copy(alpha = 0.15f),
+    onErrorContainer = ErrorRed,
+    outline = DividerColor,
+    outlineVariant = GlassWhite,
+    scrim = AbsoluteBlack.copy(alpha = 0.85f),
+    inverseSurface = TextPrimary,
+    inverseOnSurface = AbsoluteBlack,
+    inversePrimary = ElectricSkyBlueLight
+)
+
+/**
  * Theme principal Premium de Sky Player Pro
- * Force le dark mode pour l'expérience premium AMOLED
+ * Options: System, Light, Dark, AMOLED
  * Status bar et navigation en pure black (#0F0F0F)
  */
 @Composable
 fun SkyPlayerProTheme(
-    darkTheme: Boolean = true,                      // Force dark theme premium
+    themeMode: String = "dark",                    // "system", "light", "dark", "amoled"
     dynamicColor: Boolean = false,                  // Couleurs de marque fixes
     content: @Composable () -> Unit
 ) {
+    val isSystemDark = isSystemInDarkTheme()
+    val effectiveDarkTheme = when (themeMode) {
+        "system" -> isSystemDark
+        "light" -> false
+        "dark" -> true
+        "amoled" -> true
+        else -> true
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (effectiveDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
+        themeMode == "amoled" -> AmoledColorScheme
+        effectiveDarkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
     
@@ -117,9 +163,6 @@ fun SkyPlayerProTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Pure black pour status et navigation (AMOLED optimized)
-            window.statusBarColor = PureBlack.toArgb()
-            window.navigationBarColor = PureBlack.toArgb()
             WindowCompat.setDecorFitsSystemWindows(window, false)
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = false      // Icônes blanches
