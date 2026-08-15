@@ -79,12 +79,27 @@ Le résultat est écrit dans `app/src/main/baselineProfiles/baseline-prof.txt` e
 L'URL et la clé du backend sont injectées depuis `local.properties` (non versionné) :
 
 ```properties
-BACKEND_BASE_URL=https://skyplayerapp.xyz
+BACKEND_BASE_URL=https://votre-backend.com
 LICENSE_API_KEY=ma_cle_secrete
 ```
 
-Les secrets PHP sont chargés **uniquement** par variables d'environnement — voir `backend/config.example.php`
-et `DEPLOIEMENT_SECURISE.md`. Aucun secret ne doit être écrit dans `backend/config.php` (fichier gitignoré).
+### Backend Sky-player (plateforme web + API)
+
+L'app consomme le backend `github.com/ulrichokinda/Sky-player` (React + Node/Express + Firebase Firestore) :
+
+| Endpoint appelé | Rôle | Auth |
+|---|---|---|
+| `POST /api/devices/check` | Statut licence (trial/premium/expiré) + playlist | `X-Activation-API-Key` |
+| `GET /api/v1/playlist/{mac}` | Playlist pour une MAC (fallback) | tolérant |
+
+- `LICENSE_API_KEY` = la valeur de `ACTIVATION_API_KEY` définie côté backend (variable d'environnement du serveur).
+- La clé est embarquée dans l'APK (extractible) : elle protège les endpoints, mais ne remplace pas les règles Firestore.
+
+### Ancien backend PHP (dossier `backend/`)
+
+Conservé dans le dépôt mais non utilisé par l'app par défaut : les secrets PHP sont chargés uniquement par
+variables d'environnement — voir `backend/config.example.php` et `DEPLOIEMENT_SECURISE.md`.
+Aucun secret ne doit être écrit dans `backend/config.php` (fichier gitignoré).
 
 ## Roadmap
 

@@ -105,6 +105,8 @@ class DeviceCheckService @Inject constructor(
                 .url(CHECK_URL)
                 .post(jsonBody.toRequestBody("application/json; charset=utf-8".toMediaType()))
                 .addHeader("X-App-Key", APP_ID)
+                // Auth du backend Sky-player (X-Activation-API-Key) — la clé vient de local.properties → BuildConfig
+                .addHeader("X-Activation-API-Key", BuildConfig.LICENSE_API_KEY)
                 .build()
 
             val response = httpClient.newCall(request).execute()
@@ -137,7 +139,10 @@ class DeviceCheckService @Inject constructor(
             val playlistType = json.optString("type", "m3u")
             val xtreamUsername = json.optString("xtream_username", "").takeIf { it.isNotBlank() }
             val xtreamPassword = json.optString("xtream_password", "").takeIf { it.isNotBlank() }
-            val xtreamServerUrl = json.optString("xtream_server_url", "").takeIf { it.isNotBlank() }
+            // Le backend renvoie xtream_host / xtreamServer (compat : xtream_server_url)
+            val xtreamServerUrl = listOf("xtream_server_url", "xtream_host", "xtreamServer")
+                .map { json.optString(it, "") }
+                .firstOrNull { it.isNotBlank() }
 
             Timber.i("✅ DeviceCheck status: $status, playlist: ${playlistName ?: "none"}, type: $playlistType")
 
