@@ -91,4 +91,7 @@ interface ChannelDao {
 
     @Query("DELETE FROM channels WHERE id LIKE :playlistId || '_%'")
     suspend fun deleteChannelsByPlaylistId(playlistId: String)
+
+    @Query("DELETE FROM channels_fts WHERE channelId LIKE :playlistId || '_%'")
+    suspend fun deleteChannelsFtsByPlaylistId(playlistId: String)
 }

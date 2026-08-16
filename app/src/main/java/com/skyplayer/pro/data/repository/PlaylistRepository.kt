@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -79,6 +80,8 @@ class PlaylistRepository @Inject constructor(
     companion object {
         private val HAS_PLAYLIST = booleanPreferencesKey("has_playlist")
         private const val XTREAM_CREDS_PREFS = "xtream_credentials_vault"
+        /** Garde-fou global : un serveur zombie ne doit pas bloquer un refresh indéfiniment */
+        private const val REFRESH_TIMEOUT_MS = 10 * 60 * 1000L
     }
 
     private val secureXtreamPrefs: SharedPreferences by lazy {
@@ -590,6 +593,7 @@ class PlaylistRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             playlistDao.deletePlaylist(playlistId)
             channelDao.deleteChannelsByPlaylistId(playlistId)
+            channelDao.deleteChannelsFtsByPlaylistId(playlistId)
             deleteXtreamCredentials(playlistId)
 
             // Mettre à jour le flag si plus de playlists
@@ -607,21 +611,22 @@ class PlaylistRepository @Inject constructor(
      */
     suspend fun refreshPlaylist(playlistId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val playlist = playlistDao.getPlaylistById(playlistId) ?: return@withContext Result.failure(Exception("Playlist introuvable"))
+            withTimeout(REFRESH_TIMEOUT_MS) {
+            val playlist = playlistDao.getPlaylistById(playlistId) ?: return@withTimeout Result.failure(Exception("Playlist introuvable"))
 
             val newChannels: List<Channel> = when (playlist.sourceType) {
                 SourceType.M3U_URL -> {
-                    val url = playlist.url ?: return@withContext Result.failure(Exception("URL M3U manquante"))
+                    val url = playlist.url ?: return@withTimeout Result.failure(Exception("URL M3U manquante"))
                     m3uParser.parseFromUrl(url, playlistId)
                 }
                 SourceType.XTREAM_CODES -> {
                     val creds = hydrateXtreamCredentials(playlist)
-                    val username = creds.username ?: return@withContext Result.failure(Exception("Nom d'utilisateur manquant"))
-                    val password = creds.password ?: return@withContext Result.failure(Exception("Mot de passe manquant"))
-                    val serverUrl = creds.baseUrl ?: return@withContext Result.failure(Exception("URL serveur manquante"))
+                    val username = creds.username ?: return@withTimeout Result.failure(Exception("Nom d'utilisateur manquant"))
+                    val password = creds.password ?: return@withTimeout Result.failure(Exception("Mot de passe manquant"))
+                    val serverUrl = creds.baseUrl ?: return@withTimeout Result.failure(Exception("URL serveur manquante"))
 
                     val cleanBaseUrl = serverUrl.trim().trimEnd('/')
-                    val apiUrl = "$cleanBaseUrl/player_api.php"
+                    val apiUrl = XtreamUrlNormalizer.apiUrl(cleanBaseUrl)
                     val liveCategories = runCatching {
                         xtreamApi.getLiveCategories(apiUrl, username, password).associate { it.id to it.name }
                     }.getOrElse { emptyMap() }
@@ -675,14 +680,33 @@ class PlaylistRepository @Inject constructor(
             }
 
             if (newChannels.isNotEmpty()) {
+                // PRÉSERVER favoris + historique de visionnage : ce sont des colonnes de la
+                // table channels, un delete+reinsert les effacerait à chaque refresh.
+                // On mappe par URL (stable entre deux synchronisations).
+                val existingChannels = channelDao.getChannelsByTypePlaylistId(playlistId).first()
+                val metaByUrl = existingChannels
+                    .filter { it.isFavorite || it.lastWatched != null }
+                    .associateBy { it.url }
+                val channelsWithMeta = newChannels.map { channel ->
+                    val meta = metaByUrl[channel.url]
+                    if (meta != null) {
+                        channel.copy(isFavorite = meta.isFavorite, lastWatched = meta.lastWatched)
+                    } else {
+                        channel
+                    }
+                }
+
                 // Transaction atomique : suppression + réinsertion + FTS + compteur
                 // garantissent qu'un refresh interrompu ne laisse jamais la base
                 // dans un état partiel (dédoublonnage assuré par delete + reinsert).
                 database.withTransaction {
                     channelDao.deleteChannelsByPlaylistId(playlistId)
+                    // Nettoyer aussi les index FTS orphelins (sinon la recherche
+                    // renvoie des chaînes supprimées après chaque refresh)
+                    channelDao.deleteChannelsFtsByPlaylistId(playlistId)
 
                     // Chunking pour éviter les erreurs SQLite sur de très grosses listes
-                    newChannels.chunked(500).forEach { chunk ->
+                    channelsWithMeta.chunked(500).forEach { chunk ->
                         val preparedChunk = chunk.map { channel ->
                             if (channel.id.startsWith(playlistId)) channel
                             else channel.copy(id = "${playlistId}_${channel.id}")
@@ -696,14 +720,15 @@ class PlaylistRepository @Inject constructor(
                     }
 
                     // Mettre à jour le compte et le timestamp
-                    playlistDao.updateChannelCount(playlistId, newChannels.size)
+                    playlistDao.updateChannelCount(playlistId, channelsWithMeta.size)
                     playlistDao.updateTimestamp(playlistId)
                 }
 
-                Timber.i("✅ Playlist $playlistId synchronisée : ${newChannels.size} éléments")
+                Timber.i("✅ Playlist $playlistId synchronisée : ${channelsWithMeta.size} éléments")
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("La source distante est vide ou inaccessible"))
+            }
             }
         } catch (e: Exception) {
             Timber.e(e, "❌ Échec synchronisation playlist $playlistId")
