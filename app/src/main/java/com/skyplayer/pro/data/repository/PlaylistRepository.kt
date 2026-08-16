@@ -507,6 +507,48 @@ class PlaylistRepository @Inject constructor(
                 preferences[HAS_PLAYLIST] = true
             }
 
+
+            // RÉCUPÉRATION DES FILMS (VOD)
+            emit(PlaylistLoadProgress.Loading("Récupération des films...", 0.55f))
+            try {
+                val apiUrl = XtreamUrlNormalizer.apiUrl(cleanBaseUrl)
+                val vodStreams = runCatching {
+                    xtreamApi.getVodStreams(apiUrl, resolvedUsername, resolvedPassword)
+                }.getOrElse {
+                    Timber.w("⚠️ Erreur VOD pour $playlistId: ${it.message}")
+                    emptyList()
+                }
+                Timber.i("✅ ${vodStreams.size} films récupérés")
+
+                if (vodStreams.isNotEmpty()) {
+                    val vodCategories: Map<String, String> = runCatching {
+                        xtreamApi.getVodCategories(apiUrl, resolvedUsername, resolvedPassword)
+                            .associate { it.id to it.name }
+                    }.getOrElse { emptyMap() }
+
+                    val vodChannels: List<Channel> = vodStreams.map { stream ->
+                        stream.toChannel(
+                            baseUrl = cleanBaseUrl,
+                            username = resolvedUsername,
+                            password = resolvedPassword,
+                            playlistId = playlistId,
+                            categoryName = vodCategories[stream.categoryId],
+                            forcedType = ContentType.VOD_MOVIE
+                        )
+                    }
+
+                    channelDao.insertChannels(vodChannels)
+                    channelDao.insertChannelsFts(vodChannels.map {
+                        ChannelFts(it.id, it.name, it.category, it.groupTitle)
+                    })
+                    totalChannels += vodChannels.size
+                    playlistDao.updateChannelCount(playlistId, totalChannels)
+                    Timber.i("✅ ${vodChannels.size} films sauvegardés")
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "⚠️ Erreur chargement films (non critique)")
+            }
+
             // RÉCUPÉRATION DES SÉRIES (Metadata)
             emit(PlaylistLoadProgress.Loading("Récupération des séries...", 0.75f))
             try {

@@ -60,9 +60,11 @@ android {
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
         }
 
-        // Buffering normal (défauts ExoPlayer pour une meilleure compatibilité)
-        buildConfigField("int", "BUFFER_FOR_PLAYBACK_MS", "2500")
-        buildConfigField("int", "BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS", "5000")
+        // Buffering : démarrage rapide (1.2s) + maintien 15s/50s anti-coupure
+        // Le buffer de maintien élevé protège les réseaux instables, le seuil de
+        // démarrage bas garantit une première image quasi-instantanée (live & VOD).
+        buildConfigField("int", "BUFFER_FOR_PLAYBACK_MS", "1200")
+        buildConfigField("int", "BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS", "3000")
         buildConfigField("int", "MIN_BUFFER_MS", "15000")
         buildConfigField("int", "MAX_BUFFER_MS", "50000")
         buildConfigField("boolean", "ALLOW_CLEARTEXT_TRAFFIC", "false")
