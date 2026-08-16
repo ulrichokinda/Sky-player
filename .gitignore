@@ -44,10 +44,6 @@ app/debug/
 *.apk
 *.aab
 
-# Activation backend secrets
-backend/activation-service/.env
-backend/config.php
-
 # Agent / IDE tooling (non versionné)
 .claude/
 .cursor/
@@ -69,4 +65,3 @@ backend/config.php
 # Firebase local
 firebase-functions/.env
 firebase-functions/node_modules/
-backend/activation-service/node_modules/

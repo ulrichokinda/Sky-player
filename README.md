@@ -7,7 +7,7 @@
 - **Lecture** : ExoPlayer Media3 (HLS/DASH), reprise après coupure, reconnexion exponentielle, qualité auto-ajustable, sélecteur de qualité manuel, lecture en arrière-plan.
 - **Contenu** : Live TV, VOD (films) et Séries, catégorisation automatique (sport, news, pays, enfants…), EPG, moteur de recommandations.
 - **Playlists** : parser M3U universel (gzip, attributs étendus), API Xtream Codes, multi-playlists, favoris, historique avec reprise.
-- **Licence** : essai de 14 jours, activation via Firebase RTDB + backend Node, vérification temps réel, code parental (PIN).
+- **Licence** : essai de 14 jours, activation via le backend Sky-player (Firestore + API `X-Activation-API-Key`), vérification temps réel + anti-triche (heure serveur), code parental (PIN).
 - **TV** : configuration par QR code pour Android TV, partage local réseau.
 - **Design** : Material 3 Dark Mode, splash animé, navigation par sections (Live, VOD, Séries, Favoris).
 
@@ -28,13 +28,9 @@ app/src/main/java/com/skyplayer/pro/
 └── ui/                 # Compose : screens, components, navigation, theme
 ```
 
-**Stack** : Kotlin, Jetpack Compose + Material 3, Media3 ExoPlayer, Hilt, Room, Coil, Retrofit/OkHttp, Firebase (RTDB, Firestore, Analytics, Crashlytics), DataStore.
+**Stack** : Kotlin, Jetpack Compose + Material 3, Media3 ExoPlayer, Hilt, Room, Coil, Retrofit/OkHttp, Firebase (Remote Config, Firestore, Analytics, Crashlytics), DataStore.
 
-**Backend** :
-- `backend/api/` — endpoints PHP (MySQL) : `check_mac.php` (playlist par MAC), `devices/check.php` (statut licence + playlist), `reseller/` (dashboard revendeur).
-- `backend/activation-service/` — service Node.js d'activation des licences (Firebase Admin).
-- `firebase-functions/` — Cloud Functions (webhooks paiement Joboost Cash).
-- `public/` — page d'accueil du site `skyplayerapp.xyz`.
+**Backend** : le backend business est le dépôt externe `github.com/ulrichokinda/Sky-player` (React + Node/Express + Firebase Firestore). Dans ce dépôt : `firebase-functions/` (Cloud Functions, webhooks paiement) et `public/` (page d'accueil).
 
 ## Configuration du buffering
 
@@ -95,11 +91,7 @@ L'app consomme le backend `github.com/ulrichokinda/Sky-player` (React + Node/Exp
 - `LICENSE_API_KEY` = la valeur de `ACTIVATION_API_KEY` définie côté backend (variable d'environnement du serveur).
 - La clé est embarquée dans l'APK (extractible) : elle protège les endpoints, mais ne remplace pas les règles Firestore.
 
-### Ancien backend PHP (dossier `backend/`)
-
-Conservé dans le dépôt mais non utilisé par l'app par défaut : les secrets PHP sont chargés uniquement par
-variables d'environnement — voir `backend/config.example.php` et `DEPLOIEMENT_SECURISE.md`.
-Aucun secret ne doit être écrit dans `backend/config.php` (fichier gitignoré).
+L'ancien backend PHP (`backend/`) a été **supprimé** : l'app ne parle plus qu'au backend Sky-player (Firestore + API).
 
 ## Roadmap
 

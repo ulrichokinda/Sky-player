@@ -1,137 +1,85 @@
 # Deploiement Production - SkyPlayer Pro
 
-Ce document est la reference de mise en production (app Android + activation web `skyplayerapp.xyz` + Firebase RTDB).
+Reference de mise en production de l'app Android et de son backend business
+**Sky-player** (`https://github.com/ulrichokinda/Sky-player` — React + Node/Express + Firebase Firestore).
 
-## 1) Pre-check obligatoire
+> L'ancien backend PHP (`backend/` : check_mac.php, devices/check.php, reseller/, activation-service/)
+> a ete **supprime** de ce depot. L'app ne parle plus qu'au backend Sky-player (Firestore + API REST).
 
-- Verifier que `database.rules.json` contient les regles durcies.
-- Verifier que `firebase.json` pointe bien sur `database.rules.json`.
-- Verifier que la signature release Android est prete.
-- Verifier que le backend d'activation utilise un compte service Firebase Admin (jamais expose cote client).
+## 1) Backend Sky-player — configuration
 
-## 2) Deployer les regles Firebase
+Deployer le backend depuis son propre depot (`ulrichokinda/Sky-player`) sur votre hebergeur (Node >= 18).
 
-Depuis la racine du projet:
+### Variables d'environnement obligatoires (`.env`)
+
+Se referer a `.env.example` du depot Sky-player :
+
+| Variable | Role |
+|----------|------|
+| `ACTIVATION_API_KEY` | Cle de communication app Android ↔ API (**requis, a rotationner**) |
+| `JOBOOST_MERCHANT_ID` | Identifiant marchand Joboost-Cash |
+| `JOBOOST_API_KEY` | Cle API Joboost-Cash |
+| `JOBOOST_SECRET_KEY` | Secret webhooks Joboost-Cash |
+| `FIREBASE_SERVICE_ACCOUNT` | JSON du compte de service (si acces Admin requis) |
+| `GEMINI_API_KEY` | Optionnel (fonctions IA du backend) |
+
+### Regles Firestore
+
+Les regles durcies sont dans `firestore.rules` a la racine du depot Sky-player.
+Deployer avec :
 
 ```bash
 firebase login
 firebase use --add
-firebase deploy --only database
+firebase deploy --only firestore:rules
 ```
 
-Alternative script PowerShell:
+## 2) Application Android — configuration
 
-```powershell
-./scripts/deploy-rules.ps1
+L'URL et la cle du backend sont injectees depuis `local.properties` (jamais committe) :
+
+```properties
+BACKEND_BASE_URL=https://votre-backend-deploye.com
+LICENSE_API_KEY=ma_cle_activation
 ```
 
-## 3) Configurer le backend d'activation du site
+- `LICENSE_API_KEY` = la valeur de `ACTIVATION_API_KEY` cote serveur.
+- La cle est embarquee dans l'APK (extractible) : elle protege les endpoints mais ne remplace
+  pas les regles Firestore. Toute decision de licence doit etre re-validee cote serveur.
 
-Un service Node.js pret est fourni dans `backend/activation-service`.
+### Endpoints consommes par l'app
 
-### Variables d'environnement
+| Endpoint | Role | Auth |
+|----------|------|------|
+| `POST /api/devices/check` | Statut licence (trial/premium/expire) + playlist | `X-Activation-API-Key` |
+| `GET /api/mac/check/{mac}` | Statut d'une MAC (source de verite, fallback + anti-triche) | `X-Activation-API-Key` |
+| `GET /api/v1/playlist/{mac}` | Playlist pour une MAC (fallback) | tolerant |
 
-Copier `backend/activation-service/.env.example` en `.env` puis renseigner:
+## 3) Rotation des secrets
 
-- `PORT` (ex: 8787)
-- `FIREBASE_DATABASE_URL` (URL RTDB)
-- `FIREBASE_SERVICE_ACCOUNT_JSON` (JSON complet du service account, echappe)
-- `ACTIVATION_API_KEY` (cle secrete pour ton site)
+La cle `ACTIVATION_API_KEY` a circule en clair (fallback en dur dans `server.ts` du depot public
+Sky-player et dans l'historique de cette session). Considerer-la compromise et la **rotationner** :
 
-### Lancement local
+1. Generer une nouvelle valeur : `openssl rand -hex 32`
+2. La definir en variable d'environnement du serveur (`ACTIVATION_API_KEY`), **sans fallback en dur** dans le code.
+3. Mettre la meme valeur dans `local.properties` → `LICENSE_API_KEY`.
+4. Rebuild + redeploy l'app et le backend.
 
-```bash
-cd backend/activation-service
-npm install
-npm run start
-```
+## 4) Checklist go-live
 
-## 4) Flux production recommande (site -> app)
+- [ ] Backend Sky-player deploye + variables d'environnement definies
+- [ ] `ACTIVATION_API_KEY` rotationnee (plus de valeur en dur dans le code)
+- [ ] Regles Firestore deployees (`firestore.rules`)
+- [ ] `local.properties` configure (`BACKEND_BASE_URL`, `LICENSE_API_KEY`)
+- [ ] Test d'activation reelle d'un device de recette
+- [ ] Test de blocage apres expiration (`GET /api/mac/check` → `active: false`)
+- [ ] Build release signe : `./gradlew :app:assembleRelease`
+- [ ] Baseline profile genere sur appareil : `./gradlew :app:generateBaselineProfile`
 
-1. Le client copie son ID appareil depuis l'app.
-2. Il paie sur `https://skyplayerapp.xyz`.
-3. Le backend du site appelle l'endpoint d'activation securise.
-4. Le backend ecrit dans `licenses/{deviceId}`:
-   - `isActive: true`
-   - `activatedBy: ...`
-   - `activationDate: Date.now()`
-5. L'app detecte l'activation via Firebase en temps reel.
+## 5) Notes securite
 
-## 5) Endpoints backend fournis
-
-- `POST /activate`
-  - body: `deviceId`, `activatedBy`
-  - header: `x-api-key`
-- `POST /deactivate`
-  - body: `deviceId`
-  - header: `x-api-key`
-- `GET /license/:deviceId`
-  - header: `x-api-key`
-- `GET /health`
-  - pas d'auth
-
-## 6) Checklist go-live
-
-- [ ] Regles Firebase deployees (plus de `.read/.write = true` global)
-- [ ] Backend activation en ligne + protege par API key
-- [ ] Test activation reelle d'un device de recette
-- [ ] Test desactivation et blocage en temps reel
-- [ ] Build release APK (`./gradlew :app:assembleRelease`)
-- [ ] Verification manuelle ecran licence + ouverture `skyplayerapp.xyz`
-
-## 7) Rollback d'urgence
-
-Si incident critique:
-
-1. Bloquer temporairement la base dans Firebase Console:
-
-```json
-{
-  "rules": {
-    ".read": false,
-    ".write": false
-  }
-}
-```
-
-2. Corriger backend/regles.
-3. Redeployer les regles officielles.
-
-## 8) Notes securite importantes
-
-- Ne jamais embarquer la cle admin Firebase dans l'app Android.
-- Ne jamais exposer `FIREBASE_SERVICE_ACCOUNT_JSON` cote frontend.
-- Regenerer l'API key si soupcon de fuite.
-- Logger activations/desactivations cote backend pour audit.
-- `backend/config.php` est exclu de Git : ses secrets sont charges uniquement via l'environnement (voir section 9).
-
-## 9) Backend PHP — variables d'environnement obligatoires
-
-Le backend PHP (`check_mac.php`, `api/devices/check.php`, `reseller/`) refuse de demarrer si un secret manque.
-Copier `backend/config.example.php` vers `backend/config.php` (jamais committe) et definir :
-
-| Variable | Role |
-|----------|------|
-| `DB_HOST` | Hote MySQL (defaut `localhost`) |
-| `DB_NAME` | Base (defaut `skyplayer_db`) |
-| `DB_USER` | Utilisateur MySQL (**requis**) |
-| `DB_PASS` | Mot de passe MySQL (**requis**) |
-| `APK_SECRET_KEY` | Cle secrete webhooks/admin (**requis**) |
-| `RESELLER_USER` | Login dashboard revendeur (**requis**) |
-| `RESELLER_PASS` | Mot de passe revendeur, jamais `admin123` (**requis**) |
-| `TRIAL_DAYS` | Duree d'essai en jours (defaut 14, aligne sur l'app) |
-| `APP_KEY` | Cle applicative supplementaire (optionnel) |
-
-Exemples : cPanel (section variables d'environnement), Apache `SetEnv`, nginx `fastcgi_param`.
-
-### Endpoints PHP
-
-- `GET/POST /api/playlist/check_mac.php?mac_address=XX:..` — playlist active pour une MAC (header `X-App-Key`).
-- `POST /api/devices/check` — statut licence (trial/premium/expire) + playlist (body JSON : `mac_address`, `android_id`, `brand`, `model`, `android_version`).
-- `/reseller/` — dashboard revendeur (login + liaison MAC/playlist), CSRF + rate-limit actifs.
-
-### Migration depuis les anciens secrets en dur
-
-Si vous utilisiez `config.php` avec des valeurs en dur, basculez-les en variables d'environnement
-avant de deployer cette version. Puis **faites pivoter** `APK_SECRET_KEY` et `RESELLER_PASS`
-(ils ont pu etre exposes).
+- Ne jamais embarquer de compte de service Firebase Admin dans l'app Android.
+- La cle `LICENSE_API_KEY` embarquee dans l'APK est extractible : les regles Firestore
+  restent la derniere ligne de defense.
+- Le backend refuse les appels Android sans `X-Activation-API-Key` valide (voir `validateActivationApiKey`).
+- L'anti-triche horloge utilise l'en-tete HTTP `Date` du serveur (non falsifiable cote client).
