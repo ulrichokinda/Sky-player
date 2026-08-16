@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,17 +33,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.ui.theme.CardBlack
 import com.skyplayer.pro.ui.theme.PremiumEmerald
-import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.PureBlack
 
@@ -84,40 +80,11 @@ fun ImmersiveMovieCard(
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Image avec loading et error states
-            SubcomposeAsyncImage(
+            // Image premium : shimmer émeraude au chargement + fondu progressif
+            PremiumPosterImage(
                 model = movie.logoUrl,
                 contentDescription = movie.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                loading = {
-                    PremiumShimmerCard(
-                        modifier = Modifier.fillMaxSize()
-                    )
-                },
-                error = {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(ElevatedBlack),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.Movie,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.1f),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = movie.name.take(1).uppercase(),
-                                style = MaterialTheme.typography.displayMedium,
-                                color = Color.White.copy(alpha = 0.1f)
-                            )
-                        }
-                    }
-                }
+                modifier = Modifier.fillMaxSize()
             )
             
             // Overlay gradient plus subtil et élégant

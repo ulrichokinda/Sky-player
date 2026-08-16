@@ -31,9 +31,9 @@ fun PremiumShimmerCard(
     modifier: Modifier = Modifier
 ) {
     val shimmerColors = listOf(
-        Color.Gray.copy(alpha = 0.08f),
-        Color.Gray.copy(alpha = 0.15f),
-        Color.Gray.copy(alpha = 0.08f)
+        Color(0xFF10B981).copy(alpha = 0.06f),
+        Color(0xFF10B981).copy(alpha = 0.16f),
+        Color(0xFF10B981).copy(alpha = 0.06f)
     )
     
     val transition = rememberInfiniteTransition(label = "shimmer")
@@ -77,9 +77,9 @@ fun PremiumShimmerCard(
     modifier: Modifier = Modifier
 ) {
     val shimmerColors = listOf(
-        Color.Gray.copy(alpha = 0.08f),
-        Color.Gray.copy(alpha = 0.15f),
-        Color.Gray.copy(alpha = 0.08f)
+        Color(0xFF10B981).copy(alpha = 0.06f),
+        Color(0xFF10B981).copy(alpha = 0.16f),
+        Color(0xFF10B981).copy(alpha = 0.06f)
     )
     
     val transition = rememberInfiniteTransition(label = "shimmer")

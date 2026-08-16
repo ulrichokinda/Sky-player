@@ -34,16 +34,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.ui.theme.CardBlack
 import com.skyplayer.pro.ui.theme.PremiumEmerald
-import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.theme.PureBlack
 import com.skyplayer.pro.ui.theme.SeriesColor
 
@@ -83,40 +80,12 @@ fun ImmersiveSeriesCard(
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Image avec loading et error states
-            SubcomposeAsyncImage(
+            // Image premium : shimmer émeraude au chargement + fondu progressif
+            PremiumPosterImage(
                 model = series.logoUrl,
                 contentDescription = series.name,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                loading = {
-                    PremiumShimmerCard(
-                        modifier = Modifier.fillMaxSize()
-                    )
-                },
-                error = {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(ElevatedBlack),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.Tv,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.1f),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = series.name.take(1).uppercase(),
-                                style = MaterialTheme.typography.displayMedium,
-                                color = Color.White.copy(alpha = 0.1f)
-                            )
-                        }
-                    }
-                }
+                errorIcon = Icons.Default.Tv
             )
             
             // Overlay gradient plus subtil et élégant
