@@ -1,34 +1,35 @@
 package com.skyplayer.pro.data.license
 
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ServerValue
-import com.google.firebase.database.ValueEventListener
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.tasks.await
+import com.skyplayer.pro.data.repository.LicenseRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Gestionnaire de sécurité des licences
- * - Vérifie l'heure serveur pour éviter la triche sur la date
- * - Bloque immédiatement la lecture si la licence est révoquée
- * - Écoute en temps réel les changements d'activation
+ * Gestionnaire de sécurité des licences (backend Sky-player)
+ * - Vérifie le statut serveur via GET /api/mac/check/{mac} ; l'heure du serveur
+ *   provient de l'en-tête HTTP `Date` (non falsifiable côté client, anti-triche)
+ * - Bloque la lecture si la licence est révoquée ou expirée
+ * - Sonde périodiquement le serveur pendant la lecture
+ *
+ * L'ancien accès Firebase Realtime Database (serverTime/licenses) a été retiré :
+ * la source de vérité est désormais le backend Sky-player.
  */
 @Singleton
 class LicenseSecurityManager @Inject constructor(
     private val licenseManager: LicenseManager,
-    private val firebaseDatabase: FirebaseDatabase
+    private val licenseRepository: LicenseRepository
 ) {
     companion object {
-        private const val LICENSES_NODE = "licenses"
-        private const val SERVER_TIME_NODE = "serverTime"
         private const val TRIAL_DAYS = LicenseManager.TRIAL_DAYS.toLong()
         private const val DAY_IN_MILLIS = 24 * 60 * 60 * 1000L
+        private const val MONITOR_INTERVAL_MS = 60_000L
     }
 
     /**
@@ -39,11 +40,13 @@ class LicenseSecurityManager @Inject constructor(
     }
 
     enum class InvalidReason {
-        DEACTIVATED,           // isActive passé à false
+        DEACTIVATED,           // isActive passé à false côté serveur
         TRIAL_EXPIRED,         // Essai de 14 jours terminé
         SERVER_VALIDATION_FAILED  // Erreur validation serveur
     }
 
+    private val monitorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var monitorJob: Job? = null
     private var invalidCallback: LicenseInvalidCallback? = null
     private var isMonitoring = false
 
@@ -55,23 +58,21 @@ class LicenseSecurityManager @Inject constructor(
     }
 
     /**
-     * Démarre la surveillance temps réel de la licence pendant la lecture
-     * Cette fonction doit être appelée quand le lecteur démarre
+     * Démarre la surveillance temps réel de la licence pendant la lecture.
+     * Sonde le backend toutes les 60 s et bloque si la licence est révoquée ou expirée.
      */
     fun startLicenseMonitoring() {
         if (isMonitoring) return
-        
+
         isMonitoring = true
-        val deviceId = licenseManager.getDeviceId()
-        
-        // Écouter les changements d'activation
-        val activationRef = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId/isActive")
-        activationRef.addValueEventListener(activationListener)
-        
-        // Vérifier périodiquement l'expiration de l'essai via le serveur
-        checkTrialExpirationServerSide()
-        
-        Timber.i("🔒 Surveillance licence démarrée pour: $deviceId")
+        Timber.i("🔒 Surveillance licence démarrée pour: ${licenseManager.getDeviceId()}")
+
+        monitorJob = monitorScope.launch {
+            while (isMonitoring) {
+                checkServerStatus()
+                delay(MONITOR_INTERVAL_MS)
+            }
+        }
     }
 
     /**
@@ -79,90 +80,74 @@ class LicenseSecurityManager @Inject constructor(
      */
     fun stopLicenseMonitoring() {
         isMonitoring = false
-        val deviceId = licenseManager.getDeviceId()
-        val activationRef = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId/isActive")
-        activationRef.removeEventListener(activationListener)
-        
+        monitorJob?.cancel()
+        monitorJob = null
         Timber.i("🔓 Surveillance licence arrêtée")
     }
 
     /**
-     * Listener pour les changements d'activation
+     * Interroge le backend et réagit si la licence est devenue invalide
      */
-    private val activationListener = object : ValueEventListener {
-        override fun onDataChange(snapshot: DataSnapshot) {
-            val isActive = snapshot.getValue(Boolean::class.java) ?: false
-            
-            if (!isActive && isMonitoring) {
-                // La licence a été révoquée !
-                Timber.w("🚨 Licence révoquée en temps réel!")
-                invalidCallback?.onLicenseInvalid(InvalidReason.DEACTIVATED)
-                stopLicenseMonitoring()
-            }
-        }
+    private suspend fun checkServerStatus() {
+        val result = licenseRepository.checkAccess()
 
-        override fun onCancelled(error: DatabaseError) {
-            Timber.e("❌ Erreur listener activation: ${error.message}")
-        }
-    }
-
-    /**
-     * Vérifie l'expiration de l'essai en utilisant l'heure du serveur (anti-triche)
-     */
-    private fun checkTrialExpirationServerSide() {
-        val deviceId = licenseManager.getDeviceId()
-        val installDate = licenseManager.getInstallDate()
-        
-        // Obtenir l'heure serveur
-        firebaseDatabase.getReference(SERVER_TIME_NODE).get().addOnSuccessListener { snapshot ->
-            val serverTime = snapshot.getValue(Long::class.java) ?: System.currentTimeMillis()
-            
-            // Calculer si l'essai est expiré côté serveur
-            val trialEndDate = installDate + (TRIAL_DAYS * DAY_IN_MILLIS)
-            val isExpired = serverTime > trialEndDate
-            
-            if (isExpired && !licenseManager.isActivatedLocally()) {
-                Timber.w("🚨 Essai expiré (vérification serveur)!")
-                invalidCallback?.onLicenseInvalid(InvalidReason.TRIAL_EXPIRED)
-                stopLicenseMonitoring()
+        if (result.isSuccess) {
+            val active = result.getOrNull()?.active == true
+            if (active) {
+                licenseManager.setActivatedLocally(true)
             }
-        }.addOnFailureListener { e ->
-            Timber.e(e, "❌ Impossible d'obtenir l'heure serveur")
-            // Fallback sur l'heure locale (moins sécurisé)
+
+            if (!active && isMonitoring) {
+                // Pas de blocage si l'essai local est encore valide (période de grâce)
+                if (!licenseManager.isTrialValid()) {
+                    val reason = if (licenseManager.isActivatedLocally()) {
+                        InvalidReason.DEACTIVATED
+                    } else {
+                        InvalidReason.TRIAL_EXPIRED
+                    }
+                    Timber.w("🚨 Licence révoquée/expirée côté serveur! ($reason)")
+                    invalidCallback?.onLicenseInvalid(reason)
+                    stopLicenseMonitoring()
+                }
+            }
+        } else {
+            Timber.w("⚠️ Sonde serveur en échec (mode offline): ${result.exceptionOrNull()?.message}")
+            // Fallback sur les données locales (moins sécurisé)
             if (!licenseManager.isTrialValid() && !licenseManager.isActivatedLocally()) {
                 invalidCallback?.onLicenseInvalid(InvalidReason.SERVER_VALIDATION_FAILED)
+                stopLicenseMonitoring()
             }
         }
     }
 
     /**
-     * Vérifie si l'accès est valide en utilisant l'heure serveur (anti-triche)
-     * Cette fonction est appelée avant de démarrer la lecture
+     * Vérifie si l'accès est valide en utilisant l'heure du serveur (anti-triche).
+     * Appelée avant de démarrer la lecture.
      */
     suspend fun validateAccessWithServerTime(): ServerValidationResult {
         return try {
             val deviceId = licenseManager.getDeviceId()
-            
-            // Obtenir l'heure serveur
-            val serverTimeSnapshot = firebaseDatabase.getReference(SERVER_TIME_NODE).get().await()
-            val serverTime = serverTimeSnapshot.getValue(Long::class.java) ?: System.currentTimeMillis()
-            
-            // Obtenir les données de licence
-            val licenseRef = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId").get().await()
-            val isActive = licenseRef.child("isActive").getValue(Boolean::class.java) ?: false
+
+            // Statut + heure serveur (en-tête HTTP Date, non falsifiable côté client)
+            val result = licenseRepository.checkAccessWithServerTime(deviceId)
+            if (result.isFailure) throw result.exceptionOrNull() ?: Exception("Backend inaccessible")
+
+            val check = result.getOrNull()!!
+            val isActive = check.active
+            val serverTime = check.serverTime
             val installDate = licenseManager.getInstallDate()
-            
+
             // Calculer l'expiration côté serveur
             val trialEndDate = installDate + (TRIAL_DAYS * DAY_IN_MILLIS)
             val isTrialValid = serverTime < trialEndDate
-            
+
             // Mettre à jour le cache local
             licenseManager.setActivatedLocally(isActive)
-            
+
             val hasAccess = isActive || isTrialValid
-            
+
             Timber.i("🔐 Validation serveur - Accès: $hasAccess, Activé: $isActive, Essai valide: $isTrialValid")
-            
+
             ServerValidationResult(
                 isValid = hasAccess,
                 isActivated = isActive,
@@ -181,44 +166,6 @@ class LicenseSecurityManager @Inject constructor(
                 serverTime = System.currentTimeMillis(),
                 error = e.message
             )
-        }
-    }
-
-    /**
-     * Met à jour le timestamp serveur dans Firebase (appelé par le dashboard admin)
-     * L'application ne peut pas écrire ici, seul l'admin peut le faire
-     */
-    suspend fun updateServerTimestamp(): Result<Unit> = try {
-        // Cette opération échouera si l'app n'a pas les droits admin (c'est normal)
-        val ref = firebaseDatabase.getReference(SERVER_TIME_NODE)
-        ref.setValue(ServerValue.TIMESTAMP).await()
-        Result.success(Unit)
-    } catch (e: Exception) {
-        Timber.w("⚠️ Impossible de mettre à jour serverTime (normal si pas admin): ${e.message}")
-        Result.failure(e)
-    }
-
-    /**
-     * Observe le temps serveur pour vérification anti-triche
-     */
-    fun observeServerTime(): Flow<Long> = callbackFlow {
-        val ref = firebaseDatabase.getReference(SERVER_TIME_NODE)
-        
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val time = snapshot.getValue(Long::class.java) ?: System.currentTimeMillis()
-                trySend(time)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Timber.e("❌ Erreur listener serverTime: ${error.message}")
-            }
-        }
-        
-        ref.addValueEventListener(listener)
-        
-        awaitClose {
-            ref.removeEventListener(listener)
         }
     }
 }

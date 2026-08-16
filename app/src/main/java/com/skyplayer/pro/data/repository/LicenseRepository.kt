@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.text.SimpleDateFormat
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -85,6 +87,53 @@ class LicenseRepository @Inject constructor(
                 Result.failure(e)
             }
         }
+
+    /**
+     * Résultat d'une vérification serveur avec l'heure du serveur (anti-triche)
+     */
+    data class ServerAccessResult(
+        val active: Boolean,
+        val serverTime: Long
+    )
+
+    /**
+     * Vérifie l'accès sur le backend et expose l'heure du serveur (en-tête HTTP `Date`).
+     * Utilisé par l'anti-triche : l'horloge du serveur ne peut pas être falsifiée côté client.
+     */
+    suspend fun checkAccessWithServerTime(mac: String = licenseManager.getDeviceId()): Result<ServerAccessResult> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.checkMac(mac)
+
+                if (response.isSuccessful) {
+                    val data = response.body()
+                    if (data != null) {
+                        val serverTime = parseHttpDate(response.headers()["Date"]) ?: System.currentTimeMillis()
+                        Timber.i("✅ Backend: MAC $mac active=${data.active} (heure serveur: $serverTime)")
+                        Result.success(ServerAccessResult(active = data.active, serverTime = serverTime))
+                    } else {
+                        Result.failure(Exception("Réponse vide du backend"))
+                    }
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Erreur ${response.code()}"
+                    Timber.e("❌ Backend erreur: $errorMsg")
+                    Result.failure(Exception(errorMsg))
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "❌ Exception backend")
+                Result.failure(e)
+            }
+        }
+
+    private fun parseHttpDate(value: String?): Long? {
+        if (value == null) return null
+        return try {
+            SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US).parse(value)?.time
+        } catch (e: Exception) {
+            Timber.w("⚠️ En-tête Date illisible: $value")
+            null
+        }
+    }
 
     /**
      * Vérifie l'accès complet : serveur d'abord, cache local en fallback (mode offline).
