@@ -110,7 +110,15 @@ fun VODScreen(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(PureBlack)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        VodColor.copy(alpha = 0.07f),
+                        PureBlack,
+                        PureBlack
+                    )
+                )
+            )
     ) {
         // Navigation conditionnelle: Sidebar pour TV, Onglets horizontaux pour Mobile
         if (isTV) {
@@ -185,7 +193,8 @@ fun VODScreen(
                         items(movies, key = { it.id }) { movie ->
                             ImmersiveMovieCard(
                                 movie = movie,
-                                onClick = { onContentClick(movie) }
+                                onClick = { onContentClick(movie) },
+                                accentColor = VodColor
                             )
                         }
                     }

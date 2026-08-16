@@ -151,7 +151,15 @@ fun LiveTVScreen(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(PureBlack)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        LiveTvColor.copy(alpha = 0.07f),
+                        PureBlack,
+                        PureBlack
+                    )
+                )
+            )
     ) {
         // Navigation conditionnelle: Sidebar pour TV/Tablette, Onglets horizontaux pour Mobile
         if (isTV) {
@@ -788,7 +796,11 @@ private fun ChannelCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 0.5.dp,
+            color = LiveTvColor.copy(alpha = 0.18f)
+        )
     ) {
         Row(
             modifier = Modifier

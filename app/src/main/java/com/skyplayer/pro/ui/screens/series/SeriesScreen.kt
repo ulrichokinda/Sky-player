@@ -111,7 +111,15 @@ fun SeriesScreen(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(PureBlack)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        SeriesColor.copy(alpha = 0.07f),
+                        PureBlack,
+                        PureBlack
+                    )
+                )
+            )
     ) {
         // Navigation conditionnelle: Sidebar pour TV, Onglets horizontaux pour Mobile
         if (isTV) {
@@ -186,7 +194,8 @@ fun SeriesScreen(
                         items(series, key = { it.id }) { item ->
                             ImmersiveSeriesCard(
                                 series = item,
-                                onClick = { onSeriesClick(item) }
+                                onClick = { onSeriesClick(item) },
+                                accentColor = SeriesColor
                             )
                         }
                     }

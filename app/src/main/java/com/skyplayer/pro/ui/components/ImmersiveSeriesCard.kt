@@ -51,7 +51,8 @@ import com.skyplayer.pro.ui.theme.SeriesColor
 fun ImmersiveSeriesCard(
     series: Channel,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    accentColor: Color = PremiumEmerald
 ) {
     Card(
         modifier = modifier
@@ -66,7 +67,7 @@ fun ImmersiveSeriesCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         border = androidx.compose.foundation.BorderStroke(
             width = 0.5.dp,
-            color = Color.White.copy(alpha = 0.1f)
+            color = accentColor.copy(alpha = 0.22f)
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
