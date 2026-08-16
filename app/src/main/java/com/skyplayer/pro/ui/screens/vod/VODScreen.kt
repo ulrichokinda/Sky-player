@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -32,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,8 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.delay
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -69,6 +74,7 @@ import com.skyplayer.pro.ui.components.TrustAction
 import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
 import com.skyplayer.pro.ui.components.TrustStateView
 import com.skyplayer.pro.ui.components.ImmersiveMovieCard
+import com.skyplayer.pro.ui.components.rememberVisibleIndexCategory
 import com.skyplayer.pro.ui.theme.PureBlack
 import androidx.compose.ui.res.stringResource
 import com.skyplayer.pro.R
@@ -101,7 +107,31 @@ fun VODScreen(
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    
+
+    // ── Synchro scroll ↔ sidebar ───────────────────────────
+    // En mode TOUT, la grille traverse toutes les catégories : le premier élément
+    // visible détermine la catégorie surlignée dans le sidebar (tactile OU D-pad).
+    val gridState = rememberLazyGridState()
+    val scrollVisibleCategory = rememberVisibleIndexCategory(
+        firstVisibleIndexProvider = { gridState.firstVisibleItemIndex },
+        itemCategory = { index -> movies.getOrNull(index)?.category }
+    )
+    val sidebarHighlight = scrollVisibleCategory.value ?: selectedCategory
+
+    // Focus initial sur la grille pour la télécommande TV
+    val contentFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(isTV) {
+        if (isTV) {
+            delay(150)
+            contentFocusRequester.requestFocus()
+        }
+    }
+
+    // Revenir en haut quand une catégorie est choisie via le sidebar
+    LaunchedEffect(selectedCategory) {
+        gridState.scrollToItem(0)
+    }
+
     // États pour le contrôle parental
     var showPinDialog by remember { mutableStateOf(false) }
     var pendingCategoryName by remember { mutableStateOf<String?>(null) }
@@ -125,8 +155,10 @@ fun VODScreen(
             // Sidebar Latérale pour TV
             CategorySidebar(
                 categories = categories,
-                selectedCategory = selectedCategory,
+                selectedCategory = sidebarHighlight,
                 onCategorySelected = { category ->
+                    // Le clic prime sur la synchro scroll
+                    scrollVisibleCategory.value = if (category.name == "ALL") null else category.name
                     if (parentalViewModel.manager.isSensitiveCategory(category.name)) {
                         pendingCategoryName = category.name
                         showPinDialog = true
@@ -186,11 +218,14 @@ fun VODScreen(
                     )
                 } else {
                     LazyVerticalGrid(
+                        state = gridState,
                         columns = GridCells.Adaptive(minSize = 160.dp),
                         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .focusRequester(contentFocusRequester)
                     ) {
                         items(movies, key = { it.id }) { movie ->
                             ImmersiveMovieCard(

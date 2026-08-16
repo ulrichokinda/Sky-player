@@ -78,10 +78,10 @@ class SeriesViewModel @Inject constructor(
                         .sortedBy { it.name }
 
                     _categories.value = seriesCategories
-                    
-                    if (_selectedCategory.value == null && seriesCategories.isNotEmpty()) {
-                        _selectedCategory.value = seriesCategories.first().name
-                    }
+
+                    // Défaut = TOUT : toutes les catégories groupées dans la grille,
+                    // le scroll traverse les sections et le sidebar suit.
+                    _selectedCategory.value = null
                     updateCurrentSeries()
                     _isLoading.value = false
                 }
@@ -89,13 +89,15 @@ class SeriesViewModel @Inject constructor(
     }
 
     fun selectCategory(categoryName: String) {
-        _selectedCategory.value = categoryName
+        // "ALL" = mode TOUT (toutes les catégories groupées)
+        _selectedCategory.value = if (categoryName == "ALL") null else categoryName
         updateCurrentSeries()
     }
 
     private fun updateCurrentSeries() {
         val category = _categories.value.find { it.name == _selectedCategory.value }
-        _series.value = category?.channels ?: emptyList()
+        // Mode TOUT : toutes les catégories, déjà groupées dans l'ordre des catégories
+        _series.value = category?.channels ?: _categories.value.flatMap { it.channels }
     }
 
     fun searchSeries(query: String) {

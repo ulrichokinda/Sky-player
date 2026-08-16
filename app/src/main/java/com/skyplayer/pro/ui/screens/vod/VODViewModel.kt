@@ -53,9 +53,9 @@ class VODViewModel @Inject constructor(
                 .collectLatest { allMovies ->
                     val organized = contentOrganizer.organizeChannels(allMovies)
                     _categories.value = organized.movies
-                    if (_selectedCategory.value == null && organized.movies.isNotEmpty()) {
-                        _selectedCategory.value = organized.movies.first().name
-                    }
+                    // Défaut = TOUT : toutes les catégories groupées dans la grille,
+                    // le scroll traverse les sections et le sidebar suit.
+                    _selectedCategory.value = null
                     updateCurrentMovies()
                     _isLoading.value = false
                 }
@@ -63,13 +63,15 @@ class VODViewModel @Inject constructor(
     }
 
     fun selectCategory(categoryName: String) {
-        _selectedCategory.value = categoryName
+        // "ALL" = mode TOUT (toutes les catégories groupées)
+        _selectedCategory.value = if (categoryName == "ALL") null else categoryName
         updateCurrentMovies()
     }
 
     private fun updateCurrentMovies() {
         val category = _categories.value.find { it.name == _selectedCategory.value }
-        _movies.value = category?.channels ?: emptyList()
+        // Mode TOUT : toutes les catégories, déjà groupées dans l'ordre des catégories
+        _movies.value = category?.channels ?: _categories.value.flatMap { it.channels }
     }
 
     fun searchMovies(query: String) {

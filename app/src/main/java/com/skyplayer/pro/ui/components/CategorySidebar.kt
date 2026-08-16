@@ -32,10 +32,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -203,6 +207,33 @@ fun CategorySidebar(
             }
         }
     }
+}
+
+/**
+ * Synchronise la catégorie visible avec le scroll de la liste de contenu.
+ *
+ * Le premier élément visible détermine la catégorie affichée/surlignée dans le
+ * sidebar : quand l'utilisateur fait défiler la liste (doigt OU télécommande),
+ * le sidebar suit automatiquement. Retourne un MutableState pour pouvoir
+ * réinitialiser la valeur au clic sur une catégorie.
+ *
+ * Accepte n'importe quelle source d'index (LazyListState, LazyGridState, …)
+ * via [firstVisibleIndexProvider].
+ */
+@Composable
+fun rememberVisibleIndexCategory(
+    firstVisibleIndexProvider: () -> Int,
+    itemCategory: (Int) -> String?
+): MutableState<String?> {
+    val category = remember { mutableStateOf<String?>(null) }
+    val currentItemCategory by rememberUpdatedState(itemCategory)
+    val currentIndexProvider by rememberUpdatedState(firstVisibleIndexProvider)
+    LaunchedEffect(Unit) {
+        snapshotFlow { currentIndexProvider() }
+            .distinctUntilChanged()
+            .collect { index -> category.value = currentItemCategory(index) }
+    }
+    return category
 }
 
 @Composable

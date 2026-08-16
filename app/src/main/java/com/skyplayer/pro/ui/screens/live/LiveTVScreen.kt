@@ -22,8 +22,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -74,6 +79,7 @@ import com.skyplayer.pro.ui.components.SectionTopBar
 import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
 import com.skyplayer.pro.ui.components.TrustAction
 import com.skyplayer.pro.ui.components.TrustStateView
+import com.skyplayer.pro.ui.components.rememberVisibleIndexCategory
 import com.skyplayer.pro.ui.theme.CardBlack
 import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.ElevatedBlack
@@ -124,6 +130,30 @@ fun LiveTVScreen(
     val currentPrograms by viewModel.currentPrograms.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    // ── Synchro scroll ↔ sidebar ───────────────────────────
+    // En mode TOUT, la liste traverse toutes les catégories : le premier élément
+    // visible détermine la catégorie surlignée dans le sidebar (tactile OU D-pad).
+    val contentListState = rememberLazyListState()
+    val scrollVisibleCategory = rememberVisibleIndexCategory(
+        firstVisibleIndexProvider = { contentListState.firstVisibleItemIndex },
+        itemCategory = { index -> channels.getOrNull(index)?.category }
+    )
+    val sidebarHighlight = scrollVisibleCategory.value ?: selectedCategory
+
+    // Focus initial sur la grille de chaînes pour la télécommande TV
+    val contentFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(isTV) {
+        if (isTV) {
+            delay(150)
+            contentFocusRequester.requestFocus()
+        }
+    }
+
+    // Revenir en haut quand une catégorie est choisie via le sidebar
+    LaunchedEffect(selectedCategory) {
+        contentListState.scrollToItem(0)
+    }
+
     var showPinDialog by remember { mutableStateOf(false) }
     var showSetupPinDialog by remember { mutableStateOf(false) }
     var showRecoveryDialog by remember { mutableStateOf(false) }
@@ -166,8 +196,13 @@ fun LiveTVScreen(
             // Sidebar Latérale (Catégories) pour TV/Tablette
             CategorySidebar(
                 categories = categories,
-                selectedCategory = selectedCategory,
-                onCategorySelected = onCategoryClick,
+                selectedCategory = sidebarHighlight,
+                onCategorySelected = { category ->
+                    // Le clic prime sur la synchro scroll : on réinitialise la
+                    // catégorie visible pour ne pas écraser la sélection
+                    scrollVisibleCategory.value = if (category.name == "ALL") null else category.name
+                    onCategoryClick(category)
+                },
                 accentColor = LiveTvColor,
                 sectionLabel = "CHAÎNES",
                 onSearchQueryChange = { viewModel.searchLive(it) }
@@ -260,9 +295,12 @@ fun LiveTVScreen(
                     }
                     else -> {
                         LazyColumn(
+                            state = contentListState,
                             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .focusRequester(contentFocusRequester)
                         ) {
                             items(
                                 items = channels,

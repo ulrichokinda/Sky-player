@@ -79,9 +79,9 @@ class OrganizedContentViewModel @Inject constructor(
                     _movies.value = organized.movies
                     _series.value = organized.series
 
-                    if (_selectedLiveCategory.value == null && organized.liveChannels.isNotEmpty()) {
-                        _selectedLiveCategory.value = organized.liveChannels.firstOrNull()?.name
-                    }
+                    // Défaut = TOUT : toutes les catégories sont affichées dans une
+                    // seule liste triée, le scroll traverse les sections et le sidebar suit.
+                    _selectedLiveCategory.value = null
 
                     applyFilters()
                     _isLoading.value = false
