@@ -39,9 +39,12 @@ class LicenseViewModel @Inject constructor(
             val deviceId = licenseManager.getDeviceId()
             val localInfo = licenseManager.getLicenseInfo()
             
-            // Tenter de rafraîchir depuis le serveur (Firebase)
+            // Rafraîchir depuis le serveur (backend Sky-player : GET /api/mac/check/{mac})
             try {
-                licenseRepository.checkActivationStatus()
+                val result = licenseRepository.checkAccess()
+                if (result.isSuccess && result.getOrNull()?.active == true) {
+                    licenseManager.setActivatedLocally(true)
+                }
             } catch (e: Exception) {
                 Timber.w("Impossible de rafraîchir la licence depuis le serveur: ${e.message}")
             }

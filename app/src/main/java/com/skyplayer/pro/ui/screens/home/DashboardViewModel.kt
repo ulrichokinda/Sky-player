@@ -10,8 +10,7 @@ import com.skyplayer.pro.data.remote.MacPlaylistInfo
 import com.skyplayer.pro.data.remote.MacPlaylistService
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.repository.ChannelRepository
-import com.skyplayer.pro.data.repository.FirestoreRepository
-import com.skyplayer.pro.data.repository.LicenseBackendRepository
+import com.skyplayer.pro.data.repository.LicenseRepository
 import com.skyplayer.pro.data.repository.PlaylistRepository
 import com.skyplayer.pro.ui.theme.ElectricSkyBlue
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -43,8 +42,7 @@ class DashboardViewModel @Inject constructor(
     private val channelRepository: ChannelRepository,
     private val macPlaylistService: MacPlaylistService,
     private val deviceCheckService: DeviceCheckService,
-    private val licenseBackendRepository: LicenseBackendRepository,
-    private val firestoreRepository: FirestoreRepository
+    private val licenseRepository: LicenseRepository
 ) : ViewModel() {
 
     // ═══════════════════════════════════════════════════════════════
@@ -134,9 +132,9 @@ class DashboardViewModel @Inject constructor(
             }
         }
         
-        // 2. Écoute Firestore en temps réel
+        // 2. Écoute Firestore en temps réel (source de vérité : backend Sky-player)
         viewModelScope.launch {
-            firestoreRepository.observeActivation(deviceId).collect { activation ->
+            licenseRepository.observeActivation(deviceId).collect { activation ->
                 handleFirestoreActivation(activation)
             }
         }
@@ -289,7 +287,7 @@ class DashboardViewModel @Inject constructor(
         // Complément : seconde source serveur via GET /api/mac/check/{mac}
         // Si le POST /api/devices/check échoue mais que la MAC est active,
         // on accorde l'accès au lieu de retomber immédiatement en local.
-        val backendResult = licenseBackendRepository.checkMacStatus(deviceId)
+        val backendResult = licenseRepository.checkAccess(deviceId)
         if (backendResult.isSuccess && backendResult.getOrNull()?.active == true) {
             Timber.i("✅ Accès confirmé via /api/mac/check - MAC active")
             licenseManager.setActivatedLocally(true)

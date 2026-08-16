@@ -1,230 +1,185 @@
 package com.skyplayer.pro.data.repository
 
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.ktx.toObject
 import com.skyplayer.pro.data.license.LicenseManager
+import com.skyplayer.pro.data.remote.LicenseApiService
+import com.skyplayer.pro.data.remote.MacCheckResponse
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
- * Repository pour la gestion des licences via Firebase
- * Permet la vérification à distance de l'activation et la gestion par revendeurs
+ * Document d'activation Firestore (même schéma que le backend Sky-player)
+ */
+data class FirestoreActivation(
+    val target_mac: String? = null,
+    val status: String? = null,
+    val xtream_host: String? = null,
+    val xtream_server_url: String? = null,
+    val xtream_username: String? = null,
+    val xtream_user: String? = null,
+    val xtream_password: String? = null,
+    val playlist_url: String? = null,
+    val playlist_name: String? = null,
+    val type: String? = "m3u"
+) {
+    fun isActive(): Boolean = status?.uppercase() == "ACTIF" || status?.uppercase() == "ACTIVE"
+
+    fun getXtreamHost(): String? = xtream_host ?: xtream_server_url
+    fun getXtreamUser(): String? = xtream_username ?: xtream_user
+    fun getXtreamPassword(): String? = xtream_password
+    fun getPlaylistUrl(): String? = playlist_url
+    fun getPlaylistName(): String? = playlist_name
+    fun getPlaylistType(): String = type ?: "m3u"
+}
+
+/**
+ * Repository unique de licence — source de vérité : le backend Sky-player.
+ *
+ * Combine :
+ * - la vérification HTTP du statut MAC : GET /api/mac/check/{mac} (auth X-Activation-API-Key),
+ * - l'écoute temps réel Firestore (collection `activations`, mêmes champs que le backend),
+ * - la synchronisation du cache local via [LicenseManager].
+ *
+ * L'ancien accès Firebase Realtime Database a été supprimé : le backend business
+ * (Sky-player) s'appuie sur Firestore, garder RTDB créait deux sources de vérité.
  */
 @Singleton
 class LicenseRepository @Inject constructor(
     private val licenseManager: LicenseManager,
-    private val firebaseDatabase: FirebaseDatabase
+    private val apiService: LicenseApiService,
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore
 ) {
-    companion object {
-        private const val LICENSES_NODE = "licenses"
-        private const val HEALTH_CHECK_NODE = "health_check"
-    }
-    
+    private var currentListener: ListenerRegistration? = null
+
     /**
-     * Structure des données de licence dans Firebase
+     * Vérifie le statut d'une MAC sur le backend Sky-player (source de vérité serveur).
      */
-    data class LicenseData(
-        val deviceId: String = "",
-        val installDate: Long = 0,
-        val isActive: Boolean = false,
-        val activatedBy: String = "", // Email ou ID du revendeur
-        val activationDate: Long = 0,
-        val deviceInfo: DeviceInfo = DeviceInfo()
-    )
-    
-    data class DeviceInfo(
-        val brand: String = android.os.Build.BRAND,
-        val model: String = android.os.Build.MODEL,
-        val androidVersion: String = android.os.Build.VERSION.RELEASE,
-        val lastSeen: Long = System.currentTimeMillis()
-    )
-    
-    /**
-     * Enregistre l'appareil dans Firebase à la première installation
-     * Cette fonction est appelée lors du premier lancement
-     */
-    suspend fun registerDevice(): Result<Unit> = try {
-        val deviceId = licenseManager.getDeviceId()
-        val installDate = licenseManager.getInstallDate()
-        
-        val licenseData = LicenseData(
-            deviceId = deviceId,
-            installDate = installDate,
-            isActive = false, // Par défaut, en attente d'activation
-            deviceInfo = DeviceInfo()
-        )
-        
-        val ref = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId")
-        ref.setValue(licenseData).await()
-        
-        Timber.i("📱 Appareil enregistré dans Firebase : $deviceId")
-        Result.success(Unit)
-    } catch (e : Exception) {
-        Timber.e(e, "❌ Erreur lors de l'enregistrement de l'appareil")
-        Result.failure(e)
-    }
-    
-    /**
-     * Vérifie si l'appareil est activé dans Firebase
-     * Cette fonction est appelée à chaque lancement pour synchroniser le statut
-     */
-    suspend fun checkActivationStatus() : Result<Boolean> = try {
-        val deviceId = licenseManager.getDeviceId()
-        val ref = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId/isActive")
-        
-        val snapshot = ref.get().await()
-        val isActive = snapshot.getValue(Boolean::class.java) ?: false
-        
-        // Mettre à jour le cache local
-        licenseManager.setActivatedLocally(isActive)
-        
-        // Mettre à jour le lastSeen
-        updateLastSeen(deviceId)
-        
-        Timber.i("🔍 Statut d'activation vérifié : $isActive")
-        Result.success(isActive)
-    } catch (e : Exception) {
-        Timber.e(e, "❌ Erreur lors de la vérification du statut")
-        Result.failure(e)
-    }
-    
-    /**
-     * Écoute en temps réel le changement de statut d'activation
-     * Permet l'activation instantanée par le revendeur
-     */
-    fun observeActivationStatus(): Flow<Boolean> = callbackFlow {
-        val deviceId = licenseManager.getDeviceId()
-        val ref = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId/isActive")
-        
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot : DataSnapshot) {
-                val isActive = snapshot.getValue(Boolean::class.java) ?: false
-                
-                // Mettre à jour le cache local
-                licenseManager.setActivatedLocally(isActive)
-                
-                Timber.d("📡 Changement de statut d'activation : $isActive")
-                trySend(isActive)
-            }
-            
-            override fun onCancelled(error : DatabaseError) {
-                Timber.e("❌ Erreur listener Firebase : ${error.message}")
+    suspend fun checkAccess(mac: String = licenseManager.getDeviceId()): Result<MacCheckResponse> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.checkMac(mac)
+
+                if (response.isSuccessful) {
+                    val data = response.body()
+                    if (data != null) {
+                        Timber.i("✅ Backend: MAC $mac active=${data.active}")
+                        Result.success(data)
+                    } else {
+                        Result.failure(Exception("Réponse vide du backend"))
+                    }
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Erreur ${response.code()}"
+                    Timber.e("❌ Backend erreur: $errorMsg")
+                    Result.failure(Exception(errorMsg))
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "❌ Exception backend")
+                Result.failure(e)
             }
         }
-        
-        ref.addValueEventListener(listener)
-        
-        awaitClose {
-            ref.removeEventListener(listener)
-            Timber.d("👋 Listener activation fermé")
-        }
-    }
-    
+
     /**
-     * Met à jour la date de dernière connexion
-     */
-    private suspend fun updateLastSeen(deviceId: String) {
-        try {
-            val ref = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId/deviceInfo/lastSeen")
-            ref.setValue(System.currentTimeMillis()).await()
-        } catch (e: Exception) {
-            Timber.w("⚠️ Impossible de mettre à jour lastSeen: ${e.message}")
-        }
-    }
-    
-    /**
-     * Vérifie la connexion avec Firebase (Health Check)
-     * Écrit et lit une valeur de test pour confirmer le fonctionnement
-     */
-    suspend fun performHealthCheck(): Result<HealthCheckResult> = try {
-        val testId = "health_${System.currentTimeMillis()}"
-        val testData = mapOf(
-            "timestamp" to System.currentTimeMillis(),
-            "deviceId" to licenseManager.getDeviceId(),
-            "status" to "test"
-        )
-        
-        // Écriture
-        val writeRef = firebaseDatabase.getReference("$HEALTH_CHECK_NODE/$testId")
-        writeRef.setValue(testData).await()
-        
-        // Lecture
-        val readSnapshot = writeRef.get().await()
-        val readSuccess = readSnapshot.exists() && readSnapshot.child("status").getValue(String::class.java) == "test"
-        
-        // Suppression du test
-        writeRef.removeValue().await()
-        
-        val result = HealthCheckResult(
-            success = readSuccess,
-            timestamp = System.currentTimeMillis(),
-            message = if (readSuccess) "Connexion Firebase OK" else "Erreur de lecture/écriture"
-        )
-        
-        Timber.i("🏥 Health Check: ${result.message}")
-        Result.success(result)
-    } catch (e: Exception) {
-        Timber.e(e, "❌ Health Check échoué")
-        Result.failure(e)
-    }
-    
-    /**
-     * Récupère les données complètes de licence depuis Firebase
-     */
-    suspend fun getLicenseDataFromFirebase(): Result<LicenseData> = try {
-        val deviceId = licenseManager.getDeviceId()
-        val ref = firebaseDatabase.getReference("$LICENSES_NODE/$deviceId")
-        
-        val snapshot = ref.get().await()
-        val licenseData = snapshot.getValue(LicenseData::class.java)
-            ?: LicenseData(deviceId = deviceId)
-        
-        Result.success(licenseData)
-    } catch (e: Exception) {
-        Timber.e(e, "❌ Erreur récupération données licence")
-        Result.failure(e)
-    }
-    
-    /**
-     * Vérifie si l'appareil a un accès valide (essai ou activé)
-     * Combine les données locales et Firebase
+     * Vérifie l'accès complet : serveur d'abord, cache local en fallback (mode offline).
+     * Le statut actif est décidé côté serveur (expiryDate dans Firestore).
      */
     suspend fun validateAccess(): AccessValidationResult {
-        val isTrialValid = licenseManager.isTrialValid()
-        
-        // Vérifier l'activation distante
-        val activationResult = checkActivationStatus()
-        val isActivated = activationResult.getOrDefault(false)
-        
-        return AccessValidationResult(
-            hasAccess = isTrialValid || isActivated,
-            isTrialActive = isTrialValid,
-            isActivated = isActivated,
-            trialDaysRemaining = licenseManager.getTrialDaysRemaining(),
-            deviceId = licenseManager.getDeviceId()
-        )
+        val backendResult = checkAccess()
+
+        return if (backendResult.isSuccess) {
+            val active = backendResult.getOrNull()?.active == true
+            AccessValidationResult(
+                hasAccess = active,
+                isTrialActive = false,
+                isActivated = active,
+                trialDaysRemaining = if (active) licenseManager.getTrialDaysRemaining() else 0,
+                deviceId = licenseManager.getDeviceId()
+            )
+        } else {
+            // Fallback sur les données locales si backend inaccessible
+            val localTrialValid = licenseManager.isTrialValid()
+            AccessValidationResult(
+                hasAccess = licenseManager.hasValidAccess(),
+                isTrialActive = localTrialValid,
+                isActivated = licenseManager.isActivatedLocally(),
+                trialDaysRemaining = licenseManager.getTrialDaysRemaining(),
+                deviceId = licenseManager.getDeviceId()
+            )
+        }
+    }
+
+    /**
+     * Récupère le document d'activation Firestore d'une MAC
+     */
+    suspend fun getActivation(macAddress: String): Result<FirestoreActivation?> {
+        return try {
+            val snapshot = firestore.collection("activations")
+                .whereEqualTo("target_mac", macAddress)
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) {
+                Result.success(null)
+            } else {
+                val doc = snapshot.documents.first()
+                val activation = doc.toObject(FirestoreActivation::class.java)
+                Timber.i("📄 Firestore activation found for $macAddress")
+                Result.success(activation)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "❌ Error getting Firestore activation for $macAddress")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Écoute en temps réel les changements d'activation Firestore
+     */
+    fun observeActivation(macAddress: String): Flow<FirestoreActivation?> = callbackFlow {
+        Timber.i("👂 Listening for Firestore activations for $macAddress")
+
+        currentListener = firestore.collection("activations")
+            .whereEqualTo("target_mac", macAddress)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "❌ Firestore listener error")
+                    trySend(null)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && !snapshot.isEmpty) {
+                    val doc = snapshot.documents.first()
+                    val activation = doc.toObject(FirestoreActivation::class.java)
+                    Timber.i("🔄 Firestore activation update: $activation")
+                    trySend(activation)
+                } else {
+                    Timber.d("ℹ️ No Firestore activation found for $macAddress")
+                    trySend(null)
+                }
+            }
+
+        awaitClose {
+            currentListener?.remove()
+            currentListener = null
+            Timber.d("🛑 Firestore listener stopped")
+        }
+    }
+
+    /**
+     * Arrête l'écoute Firestore en cours
+     */
+    fun stopListening() {
+        currentListener?.remove()
+        currentListener = null
     }
 }
-
-/**
- * Résultat du health check
- */
-data class HealthCheckResult(
-    val success: Boolean,
-    val timestamp: Long,
-    val message: String
-)
 
 /**
  * Résultat de validation d'accès
@@ -246,13 +201,13 @@ data class AccessValidationResult(
             else -> "⏳ Période d'essai terminée"
         }
     }
-    
+
     /**
      * Message pour l'écran de blocage
      */
     fun getBlockedMessage(): String {
         return if (!hasAccess) {
-            "Période d'essai terminée. Pour continuer à utiliser SkyPlayer, veuillez activer votre application sur skyplayerapp.xyz"
+            "Période d'essai terminée. Pour continuer à utiliser SkyPlayer, veuillez activer votre application auprès de votre revendeur."
         } else {
             ""
         }
