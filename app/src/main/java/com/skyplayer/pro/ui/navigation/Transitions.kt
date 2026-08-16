@@ -56,6 +56,34 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToLeft(): ExitTran
 }
 
 /**
+ * Transition retour (pop) — glissement inverse naturel avec fade
+ * L'écran précédent revient de la gauche pendant que l'actuel sort à droite
+ */
+fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromLeft(): EnterTransition {
+    return slideInHorizontally(
+        initialOffsetX = { -it / 2 },
+        animationSpec = tween(
+            durationMillis = TRANSITION_DURATION,
+            easing = FastOutSlowInEasing
+        )
+    ) + fadeIn(
+        animationSpec = tween(FADE_DURATION)
+    )
+}
+
+fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToRight(): ExitTransition {
+    return slideOutHorizontally(
+        targetOffsetX = { it },
+        animationSpec = tween(
+            durationMillis = TRANSITION_DURATION,
+            easing = LinearOutSlowInEasing
+        )
+    ) + fadeOut(
+        animationSpec = tween(FADE_DURATION)
+    )
+}
+
+/**
  * Transition vers le lecteur - zoom et fade
  * Crée un effet immersif lors de l'ouverture du player
  */

@@ -1,5 +1,9 @@
 package com.skyplayer.pro.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,6 +59,14 @@ fun ImmersiveMovieCard(
     modifier: Modifier = Modifier,
     accentColor: Color = PremiumEmerald
 ) {
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn(animationSpec = tween(350)) +
+            scaleIn(
+                initialScale = 0.92f,
+                animationSpec = tween(350)
+            )
+    ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -216,6 +228,7 @@ fun ImmersiveMovieCard(
                 )
             }
         }
+    }
     }
 }
 

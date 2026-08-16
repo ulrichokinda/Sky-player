@@ -3,6 +3,11 @@ package com.skyplayer.pro.ui.navigation
 import android.app.UiModeManager
 import android.content.Context
 import android.content.res.Configuration
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -121,8 +126,8 @@ fun SkyPlayerNavHost(
                 .padding(innerPadding),
             enterTransition = { slideInFromRight() },
             exitTransition = { slideOutToLeft() },
-            popEnterTransition = { slideInFromRight() },
-            popExitTransition = { slideOutToLeft() }
+            popEnterTransition = { slideInFromLeft() },
+            popExitTransition = { slideOutToRight() }
         ) {
             composable(Routes.Splash.route) {
                 SplashScreen(
