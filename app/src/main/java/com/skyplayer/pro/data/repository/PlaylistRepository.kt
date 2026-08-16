@@ -31,8 +31,6 @@ import com.skyplayer.pro.data.remote.getVodStreams
 import com.skyplayer.pro.data.remote.toChannel
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okio.buffer
-import okio.source
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -155,59 +154,16 @@ class PlaylistRepository @Inject constructor(
             val responseBody = response.body
                 ?: throw Exception("Le serveur n'a retourné aucun contenu")
 
-            // Téléchargement avec progression
+            // Téléchargement + parsing en UNE passe : le parser consomme le stream au fur et
+            // à mesure (économie de RAM sur les grosses playlists — évite l'OOM sur box TV).
             val contentLength = responseBody.contentLength()
-            val inputStream = responseBody.byteStream()
-            val bufferedInputStream = java.io.BufferedInputStream(inputStream)
-            var totalRead = 0L
+            val bufferedInputStream = java.io.BufferedInputStream(responseBody.byteStream())
 
             emit(PlaylistLoadProgress.Loading("Parsing de la playlist...", if (contentLength > 0) 0f else null))
 
-            // We need to track progress and also parse, so let's use a custom InputStream to count bytes read!
-            class CountingInputStream(private val input: java.io.InputStream) : java.io.FilterInputStream(input) {
-                private var totalBytesRead = 0L
-
-                override fun read(): Int {
-                    val b = super.read()
-                    if (b != -1) totalBytesRead++
-                    return b
-                }
-
-                override fun read(b: ByteArray): Int {
-                    val bytesRead = super.read(b)
-                    if (bytesRead != -1) totalBytesRead += bytesRead
-                    return bytesRead
-                }
-
-                override fun read(b: ByteArray, off: Int, len: Int): Int {
-                    val bytesRead = super.read(b, off, len)
-                    if (bytesRead != -1) totalBytesRead += bytesRead
-                    return bytesRead
-                }
-
-                fun getTotalBytesRead(): Long = totalBytesRead
-            }
-
-            val countingStream = CountingInputStream(bufferedInputStream)
-
-            // Now, let's parse in a separate coroutine to track progress?
-            // Or, alternatively, parse first read all bytes, then parse, but wait, let's just read first, then parse with progress, but also track progress as we read!
-            val content = buildString {
-                val reader = BufferedReader(InputStreamReader(countingStream, Charsets.UTF_8))
-                var currentLine: String?
-                while (reader.readLine().also { currentLine = it } != null) {
-                    appendLine(currentLine)
-                    totalRead = countingStream.getTotalBytesRead()
-                    if (contentLength > 0) {
-                        val progress = totalRead.toFloat() / contentLength.toFloat()
-                        emit(PlaylistLoadProgress.Loading("Parsing de la playlist...", progress.coerceIn(0f, 1f)))
-                    }
-                }
-            }
-
             val channels = try {
                 m3uParser.parseFromInputStream(
-                    inputStream = content.byteInputStream(Charsets.UTF_8),
+                    inputStream = bufferedInputStream,
                     playlistId = "temp",
                     sourceUrl = cleanUrl,
                     onEpgUrlFound = { epgUrl = it }
@@ -215,6 +171,9 @@ class PlaylistRepository @Inject constructor(
             } catch (e: Exception) {
                 Timber.e(e, "❌ Erreur parsing M3U")
                 throw Exception("Format de fichier invalide : Impossible de lire le contenu de la playlist.", e)
+            } finally {
+                // Libérer la connexion du pool OkHttp dès que le corps est consommé
+                response.close()
             }
 
             if (channels.isEmpty()) {
@@ -260,7 +219,10 @@ class PlaylistRepository @Inject constructor(
             Timber.e(e, "❌ Échec addM3UPlaylist pour $name")
             emit(PlaylistLoadProgress.Error(e))
         }
-    }
+        // CRITIQUE : tout le corps (réseau OkHttp bloquant, parsing, Room) doit tourner sur
+        // Dispatchers.IO. Sans flowOn, les collecteurs (viewModelScope.launch = Main) exécutent
+        // le flow sur le thread principal → NetworkOnMainThreadException + ANR « app ne répond pas ».
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Ajoute une playlist M3U depuis un contenu déjà téléchargé (utilisé par DownloadProgressViewModel).
@@ -617,7 +579,9 @@ class PlaylistRepository @Inject constructor(
             Timber.e(e, "❌ addXtreamPlaylist échoué")
             emit(PlaylistLoadProgress.Error(e))
         }
-    }
+        // CRITIQUE : idem addM3UPlaylist — les ~7 appels réseau séquentiels (auth, streams,
+        // catégories, VOD, séries) doivent tourner sur Dispatchers.IO, sinon ANR garanti.
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Supprime une playlist et ses chaînes associées
