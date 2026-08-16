@@ -19,8 +19,6 @@ import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.skyplayer.pro.BuildConfig
 import timber.log.Timber
-import com.google.firebase.database.DatabaseException
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.skyplayer.pro.data.encrypted.EncryptedPrefs
 import com.skyplayer.pro.data.firebase.RemoteConfigManager
@@ -103,23 +101,6 @@ object AppModule {
         val databaseProvider = StandaloneDatabaseProvider(context)
         val evictor = LeastRecentlyUsedCacheEvictor(250L * 1024 * 1024) // 250MB
         return SimpleCache(cacheDir, evictor, databaseProvider)
-    }
-
-    /**
-     * Fournit Firebase Realtime Database
-     * Pour la gestion des licences et activation à distance
-     */
-    @Provides
-    @Singleton
-    fun provideFirebaseDatabase(): FirebaseDatabase {
-        return FirebaseDatabase.getInstance().apply {
-            try {
-                // Activer la persistence pour fonctionnement hors-ligne
-                setPersistenceEnabled(true)
-            } catch (e : DatabaseException) {
-                Timber.w(e, "⚠️ Firebase persistence déjà configurée, poursuite sans crash")
-            }
-        }
     }
 
     /**
@@ -223,15 +204,16 @@ object AppModule {
 
     /**
      * Fournit RemoteConfigManager pour configuration à distance via QR Code
-     * Écoute Firebase pending_configs avec reconnexion automatique
+     * Écoute Firestore (activations + devices/{mac}) — la base écrite par le
+     * backend Sky-player — avec reconnexion automatique
      */
     @Provides
     @Singleton
     fun provideRemoteConfigManager(
-        firebaseDatabase: FirebaseDatabase,
+        firestore: FirebaseFirestore,
         @ApplicationContext context: Context
     ): RemoteConfigManager {
-        return RemoteConfigManager(firebaseDatabase, context)
+        return RemoteConfigManager(firestore, context)
     }
 
     /**

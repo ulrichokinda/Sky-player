@@ -5,12 +5,11 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.skyplayer.pro.data.model.RemoteConfig
 import com.skyplayer.pro.data.model.RemoteConfigState
+import com.skyplayer.pro.data.repository.FirestoreActivation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -23,11 +22,18 @@ import javax.inject.Singleton
 
 /**
  * Manager expert pour configuration à distance via QR Code
- * Écoute pending_configs/{deviceId} avec reconnexion automatique
+ *
+ * Écoute Firestore — la même base que celle écrite par le backend Sky-player
+ * (`POST /api/activations/link`, webhook JOBOOST, dashboard) :
+ *  - collection `activations` où `target_mac == deviceId` (source de vérité),
+ *  - document `devices/{mac}` (appareils en essai, sans doc d'activation).
+ *
+ * L'ancienne écoute RTDB `pending_configs` a été supprimée : c'était le dernier
+ * maillon de l'ancienne base Firebase, plus personne n'y écrivait.
  */
 @Singleton
 class RemoteConfigManager @Inject constructor(
-    private val firebaseDatabase: FirebaseDatabase,
+    private val firestore: FirebaseFirestore,
     private val context: Context
 ) {
     private val _configState = MutableStateFlow<RemoteConfigState>(RemoteConfigState.Idle)
@@ -36,133 +42,122 @@ class RemoteConfigManager @Inject constructor(
     // Flow pour événements ponctuels (Toasts/Snackbars gérés par l'UI)
     private val _events = MutableSharedFlow<String>()
     val events: SharedFlow<String> = _events.asSharedFlow()
-    
-    private var currentListener: ValueEventListener? = null
+
+    private var activationsListener: ListenerRegistration? = null
+    private var deviceListener: ListenerRegistration? = null
     private var currentDeviceId: String? = null
     private val mainHandler = Handler(Looper.getMainLooper())
-    
+
     // Gestion reconnexion auto
     private var retryCount = 0
     private val maxRetries = 10
     private val retryDelays = listOf(1000L, 2000L, 5000L, 10000L, 30000L) // Exponential backoff
     private var isListening = false
-    
+
     /**
-     * Démarre l'écoute professionnelle de pending_configs
+     * Démarre l'écoute Firestore des activations pour un appareil
      */
     fun startListening(deviceId: String) {
         if (isListening && currentDeviceId == deviceId) {
             Timber.d("🔊 Écoute déjà active pour $deviceId")
             return
         }
-        
+
         stopListening()
-        
+
         currentDeviceId = deviceId
         isListening = true
         retryCount = 0
-        
+
         if (!isNetworkAvailable()) {
             _configState.value = RemoteConfigState.Offline
             scheduleReconnect(deviceId)
             return
         }
-        
+
         _configState.value = RemoteConfigState.Waiting
-        
-        val safeDeviceId = deviceId.replace(":", "-")
-        val configRef = firebaseDatabase.getReference("pending_configs").child(safeDeviceId)
-        
-        currentListener = createSecureListener(deviceId, configRef)
-        configRef.addValueEventListener(currentListener!!)
-        
-        Timber.i("🎧 Écoute démarrée: pending_configs/$safeDeviceId")
-    }
-    
-    /**
-     * Crée un listener sécurisé avec gestion des 2 formats
-     */
-    private fun createSecureListener(deviceId: String, configRef: com.google.firebase.database.DatabaseReference): ValueEventListener {
-        return object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (!snapshot.exists()) {
-                    Timber.d("ℹ️ Aucune config en attente")
-                    return
+
+        val safeMac = deviceId.replace(":", "").lowercase()
+
+        // 1. Collection `activations` — source de vérité du backend Sky-player
+        activationsListener = firestore.collection("activations")
+            .whereEqualTo("target_mac", safeMac)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "❌ Firestore activations listener error")
+                    handleListenerError(deviceId, error.message ?: "Erreur Firestore")
+                    return@addSnapshotListener
                 }
-                
-                try {
-                    // Lecture sécurisée des données
-                    @Suppress("UNCHECKED_CAST")
-                    val data = snapshot.value as? Map<String, Any>
-                    val config = RemoteConfig.fromMap(data)
-                    
-                    if (config != null) {
-                        when {
-                            config is RemoteConfig.XtreamConfig && config.isValid() -> {
-                                Timber.i("✅ Config Xtream reçue: ${config.host}")
-                                handleValidConfig(deviceId, config, configRef)
-                            }
-                            config is RemoteConfig.M3uConfig && config.isValid() -> {
-                                Timber.i("✅ Config M3U reçue: ${config.url.take(50)}...")
-                                handleValidConfig(deviceId, config, configRef)
-                            }
-                            else -> {
-                                Timber.w("⚠️ Config invalide reçue: $data")
-                            }
-                        }
-                    } else {
-                        Timber.w("⚠️ Format non reconnu: $data")
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "❌ Erreur parsing config")
-                    _events.tryEmit("Erreur format configuration")
-                }
+                val activation = snapshot?.documents?.firstOrNull()
+                    ?.toObject(FirestoreActivation::class.java)
+                processActivation(activation, deviceId)
             }
-            
-            override fun onCancelled(error: DatabaseError) {
-                Timber.e("❌ Firebase onCancelled: ${error.message} (code: ${error.code})")
-                
-                when (error.code) {
-                    DatabaseError.PERMISSION_DENIED -> {
-                        _configState.value = RemoteConfigState.Error("Accès refusé")
-                    }
-                    DatabaseError.NETWORK_ERROR -> {
-                        _configState.value = RemoteConfigState.Offline
-                        scheduleReconnect(deviceId)
-                    }
-                    else -> {
-                        _configState.value = RemoteConfigState.Error("Erreur: ${error.message}")
-                        scheduleReconnect(deviceId)
-                    }
+
+        // 2. Document `devices/{mac}` — appareils en essai (sans doc activation)
+        deviceListener = firestore.collection("devices").document(safeMac)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "❌ Firestore devices listener error")
+                    return@addSnapshotListener
                 }
+                val activation = snapshot?.toObject(FirestoreActivation::class.java)
+                processActivation(activation, deviceId)
+            }
+
+        Timber.i("🎧 Écoute Firestore démarrée: activations + devices/$safeMac")
+    }
+
+    /**
+     * Convertit une activation Firestore en config de lecture si une playlist est liée
+     */
+    private fun processActivation(activation: FirestoreActivation?, deviceId: String) {
+        if (activation == null) {
+            Timber.d("ℹ️ Aucune activation Firestore pour $deviceId")
+            return
+        }
+
+        val config = activation.toRemoteConfig()
+        when {
+            config is RemoteConfig.XtreamConfig && config.isValid() -> {
+                Timber.i("✅ Config Xtream reçue: ${config.host}")
+                handleValidConfig(config)
+            }
+            config is RemoteConfig.M3uConfig && config.isValid() -> {
+                Timber.i("✅ Config M3U reçue: ${config.url.take(50)}...")
+                handleValidConfig(config)
+            }
+            else -> {
+                Timber.d("ℹ️ Activation sans playlist configurée")
             }
         }
     }
-    
+
     /**
-     * Traite une config valide : notifie, supprime, continue d'écouter
+     * Traite une config valide : notifie l'UI et émet l'événement succès.
+     * Le document Firestore n'est PAS supprimé : c'est la source de vérité,
+     * il sert aussi au Dashboard et aux rechargements futurs.
      */
-    private fun handleValidConfig(
-        deviceId: String, 
-        config: RemoteConfig,
-        configRef: com.google.firebase.database.DatabaseReference
-    ) {
-        // 1. Notifier l'UI
+    private fun handleValidConfig(config: RemoteConfig) {
         _configState.value = RemoteConfigState.Received(config)
-        
-        // 2. Notifier événement succès
         _events.tryEmit("Configuration reçue avec succès")
-        
-        // 3. Supprimer de Firebase APRÈS confirmation lecture (sécurité)
-        configRef.removeValue()
-            .addOnSuccessListener {
-                Timber.i("🗑️ Config supprimée de Firebase (sécurité)")
-            }
-            .addOnFailureListener { e ->
-                Timber.e(e, "⚠️ Échec suppression config")
-            }
     }
-    
+
+    /**
+     * Gère les erreurs du listener Firestore (permissions, réseau…)
+     */
+    private fun handleListenerError(deviceId: String, message: String) {
+        when {
+            message.contains("denied", ignoreCase = true) ||
+                message.contains("permission", ignoreCase = true) -> {
+                _configState.value = RemoteConfigState.Error("Accès refusé")
+            }
+            else -> {
+                _configState.value = RemoteConfigState.Offline
+                scheduleReconnect(deviceId)
+            }
+        }
+    }
+
     /**
      * Reconnexion automatique avec exponential backoff
      */
@@ -172,12 +167,12 @@ class RemoteConfigManager @Inject constructor(
             _configState.value = RemoteConfigState.Error("Connexion impossible")
             return
         }
-        
+
         val delay = retryDelays.getOrElse(retryCount) { 30000L }
         retryCount++
-        
+
         Timber.i("🔄 Reconnexion dans ${delay}ms (tentative $retryCount/$maxRetries)")
-        
+
         mainHandler.postDelayed({
             if (isNetworkAvailable()) {
                 startListening(deviceId)
@@ -186,29 +181,25 @@ class RemoteConfigManager @Inject constructor(
             }
         }, delay)
     }
-    
+
     /**
      * Arrête proprement l'écoute
      */
     fun stopListening() {
-        currentListener?.let { listener ->
-            currentDeviceId?.let { deviceId ->
-                val safeDeviceId = deviceId.replace(":", "-")
-                firebaseDatabase.getReference("pending_configs").child(safeDeviceId)
-                    .removeEventListener(listener)
-            }
-        }
-        
+        activationsListener?.remove()
+        activationsListener = null
+        deviceListener?.remove()
+        deviceListener = null
+
         // Annuler les reconnections en attente
         mainHandler.removeCallbacksAndMessages(null)
-        
-        currentListener = null
+
         isListening = false
         retryCount = 0
-        
+
         Timber.i("🛑 Écoute arrêtée proprement")
     }
-    
+
     /**
      * Confirme l'application de la config
      */
@@ -216,7 +207,7 @@ class RemoteConfigManager @Inject constructor(
         _configState.value = RemoteConfigState.Applied(playlistName)
         _events.tryEmit("Playlist '$playlistName' chargée")
     }
-    
+
     /**
      * Réinitialise l'état
      */
@@ -224,7 +215,7 @@ class RemoteConfigManager @Inject constructor(
         _configState.value = RemoteConfigState.Idle
         retryCount = 0
     }
-    
+
     /**
      * Vérifie la connectivité réseau
      */
@@ -233,12 +224,32 @@ class RemoteConfigManager @Inject constructor(
         val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
         return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
-    
+
     /**
      * Génère l'URL du QR Code
      */
     fun generateQrUrl(deviceId: String): String {
         val safeId = deviceId.replace(":", "-")
         return "https://skyplayerapp.xyz/connect?mac=$safeId"
+    }
+}
+
+/**
+ * Convertit une activation Firestore (écrite par le backend Sky-player)
+ * en config de lecture (Xtream ou M3U) pour l'application.
+ */
+private fun FirestoreActivation.toRemoteConfig(): RemoteConfig? {
+    val xtreamHost = getXtreamHost()
+    val xtreamUser = getXtreamUser()
+    val xtreamPass = getXtreamPassword()
+    return when {
+        !xtreamHost.isNullOrBlank() && !xtreamUser.isNullOrBlank() && !xtreamPass.isNullOrBlank() ->
+            RemoteConfig.XtreamConfig(host = xtreamHost, user = xtreamUser, pass = xtreamPass)
+        !getPlaylistUrl().isNullOrBlank() ->
+            RemoteConfig.M3uConfig(
+                url = getPlaylistUrl()!!,
+                name = getPlaylistName() ?: "Playlist distante"
+            )
+        else -> null
     }
 }
