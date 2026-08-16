@@ -16,7 +16,25 @@ class ParentalControlManager @Inject constructor(
         private const val KEY_SECURITY_QUESTION = "parental_security_question"
         private const val KEY_SECURITY_ANSWER = "parental_security_answer"
         private const val KEY_LOCKED_CATEGORIES = "locked_categories"
-        private val SENSITIVE_KEYWORDS = listOf("ADULT", "XXX", "ADULTE", "X-", "+18", "PORN", "EROTIC")
+        private val SENSITIVE_KEYWORDS = listOf(
+            // Anglais / international
+            "ADULT", "XXX", "PORN", "EROTIC", "EROTIQUE", "SEX", "SEXY", "SEXUAL",
+            "EXPLICIT", "MATURE", "NUDITY", "NUDE", "NUDITE", "BABES", "STRIP",
+            "PLAYBOY", "PENTHOUSE", "DORCEL", "VIVID", "BAZOOKA", "SCANDALE", "ONLYFANS",
+            // Français
+            "ADULTE", "SEXE", "18+", "+18", "18 ANS", "X-",
+            // Espagnol / Portugais
+            "ADULTOS", "ADULTO", "EROTICAS", "SEXO"
+        )
+
+        /**
+         * Vérification pure (testable sans Android) : le nom de la catégorie
+         * contient un mot-clé de contenu sensible.
+         */
+        fun isSensitiveCategoryName(categoryName: String): Boolean {
+            val upperName = categoryName.uppercase()
+            return SENSITIVE_KEYWORDS.any { upperName.contains(it) }
+        }
     }
 
     /**
@@ -76,9 +94,9 @@ class ParentalControlManager @Inject constructor(
      * Détermine si une catégorie est sensible par défaut
      */
     fun isSensitiveCategory(categoryName: String): Boolean {
-        val upperName = categoryName.uppercase()
-        return SENSITIVE_KEYWORDS.any { upperName.contains(it) } || isManuallyLocked(categoryName)
+        return isSensitiveCategoryName(categoryName) || isManuallyLocked(categoryName)
     }
+
 
     /**
      * Vérifie si une catégorie a été verrouillée manuellement

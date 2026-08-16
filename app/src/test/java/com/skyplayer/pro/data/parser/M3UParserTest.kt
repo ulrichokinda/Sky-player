@@ -82,4 +82,59 @@ class M3UParserTest {
         assertEquals(first.first().id, second.first().id)
         assertTrue(first.first().id.startsWith("pl_"))
     }
+    @Test
+    fun parseFromContent_classifiesLiveVodAndSeriesIntoSections() = runTest {
+        // Playlist M3U mixte : le contenu doit être réparti dans ses sections
+        // respectives (TV live / Films / Séries) avec la bonne catégorie.
+        val content = """
+            #EXTM3U
+            #EXTINF:-1 group-title="News",France 24
+            http://stream.example.com/f24.m3u8
+            #EXTINF:-1 group-title="Films",Inception
+            http://stream.example.com/inception.mp4
+            #EXTINF:-1 group-title="Séries",Breaking Bad S01E01
+            http://stream.example.com/bb.m3u8
+            #EXTINF:-1 group-title="Sports",Canal Sport
+            http://stream.example.com/sport.m3u8
+        """.trimIndent()
+
+        val channels = parser.parseFromContent(content, "playlist-mixte")
+
+        assertEquals(4, channels.size)
+
+        val live = channels.filter { it.type == ContentType.LIVE_TV }
+        val movies = channels.filter { it.type == ContentType.VOD_MOVIE }
+        val series = channels.filter { it.type == ContentType.VOD_SERIES }
+
+        // Sections correctes
+        assertEquals(2, live.size)   // France 24 + Canal Sport
+        assertEquals(1, movies.size) // Inception
+        assertEquals(1, series.size) // Breaking Bad
+
+        // Catégories correctes
+        assertEquals("Actualités", live.first { it.name.contains("France") }.category)
+        assertEquals("Sports", live.first { it.name.contains("Sport") }.category)
+        assertEquals("Films", movies.first().category)
+        assertEquals("Séries", series.first().category)
+
+        // Type de flux conservé
+        assertTrue(movies.first().url.endsWith(".mp4"))
+        assertTrue(live.all { it.url.contains(".m3u8") })
+    }
+
+    @Test
+    fun parseFromContent_frenchMovieAndSeriesKeywords() = runTest {
+        val content = """
+            #EXTM3U
+            #EXTINF:-1 group-title="CINEMA",Un Film Français
+            http://stream.example.com/film.mp4
+            #EXTINF:-1 group-title="TV SHOWS",Une Série Française S01E01
+            http://stream.example.com/serie.mp4
+        """.trimIndent()
+
+        val channels = parser.parseFromContent(content, "playlist-fr")
+
+        assertEquals(ContentType.VOD_MOVIE, channels[0].type)
+        assertEquals(ContentType.VOD_SERIES, channels[1].type)
+    }
 }

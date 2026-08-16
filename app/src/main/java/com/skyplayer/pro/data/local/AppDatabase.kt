@@ -25,7 +25,7 @@ import com.skyplayer.pro.data.model.WatchHistory
         EpgProgram::class
     ],
     version = 5,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

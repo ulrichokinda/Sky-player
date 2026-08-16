@@ -46,6 +46,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.skyplayer.pro.util.XtreamUrlNormalizer
+import androidx.room.withTransaction
 import timber.log.Timber
 import java.util.UUID
 
@@ -710,26 +711,30 @@ class PlaylistRepository @Inject constructor(
             }
 
             if (newChannels.isNotEmpty()) {
-                // Utiliser une transaction pour la rapidité
-                channelDao.deleteChannelsByPlaylistId(playlistId)
+                // Transaction atomique : suppression + réinsertion + FTS + compteur
+                // garantissent qu'un refresh interrompu ne laisse jamais la base
+                // dans un état partiel (dédoublonnage assuré par delete + reinsert).
+                database.withTransaction {
+                    channelDao.deleteChannelsByPlaylistId(playlistId)
 
-                // Chunking pour éviter les erreurs SQLite sur de très grosses listes
-                newChannels.chunked(500).forEach { chunk ->
-                    val preparedChunk = chunk.map { channel ->
-                        if (channel.id.startsWith(playlistId)) channel
-                        else channel.copy(id = "${playlistId}_${channel.id}")
+                    // Chunking pour éviter les erreurs SQLite sur de très grosses listes
+                    newChannels.chunked(500).forEach { chunk ->
+                        val preparedChunk = chunk.map { channel ->
+                            if (channel.id.startsWith(playlistId)) channel
+                            else channel.copy(id = "${playlistId}_${channel.id}")
+                        }
+                        channelDao.insertChannels(preparedChunk)
+
+                        // Mettre à jour l'index de recherche (FTS)
+                        channelDao.insertChannelsFts(preparedChunk.map {
+                            ChannelFts(it.id, it.name, it.category, it.groupTitle)
+                        })
                     }
-                    channelDao.insertChannels(preparedChunk)
 
-                    // Mettre à jour l'index de recherche (FTS)
-                    channelDao.insertChannelsFts(preparedChunk.map {
-                        ChannelFts(it.id, it.name, it.category, it.groupTitle)
-                    })
+                    // Mettre à jour le compte et le timestamp
+                    playlistDao.updateChannelCount(playlistId, newChannels.size)
+                    playlistDao.updateTimestamp(playlistId)
                 }
-
-                // Mettre à jour le compte et le timestamp
-                playlistDao.updateChannelCount(playlistId, newChannels.size)
-                playlistDao.updateTimestamp(playlistId)
 
                 Timber.i("✅ Playlist $playlistId synchronisée : ${newChannels.size} éléments")
                 Result.success(Unit)

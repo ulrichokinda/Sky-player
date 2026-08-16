@@ -236,6 +236,12 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
 }
 
+// Export des schémas Room pour permettre les migrations de base de données
+// sans perte de données utilisateur lors des futures mises à jour.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 // Configuration Google Services Plugin
 googleServices {
     disableVersionCheck = false
