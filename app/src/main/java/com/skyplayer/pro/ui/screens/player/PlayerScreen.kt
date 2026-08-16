@@ -71,6 +71,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -88,6 +90,7 @@ import com.skyplayer.pro.data.model.PlayerConnectionState
 import com.skyplayer.pro.data.monitor.FallbackInfo
 import com.skyplayer.pro.data.monitor.StreamHealth
 import com.skyplayer.pro.data.monitor.StreamIssue
+import com.skyplayer.pro.ui.theme.PremiumCyan
 import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GlassWhite
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -591,7 +594,15 @@ private fun PlayerControlsOverlay(
 ) {
     Box(
         modifier = modifier
-            .background(Color.Black.copy(alpha = 0.4f))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Black.copy(alpha = 0.75f),
+                        Color.Black.copy(alpha = 0.15f),
+                        Color.Black.copy(alpha = 0.8f)
+                    )
+                )
+            )
     ) {
         // Overlay info programme (en bas à gauche)
         if (currentProgram != null) {
@@ -750,38 +761,93 @@ private fun PlayerControlsOverlay(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Retour 10s
-            FilledIconButton(
+            // Retour 10s (verre)
+            GlassControlButton(
                 onClick = onSeekBackward,
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(Icons.Default.FastRewind, null)
-            }
+                icon = { Icon(Icons.Default.FastRewind, null, modifier = Modifier.size(28.dp), tint = Color.White) },
+                size = 56.dp
+            )
 
             Spacer(modifier = Modifier.width(24.dp))
 
-            // Play/Pause
-            FilledIconButton(
-                onClick = onTogglePlay,
-                modifier = Modifier.size(72.dp)
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Replay else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Lecture",
-                    modifier = Modifier.size(36.dp)
-                )
-            }
+            // Play/Pause — bouton lumineux en dégradé émeraude→cyan
+            GlowingPlayButton(
+                isPlaying = isPlaying,
+                onClick = onTogglePlay
+            )
 
             Spacer(modifier = Modifier.width(24.dp))
 
-            // Avance 10s
-            FilledIconButton(
+            // Avance 10s (verre)
+            GlassControlButton(
                 onClick = onSeekForward,
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(Icons.Default.FastForward, null)
-            }
+                icon = { Icon(Icons.Default.FastForward, null, modifier = Modifier.size(28.dp), tint = Color.White) },
+                size = 56.dp
+            )
         }
+    }
+}
+
+/**
+ * Bouton play/pause lumineux en dégradé émeraude→cyan avec halo
+ */
+@Composable
+private fun GlowingPlayButton(
+    isPlaying: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.size(96.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Halo externe
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .background(PremiumEmerald.copy(alpha = 0.18f), CircleShape)
+        )
+        Box(
+            modifier = Modifier
+                .size(76.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(PremiumEmerald, PremiumCyan)
+                    )
+                )
+                .shadow(24.dp, CircleShape, spotColor = PremiumEmerald.copy(alpha = 0.6f))
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Replay else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) "Pause" else "Lecture",
+                modifier = Modifier.size(38.dp),
+                tint = Color.White
+            )
+        }
+    }
+}
+
+/**
+ * Bouton de contrôle en verre (fond translucide + bordure subtile)
+ */
+@Composable
+private fun GlassControlButton(
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit,
+    size: androidx.compose.ui.unit.Dp
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.1f))
+            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        icon()
     }
 }
 

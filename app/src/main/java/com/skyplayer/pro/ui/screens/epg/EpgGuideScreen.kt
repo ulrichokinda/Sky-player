@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -92,7 +93,15 @@ fun EpgGuideScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PureBlack)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        LiveTvColor.copy(alpha = 0.07f),
+                        PureBlack,
+                        PureBlack
+                    )
+                )
+            )
     ) {
         // ——— Header ———
         Row(
@@ -114,7 +123,9 @@ fun EpgGuideScreen(
                     text = "Guide des Programmes",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        brush = Brush.horizontalGradient(
+                            listOf(LiveTvColor, Color.White.copy(alpha = 0.95f))
+                        )
                     )
                 )
                 Text(

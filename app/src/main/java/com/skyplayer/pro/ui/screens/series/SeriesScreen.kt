@@ -135,6 +135,7 @@ fun SeriesScreen(
                         viewModel.selectCategory(category.name)
                     }
                 },
+                accentColor = SeriesColor,
                 onSearchQueryChange = { viewModel.searchSeries(it) }
             )
         }

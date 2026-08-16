@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -38,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +54,10 @@ import com.skyplayer.pro.ui.theme.PureBlack
 
 /**
  * Barre de navigation latérale pour catégories (Style Hot Player)
+ *
+ * Design « verre fusionné » : fond translucide laissant transparaître le halo
+ * de la section (Live/VOD/Séries), séparateur doux à droite — plus de panneau
+ * noir plein ni de bordure dure qui coupe l'écran.
  */
 @Composable
 fun CategorySidebar(
@@ -58,24 +65,55 @@ fun CategorySidebar(
     selectedCategory: String?,
     onCategorySelected: (ChannelCategory) -> Unit,
     modifier: Modifier = Modifier,
+    accentColor: Color = PremiumEmerald,
     onSearchQueryChange: (String) -> Unit = {},
     parentalManager: ParentalControlManager = hiltViewModel<com.skyplayer.pro.ui.viewmodel.ParentalViewModel>().manager
 ) {
     val listState = rememberLazyListState()
     var searchQuery by remember { mutableStateOf("") }
 
-    Surface(
+    Box(
         modifier = modifier
             .fillMaxHeight()
-            .width(260.dp),
-        color = PureBlack,
-        border = androidx.compose.foundation.BorderStroke(1.dp, color = Color.White.copy(alpha = 0.05f))
+            .width(260.dp)
     ) {
+        // Halo fusionné avec le fond de la section (émeraude/cyan/violet)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            accentColor.copy(alpha = 0.12f),
+                            PureBlack.copy(alpha = 0.35f),
+                            PureBlack.copy(alpha = 0.55f)
+                        )
+                    )
+                )
+        )
+
+        // Séparateur doux à droite (au lieu d'une bordure dure)
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .width(1.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            accentColor.copy(alpha = 0.35f),
+                            accentColor.copy(alpha = 0.08f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+
         Column(modifier = Modifier.padding(top = 16.dp)) {
-            // Recherche intégrée en haut de la sidebar
+            // Recherche intégrée en haut de la sidebar (style verre)
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { 
+                onValueChange = {
                     searchQuery = it
                     onSearchQueryChange(it)
                 },
@@ -83,10 +121,12 @@ fun CategorySidebar(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text("Rechercher...", color = Color.White.copy(alpha = 0.5f)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = PremiumEmerald) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = accentColor) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PremiumEmerald,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                    focusedBorderColor = accentColor,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                    focusedContainerColor = PureBlack.copy(alpha = 0.4f),
+                    unfocusedContainerColor = PureBlack.copy(alpha = 0.25f),
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White
                 ),
@@ -109,12 +149,13 @@ fun CategorySidebar(
                         count = categories.sumOf { it.channelCount },
                         isSelected = selectedCategory == null || selectedCategory == "ALL",
                         isLocked = false,
+                        accentColor = accentColor,
                         onClick = { onCategorySelected(ChannelCategory("ALL", emptyList())) }
                     )
                 }
 
-                val filteredCategories = categories.filter { 
-                    it.name.contains(searchQuery, ignoreCase = true) 
+                val filteredCategories = categories.filter {
+                    it.name.contains(searchQuery, ignoreCase = true)
                 }
 
                 items(
@@ -126,6 +167,7 @@ fun CategorySidebar(
                         count = category.channelCount,
                         isSelected = category.name == selectedCategory,
                         isLocked = parentalManager.isSensitiveCategory(category.name),
+                        accentColor = accentColor,
                         onClick = { onCategorySelected(category) }
                     )
                 }
@@ -140,6 +182,7 @@ private fun CategoryItem(
     count: Int,
     isSelected: Boolean,
     isLocked: Boolean,
+    accentColor: Color,
     onClick: () -> Unit
 ) {
     Box(
@@ -147,7 +190,20 @@ private fun CategoryItem(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) PremiumEmerald.copy(alpha = 0.15f) else Color.Transparent)
+            .background(
+                if (isSelected) {
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            accentColor.copy(alpha = 0.28f),
+                            accentColor.copy(alpha = 0.06f)
+                        )
+                    )
+                } else {
+                    Brush.horizontalGradient(
+                        colors = listOf(Color.Transparent, Color.Transparent)
+                    )
+                }
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
@@ -161,44 +217,63 @@ private fun CategoryItem(
                     text = name.uppercase(),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                        color = if (isLocked && !isSelected) Color.White.copy(alpha = 0.4f) else if (isSelected) PremiumEmerald else Color.White.copy(alpha = 0.7f),
+                        color = if (isLocked && !isSelected) Color.White.copy(alpha = 0.4f)
+                        else if (isSelected) accentColor
+                        else Color.White.copy(alpha = 0.7f),
                         letterSpacing = 0.5.sp
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 if (isLocked) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = "Verrouillé",
-                        tint = if (isSelected) PremiumEmerald else Color.Gray,
+                        tint = if (isSelected) accentColor else Color.Gray,
                         modifier = Modifier.size(14.dp)
                     )
                 }
             }
 
             if (count > 0) {
-                Text(
-                    text = count.toString(),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = if (isSelected) PremiumEmerald else Color.Gray,
-                        fontWeight = FontWeight.Bold
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (isSelected) accentColor.copy(alpha = 0.2f)
+                            else Color.White.copy(alpha = 0.06f)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = count.toString(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = if (isSelected) accentColor else Color.Gray,
+                            fontWeight = FontWeight.Bold
+                        )
                     )
-                )
+                }
             }
         }
-        
-        // Indicateur de sélection à gauche
+
+        // Indicateur de sélection lumineux à gauche
         if (isSelected) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .offset(x = (-16).dp)
+                    .offset(x = (-12).dp)
                     .width(4.dp)
-                    .height(20.dp)
-                    .background(PremiumEmerald, RoundedCornerShape(2.dp))
+                    .height(24.dp)
+                    .background(accentColor, RoundedCornerShape(2.dp))
+                    .drawBehind {
+                        drawCircle(
+                            color = accentColor.copy(alpha = 0.35f),
+                            radius = size.height * 1.2f,
+                            center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                        )
+                    }
             )
         }
     }
