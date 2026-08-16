@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.PureBlack
@@ -136,7 +136,7 @@ fun ImmersiveMovieCard(
                     QualityBadge("4K", PremiumGold)
                     Spacer(modifier = Modifier.height(8.dp))
                 } else if (movie.name.contains("HD", true) || movie.name.contains("1080", true)) {
-                    QualityBadge("HD", ElectricSkyBlue)
+                    QualityBadge("HD", PremiumEmerald)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 

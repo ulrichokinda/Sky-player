@@ -58,7 +58,7 @@ import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.CustomFolder
 import com.skyplayer.pro.ui.components.ChannelListShimmer
 import com.skyplayer.pro.ui.components.ShimmerItem
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GlassWhite
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.VodColor
@@ -339,7 +339,7 @@ private fun FoldersGrid(
                 ),
                 border = androidx.compose.foundation.BorderStroke(
                     width = 2.dp,
-                    color = ElectricSkyBlue.copy(alpha = 0.5f)
+                    color = PremiumEmerald.copy(alpha = 0.5f)
                 )
             ) {
                 Column(
@@ -351,7 +351,7 @@ private fun FoldersGrid(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Créer",
                         modifier = Modifier.size(48.dp),
-                        tint = ElectricSkyBlue
+                        tint = PremiumEmerald
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -384,8 +384,8 @@ private fun FolderCard(
     val color = folder.colorHex?.let { 
         try {
             androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(it))
-        } catch (_: Exception) { ElectricSkyBlue }
-    } ?: ElectricSkyBlue
+        } catch (_: Exception) { PremiumEmerald }
+    } ?: PremiumEmerald
     
     Card(
         modifier = Modifier

@@ -44,7 +44,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.VideoQuality
 import com.skyplayer.pro.ui.screens.player.AdaptiveBitrateManager.NetworkStability
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GlassWhite
 import com.skyplayer.pro.ui.theme.PureBlack
 
@@ -83,7 +83,7 @@ fun QualitySelectionDialog(
             ),
             border = androidx.compose.foundation.BorderStroke(
                 width = 1.dp,
-                color = ElectricSkyBlue.copy(alpha = 0.3f)
+                color = PremiumEmerald.copy(alpha = 0.3f)
             )
         ) {
             Column(
@@ -96,7 +96,7 @@ fun QualitySelectionDialog(
                     Icon(
                         imageVector = Icons.Default.HighQuality,
                         contentDescription = null,
-                        tint = ElectricSkyBlue,
+                        tint = PremiumEmerald,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -153,7 +153,7 @@ fun QualitySelectionDialog(
                     Text(
                         text = "Mode Auto: La qualité s'adapte automatiquement à votre connexion",
                         style = MaterialTheme.typography.bodySmall,
-                        color = ElectricSkyBlue.copy(alpha = 0.8f),
+                        color = PremiumEmerald.copy(alpha = 0.8f),
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                 }
@@ -163,7 +163,7 @@ fun QualitySelectionDialog(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Fermer", color = ElectricSkyBlue)
+                    Text("Fermer", color = PremiumEmerald)
                 }
             }
         }
@@ -277,14 +277,14 @@ private fun QualityOptionItem(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) 
-                ElectricSkyBlue.copy(alpha = 0.2f) 
+                PremiumEmerald.copy(alpha = 0.2f) 
             else 
                 GlassWhite.copy(alpha = 0.3f)
         ),
         border = if (isSelected) 
             androidx.compose.foundation.BorderStroke(
                 width = 2.dp,
-                color = ElectricSkyBlue
+                color = PremiumEmerald
             ) 
         else null
     ) {
@@ -297,7 +297,7 @@ private fun QualityOptionItem(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isSelected) ElectricSkyBlue else Color.White.copy(alpha = 0.7f),
+                tint = if (isSelected) PremiumEmerald else Color.White.copy(alpha = 0.7f),
                 modifier = Modifier.size(24.dp)
             )
             
@@ -343,7 +343,7 @@ private fun QualityOptionItem(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Sélectionné",
-                    tint = ElectricSkyBlue,
+                    tint = PremiumEmerald,
                     modifier = Modifier.size(24.dp)
                 )
             }

@@ -37,7 +37,7 @@ import com.skyplayer.pro.R
 import com.skyplayer.pro.ui.viewmodel.AppNetworkStatus
 import com.skyplayer.pro.ui.viewmodel.AppStatusUiState
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PureBlack
 import com.skyplayer.pro.ui.theme.SuccessGreen
 import com.skyplayer.pro.ui.theme.WarningOrange
@@ -130,7 +130,7 @@ private fun ColumnBannerContent(
                 Icon(
                     imageVector = Icons.Default.Sync,
                     contentDescription = null,
-                    tint = ElectricSkyBlue,
+                    tint = PremiumEmerald,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -151,7 +151,7 @@ private fun ColumnBannerContent(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp)
                     .clip(RoundedCornerShape(2.dp)),
-                color = ElectricSkyBlue,
+                color = PremiumEmerald,
                 trackColor = Color.White.copy(alpha = 0.08f)
             )
         }

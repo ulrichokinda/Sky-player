@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PureBlack
 
 /**
@@ -43,7 +43,7 @@ fun PinDialog(
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = null,
-                    tint = ElectricSkyBlue,
+                    tint = PremiumEmerald,
                     modifier = Modifier.size(48.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -76,12 +76,12 @@ fun PinDialog(
                     textStyle = MaterialTheme.typography.headlineMedium.copy(
                         textAlign = TextAlign.Center,
                         letterSpacing = 8.sp,
-                        color = ElectricSkyBlue
+                        color = PremiumEmerald
                     ),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = PureBlack,
                         unfocusedContainerColor = PureBlack,
-                        focusedIndicatorColor = ElectricSkyBlue
+                        focusedIndicatorColor = PremiumEmerald
                     )
                 )
                 
@@ -98,9 +98,9 @@ fun PinDialog(
 
                 TextButton(onClick = onForgotPassword) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Filled.HelpOutline, null, modifier = Modifier.size(16.dp), tint = ElectricSkyBlue)
+                        Icon(Icons.AutoMirrored.Filled.HelpOutline, null, modifier = Modifier.size(16.dp), tint = PremiumEmerald)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Code oublié ?", color = ElectricSkyBlue, style = MaterialTheme.typography.labelLarge)
+                        Text("Code oublié ?", color = PremiumEmerald, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -109,7 +109,7 @@ fun PinDialog(
             Button(
                 onClick = { onConfirm(pin) },
                 enabled = pin.length >= 4,
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
             ) {
                 Text("DÉVERROUILLER", fontWeight = FontWeight.Bold, color = PureBlack)
             }
@@ -177,7 +177,7 @@ fun SetupPinDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.colors(focusedIndicatorColor = ElectricSkyBlue)
+                        colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
@@ -188,7 +188,7 @@ fun SetupPinDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.colors(focusedIndicatorColor = ElectricSkyBlue)
+                        colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                     )
                 } else {
                     Text(
@@ -237,7 +237,7 @@ fun SetupPinDialog(
                         label = { Text("Votre réponse") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.colors(focusedIndicatorColor = ElectricSkyBlue)
+                        colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                     )
                 }
 
@@ -269,7 +269,7 @@ fun SetupPinDialog(
                         }
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
             ) {
                 Text(if (step == 1) "SUIVANT" else "TERMINER", fontWeight = FontWeight.Bold, color = PureBlack)
             }
@@ -321,7 +321,7 @@ fun RecoveryPinDialog(
                 Text(
                     text = question,
                     style = MaterialTheme.typography.titleMedium,
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     fontWeight = FontWeight.Bold
                 )
                 
@@ -333,7 +333,7 @@ fun RecoveryPinDialog(
                     label = { Text("Votre réponse") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.colors(focusedIndicatorColor = ElectricSkyBlue)
+                    colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                 )
                 
                 if (error != null) {
@@ -350,7 +350,7 @@ fun RecoveryPinDialog(
             Button(
                 onClick = { onVerify(answer) },
                 enabled = answer.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
             ) {
                 Text("VÉRIFIER", fontWeight = FontWeight.Bold, color = PureBlack)
             }

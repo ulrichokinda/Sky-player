@@ -70,7 +70,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.ContentType
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.theme.LiveTvColor
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -148,7 +148,7 @@ fun SearchScreen(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = ElectricSkyBlue
+                        tint = PremiumEmerald
                     )
                 },
                 trailingIcon = {
@@ -167,7 +167,7 @@ fun SearchScreen(
                             Icon(
                                 imageVector = Icons.Default.Mic,
                                 contentDescription = "Recherche vocale",
-                                tint = ElectricSkyBlue
+                                tint = PremiumEmerald
                             )
                         }
                         AnimatedVisibility(
@@ -186,11 +186,11 @@ fun SearchScreen(
                     }
                 },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ElectricSkyBlue,
+                    focusedBorderColor = PremiumEmerald,
                     unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    cursorColor = ElectricSkyBlue
+                    cursorColor = PremiumEmerald
                 ),
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
@@ -229,16 +229,16 @@ fun SearchScreen(
                         }
                     } else null,
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = ElectricSkyBlue.copy(alpha = 0.2f),
-                        selectedLabelColor = ElectricSkyBlue,
-                        selectedLeadingIconColor = ElectricSkyBlue,
+                        selectedContainerColor = PremiumEmerald.copy(alpha = 0.2f),
+                        selectedLabelColor = PremiumEmerald,
+                        selectedLeadingIconColor = PremiumEmerald,
                         containerColor = ElevatedBlack,
                         labelColor = Color.White.copy(alpha = 0.6f)
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = filter == f,
-                        selectedBorderColor = ElectricSkyBlue.copy(alpha = 0.5f),
+                        selectedBorderColor = PremiumEmerald.copy(alpha = 0.5f),
                         borderColor = Color.White.copy(alpha = 0.1f)
                     )
                 )
@@ -316,7 +316,7 @@ private fun SearchResultItem(
         ContentType.VOD_MOVIE -> VodColor
         ContentType.VOD_SERIES -> SeriesColor
         ContentType.RADIO -> PremiumGold
-        else -> ElectricSkyBlue
+        else -> PremiumEmerald
     }
 
     val typeLabel = when (channel.type) {
@@ -475,7 +475,7 @@ private fun SearchHintState() {
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                ElectricSkyBlue.copy(alpha = 0.15f),
+                                PremiumEmerald.copy(alpha = 0.15f),
                                 Color.Transparent
                             )
                         ),
@@ -486,7 +486,7 @@ private fun SearchHintState() {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
-                    tint = ElectricSkyBlue.copy(alpha = 0.6f),
+                    tint = PremiumEmerald.copy(alpha = 0.6f),
                     modifier = Modifier.size(48.dp)
                 )
             }

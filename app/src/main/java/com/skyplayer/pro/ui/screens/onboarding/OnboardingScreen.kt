@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.skyplayer.pro.ui.screens.welcome.WelcomeViewModel
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -168,7 +168,7 @@ fun OnboardingScreen(
                             .clip(CircleShape)
                             .background(
                                 if (pagerState.currentPage == index)
-                                    ElectricSkyBlue
+                                    PremiumEmerald
                                 else
                                     Color.White.copy(alpha = 0.3f)
                             )
@@ -183,7 +183,7 @@ fun OnboardingScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+                    colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
                 ) {
                     Icon(Icons.Default.AddLink, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -203,7 +203,7 @@ fun OnboardingScreen(
                         .height(48.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Configurer par QR Code (TV)", color = ElectricSkyBlue)
+                    Text("Configurer par QR Code (TV)", color = PremiumEmerald)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -225,7 +225,7 @@ fun OnboardingScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+                    colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
                 ) {
                     Text("Suivant", fontWeight = FontWeight.Bold, color = PureBlack)
                 }

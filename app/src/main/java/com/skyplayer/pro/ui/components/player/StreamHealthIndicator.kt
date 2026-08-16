@@ -41,7 +41,7 @@ fun StreamHealthIndicator(
     var showNotification by remember { mutableStateOf(false) }
     var notificationMessage by remember { mutableStateOf("") }
     var notificationIcon by remember { mutableStateOf(Icons.Default.Info) }
-    var notificationColor by remember { mutableStateOf(ElectricSkyBlue) }
+    var notificationColor by remember { mutableStateOf(PremiumEmerald) }
 
     // Détecter les changements et afficher notification élégante
     LaunchedEffect(healthState, fallbackInfo) {
@@ -56,7 +56,7 @@ fun StreamHealthIndicator(
             fallbackInfo is FallbackInfo.Mirror -> {
                 notificationMessage = "Optimisation du flux..."
                 notificationIcon = Icons.Default.Speed
-                notificationColor = ElectricSkyBlue
+                notificationColor = PremiumEmerald
                 showNotification = true
             }
             healthState is StreamHealth.Degraded -> {
@@ -160,7 +160,7 @@ private fun GlassmorphismHealthCard(
             }
 
             // Indicateur subtil (pas de spinner agressif)
-            if (accentColor == ElectricSkyBlue || accentColor == PremiumGold) {
+            if (accentColor == PremiumEmerald || accentColor == PremiumGold) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .width(24.dp)
@@ -198,7 +198,7 @@ fun QualityIndicatorOverlay(
     val qualityColor = when (healthState) {
         is StreamHealth.Healthy -> SuccessGreen
         is StreamHealth.Degraded -> WarningOrange
-        is StreamHealth.UsingAlternative -> ElectricSkyBlue
+        is StreamHealth.UsingAlternative -> PremiumEmerald
         is StreamHealth.Unrecoverable -> ErrorRed
     }
 
@@ -299,7 +299,7 @@ private fun AlternativeChannelCard(
         ),
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
-            color = ElectricSkyBlue.copy(alpha = 0.5f)
+            color = PremiumEmerald.copy(alpha = 0.5f)
         )
     ) {
         Column(
@@ -309,7 +309,7 @@ private fun AlternativeChannelCard(
             Icon(
                 imageVector = Icons.Default.SwitchAccessShortcut,
                 contentDescription = null,
-                tint = ElectricSkyBlue,
+                tint = PremiumEmerald,
                 modifier = Modifier.size(48.dp)
             )
 
@@ -356,7 +356,7 @@ private fun AlternativeChannelCard(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
-                        tint = ElectricSkyBlue,
+                        tint = PremiumEmerald,
                         modifier = Modifier.alpha(0.7f)
                     )
 
@@ -381,7 +381,7 @@ private fun AlternativeChannelCard(
             Button(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ElectricSkyBlue
+                    containerColor = PremiumEmerald
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {

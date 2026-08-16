@@ -70,7 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.ErrorRed
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
@@ -194,7 +194,7 @@ fun MyLineScreen(
             // ── Playlist active ───────────────────────────────────
             MyLineCard(
                 icon = Icons.AutoMirrored.Filled.PlaylistPlay,
-                iconTint = ElectricSkyBlue,
+                iconTint = PremiumEmerald,
                 label = "Playlist active",
                 value = playlistName.ifBlank { "Aucune playlist configurée" }
             )
@@ -262,8 +262,8 @@ fun MyLineScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ElectricSkyBlue.copy(alpha = 0.15f),
-                        contentColor = ElectricSkyBlue
+                        containerColor = PremiumEmerald.copy(alpha = 0.15f),
+                        contentColor = PremiumEmerald
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
@@ -316,7 +316,7 @@ fun MyLineScreen(
                     Text(
                         text = "QR CODE D'ACTIVATION",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            color = ElectricSkyBlue,
+                            color = PremiumEmerald,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.5.sp
                         )
@@ -363,7 +363,7 @@ fun MyLineScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+                    colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
                 ) {
                     Icon(Icons.Default.OpenInBrowser, null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(10.dp))

@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.theme.PureBlack
 import com.skyplayer.pro.ui.theme.SeriesColor

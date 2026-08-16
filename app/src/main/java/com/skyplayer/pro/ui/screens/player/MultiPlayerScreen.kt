@@ -59,7 +59,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.skyplayer.pro.data.model.PlayerConnectionState
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PureBlack
 
 /**
@@ -429,7 +429,7 @@ private fun PlayerSlotView(
         modifier = modifier
             .border(
                 width = if (isSelected) 2.dp else 0.5.dp,
-                color = if (isSelected) ElectricSkyBlue else Color.White.copy(alpha = 0.1f),
+                color = if (isSelected) PremiumEmerald else Color.White.copy(alpha = 0.1f),
                 shape = RoundedCornerShape(16.dp)
             )
             .clip(RoundedCornerShape(16.dp))
@@ -596,7 +596,7 @@ private fun ConnectionOverlay(
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     strokeWidth = 2.dp,
                     modifier = Modifier.size(32.dp)
                 )
@@ -694,7 +694,7 @@ private fun LayoutOption(
             modifier = Modifier
                 .size(60.dp)
                 .background(
-                    if (isSelected) ElectricSkyBlue else Color.Gray.copy(alpha = 0.3f),
+                    if (isSelected) PremiumEmerald else Color.Gray.copy(alpha = 0.3f),
                     RoundedCornerShape(8.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -707,7 +707,7 @@ private fun LayoutOption(
         }
         Text(
             text = label,
-            color = if (isSelected) ElectricSkyBlue else Color.Gray,
+            color = if (isSelected) PremiumEmerald else Color.Gray,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 4.dp)
         )

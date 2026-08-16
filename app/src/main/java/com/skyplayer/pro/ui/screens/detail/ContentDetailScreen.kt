@@ -55,7 +55,7 @@ import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.ContentMetadata
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.PureBlack
@@ -89,7 +89,7 @@ fun ContentDetailScreen(
         when (val state = uiState) {
             is ContentDetailUiState.Loading -> {
                 CircularProgressIndicator(
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
@@ -109,7 +109,7 @@ fun ContentDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = onBackClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+                        colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
                     ) {
                         Text("Retour")
                     }
@@ -215,7 +215,7 @@ private fun ContentDetailBody(
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(
-                                    color = ElectricSkyBlue,
+                                    color = PremiumEmerald,
                                     modifier = Modifier.size(32.dp),
                                     strokeWidth = 2.dp
                                 )
@@ -231,7 +231,7 @@ private fun ContentDetailBody(
                                 Icon(
                                     imageVector = Icons.Default.PlayArrow,
                                     contentDescription = null,
-                                    tint = ElectricSkyBlue.copy(alpha = 0.4f),
+                                    tint = PremiumEmerald.copy(alpha = 0.4f),
                                     modifier = Modifier.size(48.dp)
                                 )
                             }
@@ -318,8 +318,8 @@ private fun ContentDetailBody(
                                         )
                                     },
                                     colors = SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = ElectricSkyBlue.copy(alpha = 0.15f),
-                                        labelColor = ElectricSkyBlue
+                                        containerColor = PremiumEmerald.copy(alpha = 0.15f),
+                                        labelColor = PremiumEmerald
                                     )
                                 )
                             }
@@ -339,7 +339,7 @@ private fun ContentDetailBody(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ElectricSkyBlue
+                    containerColor = PremiumEmerald
                 )
             ) {
                 Icon(
@@ -460,13 +460,13 @@ private fun ActorChip(name: String) {
         Box(
             modifier = Modifier
                 .size(22.dp)
-                .background(ElectricSkyBlue.copy(alpha = 0.2f), CircleShape),
+                .background(PremiumEmerald.copy(alpha = 0.2f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Person,
                 contentDescription = null,
-                tint = ElectricSkyBlue,
+                tint = PremiumEmerald,
                 modifier = Modifier.size(14.dp)
             )
         }

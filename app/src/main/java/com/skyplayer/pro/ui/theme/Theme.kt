@@ -18,33 +18,33 @@ import androidx.core.view.WindowCompat
 
 /**
  * Thème Premium Sky Player Pro
- * Fond #0F0F0F (Noir pur), Accents #00AEEF (Bleu électrique), #FFD700 (Or Premium)
- * Glassmorphism et design moderne élégant
+ * Fond #0F0F0F (Noir pur), Accents #10B981 (Émeraude), #14B8A6 (Teal), #22D3EE (Cyan)
+ * Identité alignée sur le site Sky-player — Glassmorphism et design moderne élégant
  */
 
 /**
  * Thème clair Premium
  */
 private val LightColorScheme = lightColorScheme(
-    primary = ElectricSkyBlue,
+    primary = PremiumEmerald,
     onPrimary = Color.White,
-    primaryContainer = ElectricSkyBlue.copy(alpha = 0.15f),
-    onPrimaryContainer = ElectricSkyBlue,
-    secondary = PremiumGold,
+    primaryContainer = PremiumEmerald.copy(alpha = 0.15f),
+    onPrimaryContainer = PremiumEmerald,
+    secondary = PremiumTeal,
     onSecondary = PureBlack,
-    secondaryContainer = PremiumGold.copy(alpha = 0.15f),
-    onSecondaryContainer = PremiumGold,
-    tertiary = PremiumGoldLight,
+    secondaryContainer = PremiumTeal.copy(alpha = 0.15f),
+    onSecondaryContainer = PremiumTeal,
+    tertiary = PremiumCyan,
     onTertiary = PureBlack,
-    tertiaryContainer = PremiumGoldLight.copy(alpha = 0.15f),
-    onTertiaryContainer = PremiumGold,
+    tertiaryContainer = PremiumCyan.copy(alpha = 0.15f),
+    onTertiaryContainer = PremiumCyan,
     background = PureBlack,
     onBackground = TextPrimary,
     surface = CardBlack,
     onSurface = TextPrimary,
     surfaceVariant = ElevatedBlack,
     onSurfaceVariant = TextSecondary,
-    surfaceTint = ElectricSkyBlue,
+    surfaceTint = PremiumEmerald,
     error = ErrorRed,
     onError = Color.White,
     errorContainer = ErrorRed.copy(alpha = 0.15f),
@@ -54,7 +54,7 @@ private val LightColorScheme = lightColorScheme(
     scrim = PureBlack.copy(alpha = 0.85f),
     inverseSurface = TextPrimary,
     inverseOnSurface = PureBlack,
-    inversePrimary = ElectricSkyBlueLight
+    inversePrimary = PremiumEmeraldLight
 )
 
 /**
@@ -62,25 +62,25 @@ private val LightColorScheme = lightColorScheme(
  * Optimisé pour écrans AMOLED avec glassmorphism
  */
 private val DarkColorScheme = darkColorScheme(
-    primary = ElectricSkyBlue,                    // Bleu électrique #00AEEF
+    primary = PremiumEmerald,                    // Émeraude #10B981
     onPrimary = Color.White,
-    primaryContainer = ElectricSkyBlueDark,       // Conteneur bleu foncé
+    primaryContainer = PremiumEmeraldDark,       // Conteneur émeraude foncé
     onPrimaryContainer = Color.White,
-    secondary = PremiumGold,                        // Or Premium #FFD700
-    onSecondary = PureBlack,                         // Noir sur or
-    secondaryContainer = PremiumGold.copy(alpha = 0.12f), // Or transparent
-    onSecondaryContainer = PremiumGold,
-    tertiary = ElectricSkyBlueLight,               // Bleu clair
+    secondary = PremiumTeal,                       // Teal #14B8A6
+    onSecondary = PureBlack,                       // Noir sur teal
+    secondaryContainer = PremiumTeal.copy(alpha = 0.12f), // Teal transparent
+    onSecondaryContainer = PremiumTeal,
+    tertiary = PremiumCyan,                       // Cyan #22D3EE
     onTertiary = PureBlack,
-    tertiaryContainer = ElectricSkyBlueLight.copy(alpha = 0.15f),
-    onTertiaryContainer = ElectricSkyBlue,
+    tertiaryContainer = PremiumCyan.copy(alpha = 0.15f),
+    onTertiaryContainer = PremiumCyan,
     background = PureBlack,                        // Fond #0F0F0F
     onBackground = TextPrimary,                    // Blanc sur fond
     surface = CardBlack,                           // Cartes #141414
     onSurface = TextPrimary,
     surfaceVariant = ElevatedBlack,                // Élévation #1A1A1A
     onSurfaceVariant = TextSecondary,              // Blanc 70%
-    surfaceTint = ElectricSkyBlue,
+    surfaceTint = PremiumEmerald,
     error = ErrorRed,                              // Rouge néon
     onError = Color.White,
     errorContainer = ErrorRed.copy(alpha = 0.15f),
@@ -90,7 +90,7 @@ private val DarkColorScheme = darkColorScheme(
     scrim = PureBlack.copy(alpha = 0.85f),         // Overlay foncé
     inverseSurface = TextPrimary,
     inverseOnSurface = PureBlack,
-    inversePrimary = ElectricSkyBlueLight
+    inversePrimary = PremiumEmeraldLight
 )
 
 /**
@@ -98,25 +98,25 @@ private val DarkColorScheme = darkColorScheme(
  * Économiseur de batterie pour écrans OLED
  */
 private val AmoledColorScheme = darkColorScheme(
-    primary = ElectricSkyBlue,
+    primary = PremiumEmerald,
     onPrimary = Color.White,
-    primaryContainer = ElectricSkyBlueDark,
+    primaryContainer = PremiumEmeraldDark,
     onPrimaryContainer = Color.White,
-    secondary = PremiumGold,
+    secondary = PremiumTeal,
     onSecondary = AbsoluteBlack,
-    secondaryContainer = PremiumGold.copy(alpha = 0.12f),
-    onSecondaryContainer = PremiumGold,
-    tertiary = ElectricSkyBlueLight,
+    secondaryContainer = PremiumTeal.copy(alpha = 0.12f),
+    onSecondaryContainer = PremiumTeal,
+    tertiary = PremiumCyan,
     onTertiary = AbsoluteBlack,
-    tertiaryContainer = ElectricSkyBlueLight.copy(alpha = 0.15f),
-    onTertiaryContainer = ElectricSkyBlue,
+    tertiaryContainer = PremiumCyan.copy(alpha = 0.15f),
+    onTertiaryContainer = PremiumCyan,
     background = AbsoluteBlack,                   // Noir absolu
     onBackground = TextPrimary,
     surface = AbsoluteBlack,
     onSurface = TextPrimary,
     surfaceVariant = CardBlack,
     onSurfaceVariant = TextSecondary,
-    surfaceTint = ElectricSkyBlue,
+    surfaceTint = PremiumEmerald,
     error = ErrorRed,
     onError = Color.White,
     errorContainer = ErrorRed.copy(alpha = 0.15f),
@@ -126,7 +126,7 @@ private val AmoledColorScheme = darkColorScheme(
     scrim = AbsoluteBlack.copy(alpha = 0.85f),
     inverseSurface = TextPrimary,
     inverseOnSurface = AbsoluteBlack,
-    inversePrimary = ElectricSkyBlueLight
+    inversePrimary = PremiumEmeraldLight
 )
 
 /**

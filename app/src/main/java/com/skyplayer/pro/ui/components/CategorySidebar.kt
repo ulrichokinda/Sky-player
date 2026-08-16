@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.skyplayer.pro.data.organizer.ChannelCategory
 import com.skyplayer.pro.data.security.ParentalControlManager
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PureBlack
 
 /**
@@ -83,9 +83,9 @@ fun CategorySidebar(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text("Rechercher...", color = Color.White.copy(alpha = 0.5f)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = ElectricSkyBlue) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = PremiumEmerald) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ElectricSkyBlue,
+                    focusedBorderColor = PremiumEmerald,
                     unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White
@@ -147,7 +147,7 @@ private fun CategoryItem(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) ElectricSkyBlue.copy(alpha = 0.15f) else Color.Transparent)
+            .background(if (isSelected) PremiumEmerald.copy(alpha = 0.15f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
@@ -161,7 +161,7 @@ private fun CategoryItem(
                     text = name.uppercase(),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                        color = if (isLocked && !isSelected) Color.White.copy(alpha = 0.4f) else if (isSelected) ElectricSkyBlue else Color.White.copy(alpha = 0.7f),
+                        color = if (isLocked && !isSelected) Color.White.copy(alpha = 0.4f) else if (isSelected) PremiumEmerald else Color.White.copy(alpha = 0.7f),
                         letterSpacing = 0.5.sp
                     ),
                     maxLines = 1,
@@ -173,7 +173,7 @@ private fun CategoryItem(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = "Verrouillé",
-                        tint = if (isSelected) ElectricSkyBlue else Color.Gray,
+                        tint = if (isSelected) PremiumEmerald else Color.Gray,
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -183,7 +183,7 @@ private fun CategoryItem(
                 Text(
                     text = count.toString(),
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = if (isSelected) ElectricSkyBlue else Color.Gray,
+                        color = if (isSelected) PremiumEmerald else Color.Gray,
                         fontWeight = FontWeight.Bold
                     )
                 )
@@ -198,7 +198,7 @@ private fun CategoryItem(
                     .offset(x = (-16).dp)
                     .width(4.dp)
                     .height(20.dp)
-                    .background(ElectricSkyBlue, RoundedCornerShape(2.dp))
+                    .background(PremiumEmerald, RoundedCornerShape(2.dp))
             )
         }
     }

@@ -61,7 +61,7 @@ fun SmartRecommendationsSection(
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = null,
-                    tint = ElectricSkyBlue,
+                    tint = PremiumEmerald,
                     modifier = Modifier.size(24.dp)
                 )
                 
@@ -159,7 +159,7 @@ private fun RecommendationCard(
         colors = CardDefaults.cardColors(
             containerColor = when (recommendation.type) {
                 RecommendationType.PROACTIVE -> PremiumGold.copy(alpha = 0.15f)
-                RecommendationType.CONTEXTUAL -> ElectricSkyBlue.copy(alpha = 0.15f)
+                RecommendationType.CONTEXTUAL -> PremiumEmerald.copy(alpha = 0.15f)
                 RecommendationType.FAVORITES -> SuccessGreen.copy(alpha = 0.15f)
                 RecommendationType.DISCOVERY -> GlassWhite.copy(alpha = 0.1f)
             }
@@ -168,7 +168,7 @@ private fun RecommendationCard(
             width = if (isHighlighted) 2.dp else 1.dp,
             color = when (recommendation.type) {
                 RecommendationType.PROACTIVE -> PremiumGold.copy(alpha = if (isHighlighted) 0.8f else 0.5f)
-                RecommendationType.CONTEXTUAL -> ElectricSkyBlue.copy(alpha = if (isHighlighted) 0.8f else 0.5f)
+                RecommendationType.CONTEXTUAL -> PremiumEmerald.copy(alpha = if (isHighlighted) 0.8f else 0.5f)
                 RecommendationType.FAVORITES -> SuccessGreen.copy(alpha = if (isHighlighted) 0.8f else 0.5f)
                 RecommendationType.DISCOVERY -> GlassWhite.copy(alpha = 0.3f)
             }
@@ -231,7 +231,7 @@ private fun RecommendationCard(
                     .height(2.dp),
                 color = when (recommendation.type) {
                     RecommendationType.PROACTIVE -> PremiumGold
-                    RecommendationType.CONTEXTUAL -> ElectricSkyBlue
+                    RecommendationType.CONTEXTUAL -> PremiumEmerald
                     RecommendationType.FAVORITES -> SuccessGreen
                     RecommendationType.DISCOVERY -> TextSecondary
                 },
@@ -251,7 +251,7 @@ private fun ChannelRowMini(
     onClick: () -> Unit
 ) {
     val bgColor = if (isHighlighted) {
-        ElectricSkyBlue.copy(alpha = 0.3f)
+        PremiumEmerald.copy(alpha = 0.3f)
     } else {
         GlassWhite.copy(alpha = 0.1f)
     }
@@ -272,7 +272,7 @@ private fun ChannelRowMini(
                 .size(28.dp)
                 .clip(RoundedCornerShape(6.dp))
                 .background(
-                    if (isHighlighted) ElectricSkyBlue.copy(alpha = 0.5f)
+                    if (isHighlighted) PremiumEmerald.copy(alpha = 0.5f)
                     else GlassWhite.copy(alpha = 0.3f)
                 ),
             contentAlignment = Alignment.Center
@@ -457,7 +457,7 @@ private fun SimilarChannelCard(
                 Text(
                     text = channel.name.take(2).uppercase(),
                     style = MaterialTheme.typography.titleMedium,
-                    color = ElectricSkyBlue
+                    color = PremiumEmerald
                 )
             }
 

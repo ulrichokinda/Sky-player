@@ -65,7 +65,7 @@ fun StreamHealthDashboard(
                     modifier = Modifier
                         .size(40.dp)
                         .background(
-                            ElectricSkyBlue.copy(alpha = 0.15f),
+                            PremiumEmerald.copy(alpha = 0.15f),
                             RoundedCornerShape(12.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -73,7 +73,7 @@ fun StreamHealthDashboard(
                     Icon(
                         imageVector = Icons.Default.Troubleshoot,
                         contentDescription = null,
-                        tint = ElectricSkyBlue,
+                        tint = PremiumEmerald,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -121,7 +121,7 @@ fun StreamHealthDashboard(
                 StatCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.NetworkCheck,
-                    iconTint = ElectricSkyBlue,
+                    iconTint = PremiumEmerald,
                     label = "Bande passante",
                     value = formatBandwidth(bandwidthEstimate)
                 )
@@ -164,7 +164,7 @@ fun StreamHealthDashboard(
             Button(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Fermer", fontWeight = FontWeight.Bold)
@@ -193,7 +193,7 @@ private fun HealthStatusCard(healthState: StreamHealth) {
             description = "Optimisation de la qualité pour éviter les coupures"
         }
         is StreamHealth.UsingAlternative -> {
-            color = ElectricSkyBlue
+            color = PremiumEmerald
             icon = Icons.Default.SwapHoriz
             title = "Source alternative"
             description = "Passage automatique vers une source plus stable"
@@ -333,7 +333,7 @@ private fun InfoTipCard(healthState: StreamHealth) {
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0D0D)),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            ElectricSkyBlue.copy(alpha = 0.2f)
+            PremiumEmerald.copy(alpha = 0.2f)
         )
     ) {
         Column(
@@ -366,7 +366,7 @@ private fun InfoTipCard(healthState: StreamHealth) {
                     Box(
                         modifier = Modifier
                             .size(4.dp)
-                            .background(ElectricSkyBlue, RoundedCornerShape(2.dp))
+                            .background(PremiumEmerald, RoundedCornerShape(2.dp))
                     )
                     Text(
                         text = tip,

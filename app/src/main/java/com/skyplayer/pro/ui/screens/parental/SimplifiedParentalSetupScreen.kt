@@ -58,7 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
 import com.skyplayer.pro.ui.theme.PureBlack
@@ -123,7 +123,7 @@ fun SimplifiedParentalSetupScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp),
-                color = ElectricSkyBlue,
+                color = PremiumEmerald,
                 trackColor = Color.White.copy(alpha = 0.1f)
             )
 
@@ -191,7 +191,7 @@ private fun ParentalIntroStep(onNext: () -> Unit) {
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            ElectricSkyBlue.copy(alpha = 0.3f),
+                            PremiumEmerald.copy(alpha = 0.3f),
                             Color.Transparent
                         )
                     ),
@@ -203,7 +203,7 @@ private fun ParentalIntroStep(onNext: () -> Unit) {
                 imageVector = Icons.Default.ChildCare,
                 contentDescription = null,
                 modifier = Modifier.size(72.dp),
-                tint = ElectricSkyBlue
+                tint = PremiumEmerald
             )
         }
 
@@ -244,7 +244,7 @@ private fun ParentalIntroStep(onNext: () -> Unit) {
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+            colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
         ) {
             Text(
                 text = "Commencer",
@@ -267,7 +267,7 @@ private fun FeatureBullet(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = ElectricSkyBlue,
+            tint = PremiumEmerald,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -296,7 +296,7 @@ private fun ParentalPinStep(
             imageVector = Icons.Default.Lock,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
-            tint = ElectricSkyBlue
+            tint = PremiumEmerald
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -336,7 +336,7 @@ private fun ParentalPinStep(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.colors(focusedIndicatorColor = ElectricSkyBlue)
+                    colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                 )
 
                 OutlinedTextField(
@@ -347,7 +347,7 @@ private fun ParentalPinStep(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.colors(focusedIndicatorColor = ElectricSkyBlue)
+                    colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                 )
             }
         }
@@ -366,7 +366,7 @@ private fun ParentalPinStep(
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+            colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
         ) {
             Text("Suivant", fontWeight = FontWeight.Bold, color = PureBlack)
         }
@@ -393,7 +393,7 @@ private fun ParentalQuestionStep(
             imageVector = Icons.Default.QuestionAnswer,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
-            tint = ElectricSkyBlue
+            tint = PremiumEmerald
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -460,7 +460,7 @@ private fun ParentalQuestionStep(
                     label = { Text("Votre réponse") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.colors(focusedIndicatorColor = ElectricSkyBlue)
+                    colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                 )
             }
         }
@@ -479,7 +479,7 @@ private fun ParentalQuestionStep(
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+            colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
         ) {
             Text("Terminer", fontWeight = FontWeight.Bold, color = PureBlack)
         }

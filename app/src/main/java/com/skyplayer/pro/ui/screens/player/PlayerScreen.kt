@@ -88,7 +88,7 @@ import com.skyplayer.pro.data.model.PlayerConnectionState
 import com.skyplayer.pro.data.monitor.FallbackInfo
 import com.skyplayer.pro.data.monitor.StreamHealth
 import com.skyplayer.pro.data.monitor.StreamIssue
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GlassWhite
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.PureBlack
@@ -501,7 +501,7 @@ private fun ConnectionStateOverlay(
         ) {
             if (state !is PlayerConnectionState.Error && healthState !is StreamHealth.Unrecoverable) {
                 CircularProgressIndicator(
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     strokeWidth = 3.dp,
                     modifier = Modifier.size(48.dp)
                 )
@@ -553,7 +553,7 @@ private fun ConnectionStateOverlay(
                 }
                 Text(
                     text = fallbackText,
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     modifier = Modifier.padding(top = 12.dp),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
@@ -622,7 +622,7 @@ private fun PlayerControlsOverlay(
                         .width(200.dp)
                         .height(4.dp)
                         .clip(CircleShape),
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     trackColor = Color.White.copy(alpha = 0.1f)
                 )
             }
@@ -1103,7 +1103,7 @@ private fun QualityBadge(
         quality == AdaptiveBitrateManager.VideoQuality.AUTO -> tint
         quality.height >= 2160 -> PremiumGold // Or
         quality.height >= 1080 -> Color(0xFF00E676) // Vert
-        quality.height >= 720 -> ElectricSkyBlue  // Bleu
+        quality.height >= 720 -> PremiumEmerald  // Bleu
         else -> Color(0xFF9E9E9E) // Gris
     }
 
@@ -1168,7 +1168,7 @@ private fun QuickQualitySelector(
             ),
             border = androidx.compose.foundation.BorderStroke(
                 width = 1.dp,
-                color = ElectricSkyBlue.copy(alpha = 0.3f)
+                color = PremiumEmerald.copy(alpha = 0.3f)
             )
         ) {
             Column(
@@ -1188,7 +1188,7 @@ private fun QuickQualitySelector(
                     )
 
                     TextButton(onClick = onDismiss) {
-                        Text("Fermer", color = ElectricSkyBlue)
+                        Text("Fermer", color = PremiumEmerald)
                     }
                 }
 
@@ -1202,12 +1202,12 @@ private fun QuickQualitySelector(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (autoMode)
-                            ElectricSkyBlue.copy(alpha = 0.2f)
+                            PremiumEmerald.copy(alpha = 0.2f)
                         else
                             GlassWhite.copy(alpha = 0.2f)
                     ),
                     border = if (autoMode)
-                        androidx.compose.foundation.BorderStroke(2.dp, ElectricSkyBlue)
+                        androidx.compose.foundation.BorderStroke(2.dp, PremiumEmerald)
                     else null
                 ) {
                     Row(
@@ -1219,7 +1219,7 @@ private fun QuickQualitySelector(
                         Icon(
                             imageVector = Icons.Default.Speed,
                             contentDescription = null,
-                            tint = if (autoMode) ElectricSkyBlue else Color.White,
+                            tint = if (autoMode) PremiumEmerald else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
 
@@ -1243,7 +1243,7 @@ private fun QuickQualitySelector(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Sélectionné",
-                                tint = ElectricSkyBlue,
+                                tint = PremiumEmerald,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -1304,7 +1304,7 @@ private fun QualityQuickOption(
         isSelected -> when {
             quality.height >= 2160 -> PremiumGold.copy(alpha = 0.2f)
             quality.height >= 1080 -> Color(0xFF00E676).copy(alpha = 0.2f)
-            quality.height >= 720 -> ElectricSkyBlue.copy(alpha = 0.2f)
+            quality.height >= 720 -> PremiumEmerald.copy(alpha = 0.2f)
             else -> Color(0xFF9E9E9E).copy(alpha = 0.2f)
         }
         else -> GlassWhite.copy(alpha = 0.1f)
@@ -1314,7 +1314,7 @@ private fun QualityQuickOption(
         isSelected -> when {
             quality.height >= 2160 -> PremiumGold
             quality.height >= 1080 -> Color(0xFF00E676)
-            quality.height >= 720 -> ElectricSkyBlue
+            quality.height >= 720 -> PremiumEmerald
             else -> Color(0xFF9E9E9E)
         }
         else -> Color.Transparent
@@ -1432,13 +1432,13 @@ private fun PlayerOsd(
                     Text(
                         text = program.title,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = ElectricSkyBlue
+                        color = PremiumEmerald
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     LinearProgressIndicator(
                         progress = { program.getProgress() },
                         modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         trackColor = Color.White.copy(alpha = 0.2f)
                     )
                 }

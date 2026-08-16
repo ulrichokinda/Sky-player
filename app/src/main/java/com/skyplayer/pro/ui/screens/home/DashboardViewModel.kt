@@ -12,7 +12,7 @@ import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.repository.ChannelRepository
 import com.skyplayer.pro.data.repository.LicenseRepository
 import com.skyplayer.pro.data.repository.PlaylistRepository
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.SuccessGreen
 import com.skyplayer.pro.ui.theme.WarningOrange
@@ -58,7 +58,7 @@ class DashboardViewModel @Inject constructor(
     private val _expiryLabel = MutableStateFlow("")
     val expiryLabel: StateFlow<String> = _expiryLabel.asStateFlow()
 
-    private val _expiryColor = MutableStateFlow(ElectricSkyBlue)
+    private val _expiryColor = MutableStateFlow(PremiumEmerald)
     val expiryColor: StateFlow<Color> = _expiryColor.asStateFlow()
 
     // État de vérification initiale

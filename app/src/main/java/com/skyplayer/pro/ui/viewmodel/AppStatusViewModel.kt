@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.skyplayer.pro.data.license.LicenseManager
 import com.skyplayer.pro.data.repository.ChannelRepository
 import com.skyplayer.pro.data.repository.PlaylistRepository
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.SuccessGreen
 import com.skyplayer.pro.ui.theme.WarningOrange
@@ -35,7 +35,7 @@ enum class AppNetworkStatus {
 data class AppStatusUiState(
     val networkStatus: AppNetworkStatus = AppNetworkStatus.Checking,
     val licenseLabel: String = "",
-    val licenseColor: Color = ElectricSkyBlue,
+    val licenseColor: Color = PremiumEmerald,
     val licenseWarning: Boolean = false,
     val channelCount: Int = 0,
     val playlistName: String = "",

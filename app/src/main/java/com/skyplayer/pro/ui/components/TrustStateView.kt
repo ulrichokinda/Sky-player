@@ -26,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PureBlack
 
 data class TrustAction(
@@ -91,7 +91,7 @@ fun TrustStateView(
                 Button(
                     onClick = primaryAction.onClick,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ElectricSkyBlue,
+                        containerColor = PremiumEmerald,
                         contentColor = PureBlack
                     ),
                     shape = RoundedCornerShape(12.dp)

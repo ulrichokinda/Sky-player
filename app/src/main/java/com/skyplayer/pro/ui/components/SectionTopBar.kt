@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skyplayer.pro.R
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 
 /**
  * Barre supérieure unifiée pour les sections de contenu.
@@ -39,7 +39,7 @@ import com.skyplayer.pro.ui.theme.ElectricSkyBlue
 fun SectionTopBar(
     title: String,
     subtitle: String? = null,
-    accentColor: Color = ElectricSkyBlue,
+    accentColor: Color = PremiumEmerald,
     onNavigateHome: () -> Unit,
     onNavigateToSearch: (() -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,

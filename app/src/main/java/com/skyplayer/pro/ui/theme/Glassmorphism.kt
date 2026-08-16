@@ -76,7 +76,7 @@ fun GlassmorphismCard(
     content: @Composable BoxScope.() -> Unit
 ) {
     val borderColor = if (isFocused) {
-        ElectricSkyBlue.copy(alpha = 0.8f)
+        PremiumEmerald.copy(alpha = 0.8f)
     } else {
         GlassWhite.copy(alpha = 0.3f)
     }
@@ -137,7 +137,7 @@ fun GlassmorphismOverlay(
 fun GlassmorphismButton(
     modifier: Modifier = Modifier,
     isPressed: Boolean = false,
-    accentColor: Color = ElectricSkyBlue,
+    accentColor: Color = PremiumEmerald,
     content: @Composable BoxScope.() -> Unit
 ) {
     val scale = if (isPressed) 0.95f else 1f

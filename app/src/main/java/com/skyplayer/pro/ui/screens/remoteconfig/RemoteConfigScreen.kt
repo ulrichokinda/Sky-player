@@ -67,7 +67,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.skyplayer.pro.data.model.RemoteConfig
 import com.skyplayer.pro.data.model.RemoteConfigState
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.PureBlack
 import com.skyplayer.pro.ui.theme.SuccessGreen
@@ -227,7 +227,7 @@ private fun QrCodeDisplay(
             Icon(
                 imageVector = Icons.Default.Tv,
                 contentDescription = null,
-                tint = ElectricSkyBlue,
+                tint = PremiumEmerald,
                 modifier = Modifier.size(48.dp)
             )
             Text(
@@ -248,12 +248,12 @@ private fun QrCodeDisplay(
                 .shadow(
                     elevation = 20.dp,
                     shape = RoundedCornerShape(24.dp),
-                    ambientColor = ElectricSkyBlue.copy(alpha = 0.2f)
+                    ambientColor = PremiumEmerald.copy(alpha = 0.2f)
                 )
                 .background(Color.White, RoundedCornerShape(24.dp))
                 .border(
                     width = 3.dp,
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     shape = RoundedCornerShape(24.dp)
                 )
                 .padding(20.dp),
@@ -268,7 +268,7 @@ private fun QrCodeDisplay(
             } else {
                 CircularProgressIndicator(
                     modifier = Modifier.size(80.dp),
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     strokeWidth = 6.dp
                 )
             }
@@ -329,7 +329,7 @@ private fun QrCodeDisplay(
         Text(
             text = "skyplayerapp.xyz/connect",
             fontSize = 20.sp,
-            color = ElectricSkyBlue,
+            color = PremiumEmerald,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.5.sp
         )
@@ -358,7 +358,7 @@ private fun InstructionStep(number: String, text: String) {
         Box(
             modifier = Modifier
                 .size(28.dp)
-                .background(ElectricSkyBlue, RoundedCornerShape(14.dp)),
+                .background(PremiumEmerald, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -390,7 +390,7 @@ private fun ApplyingConfigState(config: RemoteConfig) {
     ) {
         CircularProgressIndicator(
             modifier = Modifier.size(100.dp),
-            color = ElectricSkyBlue,
+            color = PremiumEmerald,
             strokeWidth = 8.dp
         )
 
@@ -509,7 +509,7 @@ private fun OfflineState(onRetry: () -> Unit) {
         Button(
             onClick = onRetry,
             colors = ButtonDefaults.buttonColors(
-                containerColor = ElectricSkyBlue,
+                containerColor = PremiumEmerald,
                 contentColor = Color.Black
             ),
             shape = RoundedCornerShape(12.dp)

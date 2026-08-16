@@ -75,7 +75,7 @@ import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
 import com.skyplayer.pro.ui.components.TrustAction
 import com.skyplayer.pro.ui.components.TrustStateView
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.theme.LiveTvColor
 import com.skyplayer.pro.ui.theme.PureBlack
@@ -213,7 +213,7 @@ fun LiveTVScreen(
                         Icon(
                             Icons.Default.Dashboard,
                             contentDescription = stringResource(R.string.player_multi),
-                            tint = ElectricSkyBlue
+                            tint = PremiumEmerald
                         )
                     }
                 }
@@ -356,7 +356,7 @@ private fun CompactChannelRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) ElectricSkyBlue else Color.Transparent
+    val borderColor = if (isSelected) PremiumEmerald else Color.Transparent
     val backgroundColor = if (isSelected) CardBlack.copy(alpha = 0.9f) else ElevatedBlack.copy(alpha = 0.4f)
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -416,7 +416,7 @@ private fun CompactChannelRow(
                     text = channel.name,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) ElectricSkyBlue else Color.White
+                        color = if (isSelected) PremiumEmerald else Color.White
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -440,7 +440,7 @@ private fun CompactChannelRow(
                     LinearProgressIndicator(
                         progress = { currentProgram.getProgress() },
                         modifier = Modifier.fillMaxWidth().height(2.dp).clip(CircleShape),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         trackColor = Color.White.copy(alpha = 0.1f)
                     )
                 }
@@ -468,7 +468,7 @@ private fun ChannelTile(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) ElectricSkyBlue else Color.White.copy(alpha = 0.1f)
+    val borderColor = if (isSelected) PremiumEmerald else Color.White.copy(alpha = 0.1f)
     val borderWidth = if (isSelected) 2.dp else 0.5.dp
     Card(
         modifier = Modifier
@@ -545,7 +545,7 @@ private fun ChannelTile(
                     Text(
                         text = currentProgram.title,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            color = ElectricSkyBlue.copy(alpha = 0.8f),
+                            color = PremiumEmerald.copy(alpha = 0.8f),
                             fontWeight = FontWeight.Medium
                         ),
                         maxLines = 1,
@@ -556,7 +556,7 @@ private fun ChannelTile(
                     LinearProgressIndicator(
                         progress = { currentProgram.getProgress() },
                         modifier = Modifier.fillMaxWidth(0.8f).height(2.dp).clip(CircleShape),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         trackColor = Color.White.copy(alpha = 0.1f)
                     )
                 }
@@ -714,7 +714,7 @@ private fun SplitScreenPreviewPanel(
         Text(
             text = "GUIDE DES PROGRAMMES",
             style = MaterialTheme.typography.labelSmall.copy(
-                color = ElectricSkyBlue,
+                color = PremiumEmerald,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp
             )
@@ -763,7 +763,7 @@ private fun SplitScreenPreviewPanel(
                                     .fillMaxWidth()
                                     .height(2.dp)
                                     .clip(CircleShape),
-                                color = ElectricSkyBlue,
+                                color = PremiumEmerald,
                                 trackColor = Color.White.copy(alpha = 0.1f)
                             )
                         }

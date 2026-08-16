@@ -52,7 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.EpgProgram
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.ElevatedBlack
 import com.skyplayer.pro.ui.theme.LiveTvColor
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -131,7 +131,7 @@ fun EpgGuideScreen(
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = "Actualiser",
-                    tint = ElectricSkyBlue
+                    tint = PremiumEmerald
                 )
             }
         }
@@ -166,7 +166,7 @@ fun EpgGuideScreen(
             isLoading -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = ElectricSkyBlue)
+                        CircularProgressIndicator(color = PremiumEmerald)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "Chargement du guide…",
@@ -272,7 +272,7 @@ private fun EpgChannelRow(
                 Text(
                     text = currentProgram.title,
                     style = MaterialTheme.typography.bodySmall.copy(
-                        color = ElectricSkyBlue
+                        color = PremiumEmerald
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -294,7 +294,7 @@ private fun EpgChannelRow(
                             .weight(1f)
                             .height(3.dp)
                             .clip(CircleShape),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         trackColor = Color.White.copy(alpha = 0.1f)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -387,7 +387,7 @@ private fun CategoryFilterPill(
     Box(
         modifier = Modifier
             .background(
-                if (isSelected) ElectricSkyBlue.copy(alpha = 0.15f) else ElevatedBlack,
+                if (isSelected) PremiumEmerald.copy(alpha = 0.15f) else ElevatedBlack,
                 RoundedCornerShape(20.dp)
             )
             .clip(RoundedCornerShape(20.dp))
@@ -398,7 +398,7 @@ private fun CategoryFilterPill(
             text = label,
             style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) ElectricSkyBlue else Color.White.copy(alpha = 0.55f)
+                color = if (isSelected) PremiumEmerald else Color.White.copy(alpha = 0.55f)
             )
         )
     }

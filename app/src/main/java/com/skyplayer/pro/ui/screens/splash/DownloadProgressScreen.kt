@@ -47,7 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.skyplayer.pro.data.remote.DownloadProgress
 import com.skyplayer.pro.ui.components.TrustStateView
 import com.skyplayer.pro.ui.components.TrustAction
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -126,7 +126,7 @@ fun DownloadProgressScreen(
                         .background(
                             brush = Brush.radialGradient(
                                 listOf(
-                                    ElectricSkyBlue.copy(alpha = 0.15f),
+                                    PremiumEmerald.copy(alpha = 0.15f),
                                     Color.Transparent
                                 )
                             ),
@@ -144,14 +144,14 @@ fun DownloadProgressScreen(
                         else -> {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(52.dp),
-                                color = ElectricSkyBlue,
+                                color = PremiumEmerald,
                                 strokeWidth = 3.dp,
                                 strokeCap = StrokeCap.Round
                             )
                             Icon(
                                 Icons.Default.CloudDownload,
                                 contentDescription = null,
-                                tint = ElectricSkyBlue.copy(alpha = 0.6f),
+                                tint = PremiumEmerald.copy(alpha = 0.6f),
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -205,7 +205,7 @@ fun DownloadProgressScreen(
                                 .fillMaxWidth()
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(4.dp)),
-                            color = ElectricSkyBlue,
+                            color = PremiumEmerald,
                             trackColor = Color.White.copy(alpha = 0.08f),
                             strokeCap = StrokeCap.Round
                         )
@@ -216,7 +216,7 @@ fun DownloadProgressScreen(
                                 .fillMaxWidth()
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(4.dp)),
-                            color = ElectricSkyBlue,
+                            color = PremiumEmerald,
                             trackColor = Color.White.copy(alpha = 0.08f),
                             strokeCap = StrokeCap.Round
                         )
@@ -250,7 +250,7 @@ fun DownloadProgressScreen(
                                 else -> ""
                             },
                             style = MaterialTheme.typography.labelMedium.copy(
-                                color = ElectricSkyBlue,
+                                color = PremiumEmerald,
                                 fontWeight = FontWeight.Bold
                             )
                         )

@@ -7,11 +7,12 @@
     <color name="elevated_black">#FF1A1A1A</color>
     <color name="card_black">#FF141414</color>
     
-    <!-- Accents Premium -->
-    <!-- Bleu électrique #00AEEF - Sélections -->
-    <color name="electric_sky_blue">#FF00AEEF</color>
-    <color name="electric_sky_blue_dark">#FF0088CC</color>
-    <color name="electric_sky_blue_light">#FF4DC9FF</color>
+    <!-- Accents Premium (identité émeraude/teal/cyan — comme le site) -->
+    <color name="electric_sky_blue">#FF10B981</color>
+    <color name="electric_sky_blue_dark">#FF059669</color>
+    <color name="electric_sky_blue_light">#FF6EE7B7</color>
+    <color name="premium_teal">#FF14B8A6</color>
+    <color name="premium_cyan">#FF22D3EE</color>
     
     <!-- Or Premium #FFD700 - Comptes Premium -->
     <color name="premium_gold">#FFFFD700</color>
@@ -45,23 +46,23 @@
     <color name="info_blue">@color/electric_sky_blue</color>
     
     <!-- Gradients Premium -->
-    <color name="gradient_electric_start">#FF00AEEF</color>
-    <color name="gradient_electric_end">#FF00D4FF</color>
+    <color name="gradient_electric_start">#FF10B981</color>
+    <color name="gradient_electric_end">#FF22D3EE</color>
     <color name="gradient_gold_start">@color/premium_gold</color>
     <color name="gradient_gold_end">#FFFFE870</color>
     <color name="gradient_dark_start">@color/pure_black</color>
     <color name="gradient_dark_end">#FF1A1A1A</color>
     
     <!-- Catégories de contenu -->
-    <color name="live_tv">#FFFF3D71</color>
-    <color name="vod">#FF00E676</color>
-    <color name="series">#FF7C4DFF</color>
+    <color name="live_tv">#FF22D3EE</color>
+    <color name="vod">#FF10B981</color>
+    <color name="series">#FF8B5CF6</color>
     <color name="favorites">@color/premium_gold</color>
     
     <!-- Diviseurs et utilitaires -->
     <color name="divider_color">#1FFFFFFF</color>
-    <color name="ripple_color">#4D00AEEF</color>
-    <color name="selection_background">#2600AEEF</color>
+    <color name="ripple_color">#4D10B981</color>
+    <color name="selection_background">#2610B981</color>
     
     <!-- Legacy aliases pour compatibilité -->
     <color name="sky_blue">@color/electric_sky_blue</color>

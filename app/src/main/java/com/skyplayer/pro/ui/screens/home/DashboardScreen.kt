@@ -95,12 +95,18 @@ import com.skyplayer.pro.data.model.ContentType
 import com.skyplayer.pro.ui.components.PinDialog
 import com.skyplayer.pro.ui.components.AdvancedMenuDialog
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.FavoritesColor
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
+import com.skyplayer.pro.ui.theme.LiveTvColor
+import com.skyplayer.pro.ui.theme.PremiumCyan
+import com.skyplayer.pro.ui.theme.PremiumEmerald
+import com.skyplayer.pro.ui.theme.PremiumEmeraldLight
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.PureBlack
+import com.skyplayer.pro.ui.theme.SeriesColor
 import com.skyplayer.pro.ui.theme.SuccessGreen
+import com.skyplayer.pro.ui.theme.VodColor
 import com.skyplayer.pro.ui.theme.WarningOrange
 import com.skyplayer.pro.ui.viewmodel.ParentalViewModel
 import kotlinx.coroutines.delay
@@ -211,7 +217,7 @@ fun DashboardScreen(
                 when {
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
                         networkStatus = wifiStatus
-                        networkColor = ElectricSkyBlue
+                        networkColor = PremiumEmerald
                     }
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
                         networkStatus = dataStatus
@@ -267,7 +273,7 @@ fun DashboardScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(64.dp),
-                            color = ElectricSkyBlue,
+                            color = PremiumEmerald,
                             strokeWidth = 4.dp
                         )
                         Spacer(modifier = Modifier.height(24.dp))
@@ -409,14 +415,14 @@ fun DashboardScreen(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(64.dp),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         strokeWidth = 4.dp
                     )
                     Icon(
                         imageVector = Icons.Default.CloudDownload,
                         contentDescription = null,
                         modifier = Modifier.size(32.dp),
-                        tint = ElectricSkyBlue
+                        tint = PremiumEmerald
                     )
                 }
 
@@ -445,7 +451,7 @@ fun DashboardScreen(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         trackColor = Color.White.copy(alpha = 0.1f)
                     )
                 } else {
@@ -454,7 +460,7 @@ fun DashboardScreen(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         trackColor = Color.White.copy(alpha = 0.1f)
                     )
                 }
@@ -491,12 +497,13 @@ fun DashboardScreen(
         // ═══════════════════════════════════════════════════════════════
 
         // Dashboard simplifié à 5 tuiles essentielles + bouton "Plus"
+        // Couleurs harmonisées sur l'identité émeraude/teal/cyan (comme le site)
         val mainItems = listOf(
-            DashboardItem("LIVE TV", Icons.Default.LiveTv, ElectricSkyBlue, onNavigateToLive),
-            DashboardItem("FILMS", Icons.Default.Movie, PremiumGold, onNavigateToVOD),
-            DashboardItem("SÉRIES", Icons.Default.Tv, Color(0xFFE91E63), onNavigateToSeries),
-            DashboardItem("FAVORIS", Icons.Default.Favorite, Color.Red, onNavigateToFavorites),
-            DashboardItem("RECHERCHE", Icons.Default.Search, ElectricSkyBlue.copy(alpha = 0.8f), onNavigateToSearch)
+            DashboardItem("LIVE TV", Icons.Default.LiveTv, LiveTvColor, onNavigateToLive),
+            DashboardItem("FILMS", Icons.Default.Movie, VodColor, onNavigateToVOD),
+            DashboardItem("SÉRIES", Icons.Default.Tv, SeriesColor, onNavigateToSeries),
+            DashboardItem("FAVORIS", Icons.Default.Favorite, FavoritesColor, onNavigateToFavorites),
+            DashboardItem("RECHERCHE", Icons.Default.Search, PremiumCyan, onNavigateToSearch)
         )
 
         // Options avancées accessibles via bouton "Plus"
@@ -505,7 +512,15 @@ fun DashboardScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PureBlack)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            PremiumEmerald.copy(alpha = 0.06f),
+                            PureBlack,
+                            PureBlack
+                        )
+                    )
+                )
         ) {
             Column(
                 modifier = Modifier
@@ -568,7 +583,9 @@ fun DashboardScreen(
                             text = "Sky Player",
                             style = MaterialTheme.typography.headlineLarge.copy(
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
+                                brush = Brush.horizontalGradient(
+                                    listOf(PremiumEmeraldLight, PremiumCyan)
+                                )
                             )
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -846,7 +863,7 @@ private fun ContinueWatchingCard(
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = ElectricSkyBlue,
+                    tint = PremiumEmerald,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -974,7 +991,7 @@ private fun ActionButton(
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            ElectricSkyBlue.copy(alpha = 0.3f)
+            PremiumEmerald.copy(alpha = 0.3f)
         ),
         shape = RoundedCornerShape(12.dp),
         elevation = ButtonDefaults.buttonElevation(
@@ -990,7 +1007,7 @@ private fun ActionButton(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(iconSize),
-                tint = ElectricSkyBlue
+                tint = PremiumEmerald
             )
             Text(
                 text = text,
@@ -1026,7 +1043,7 @@ private fun CompactStatusIndicator(
             1.dp,
             when {
                 isOffline -> Color.Red.copy(alpha = 0.3f)
-                isSyncing -> ElectricSkyBlue.copy(alpha = 0.3f)
+                isSyncing -> PremiumEmerald.copy(alpha = 0.3f)
                 isNetworkUnstable -> WarningOrange.copy(alpha = 0.3f)
                 else -> Color.White.copy(alpha = 0.1f)
             }
@@ -1069,12 +1086,12 @@ private fun CompactStatusIndicator(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(14.dp),
                                 strokeWidth = 2.dp,
-                                color = ElectricSkyBlue
+                                color = PremiumEmerald
                             )
                             Text(
                                 text = "Mise à jour… ${(syncProgress * 100).toInt()}%",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = ElectricSkyBlue
+                                color = PremiumEmerald
                             )
                         }
                     }
@@ -1140,7 +1157,7 @@ private fun CompactStatusIndicator(
                             .fillMaxWidth()
                             .height(3.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         trackColor = Color.White.copy(alpha = 0.08f)
                     )
                 }

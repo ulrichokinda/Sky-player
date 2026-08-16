@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PremiumGold
 import com.skyplayer.pro.ui.theme.PureBlack
 import com.skyplayer.pro.ui.theme.WarningOrange
@@ -115,7 +115,7 @@ fun AdvancedMenuDialog(
                     icon = Icons.Default.QrCodeScanner,
                     title = "QR Sync",
                     description = "Synchroniser avec TV via QR Code",
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     onClick = {
                         onNavigateToRemoteConfig()
                         onDismiss()

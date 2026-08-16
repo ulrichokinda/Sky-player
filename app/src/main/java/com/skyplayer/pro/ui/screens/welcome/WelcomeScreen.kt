@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.skyplayer.pro.ui.theme.CardBlack
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -185,7 +185,7 @@ fun WelcomeScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ElectricSkyBlue
+                    containerColor = PremiumEmerald
                 )
             ) {
                 Icon(
@@ -219,13 +219,13 @@ fun WelcomeScreen(
                     imageVector = Icons.Default.QrCodeScanner,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
-                    tint = ElectricSkyBlue
+                    tint = PremiumEmerald
                 )
                 Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
                 Text(
                     text = "Configurer par QR Code (TV)",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = ElectricSkyBlue
+                    color = PremiumEmerald
                 )
             }
 
@@ -247,7 +247,7 @@ fun WelcomeScreen(
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            color = ElectricSkyBlue,
+                            color = PremiumEmerald,
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -316,9 +316,9 @@ fun WelcomeScreen(
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FeatureItem("✓", "Lecture optimisée réseaux lents (Edge/3G/4G)", ElectricSkyBlue)
-                FeatureItem("✓", "Buffering agressif 90-120s sans coupure", ElectricSkyBlue)
-                FeatureItem("✓", "Reconnexion automatique exponentielle", ElectricSkyBlue)
+                FeatureItem("✓", "Lecture optimisée réseaux lents (Edge/3G/4G)", PremiumEmerald)
+                FeatureItem("✓", "Buffering agressif 90-120s sans coupure", PremiumEmerald)
+                FeatureItem("✓", "Reconnexion automatique exponentielle", PremiumEmerald)
                 FeatureItem("✓", "Multi-vue: 2-4 chaînes simultanées", PremiumGold)
             }
         }

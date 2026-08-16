@@ -37,7 +37,7 @@ import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.ui.components.ChannelLogo
 import com.skyplayer.pro.ui.screens.player.PlayerViewModel
 import com.skyplayer.pro.ui.viewmodel.PrefetchPlayerViewModel
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import kotlinx.coroutines.delay
 import timber.log.Timber
 

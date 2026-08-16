@@ -73,7 +73,7 @@ fun NetworkShareScreen(
             Text(
                 text = "Partage Local",
                 style = MaterialTheme.typography.headlineMedium,
-                color = ElectricSkyBlue
+                color = PremiumEmerald
             )
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -182,7 +182,7 @@ private fun ModeSelectionScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = null,
-                    tint = ElectricSkyBlue,
+                    tint = PremiumEmerald,
                     modifier = Modifier.size(48.dp)
                 )
                 
@@ -206,7 +206,7 @@ private fun ModeSelectionScreen(
                 Button(
                     onClick = onSendSelected,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ElectricSkyBlue
+                        containerColor = PremiumEmerald
                     )
                 ) {
                     Text("Démarrer")
@@ -281,12 +281,12 @@ private fun SendModeScreen(
                     modifier = Modifier
                         .size(200.dp)
                         .clip(RoundedCornerShape(100.dp))
-                        .background(ElectricSkyBlue.copy(alpha = 0.2f)),
+                        .background(PremiumEmerald.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(80.dp),
-                        color = ElectricSkyBlue,
+                        color = PremiumEmerald,
                         strokeWidth = 6.dp
                     )
                 }
@@ -310,7 +310,7 @@ private fun SendModeScreen(
                 Text(
                     text = "Playlist: ${shareState.data.playlistName}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = ElectricSkyBlue
+                    color = PremiumEmerald
                 )
             }
             
@@ -325,7 +325,7 @@ private fun SendModeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp, vertical = 16.dp),
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     trackColor = GlassWhite
                 )
             }
@@ -399,7 +399,7 @@ private fun ReceiveModeScreen(
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Rafraîchir",
-                        tint = ElectricSkyBlue
+                        tint = PremiumEmerald
                     )
                 }
             }
@@ -487,7 +487,7 @@ private fun DeviceItem(
             Icon(
                 imageVector = Icons.Default.Smartphone,
                 contentDescription = null,
-                tint = ElectricSkyBlue,
+                tint = PremiumEmerald,
                 modifier = Modifier.size(40.dp)
             )
             
@@ -513,7 +513,7 @@ private fun DeviceItem(
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Se connecter",
-                    tint = ElectricSkyBlue
+                    tint = PremiumEmerald
                 )
             }
         }
@@ -556,7 +556,7 @@ private fun SuccessDialog(
             Button(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ElectricSkyBlue
+                    containerColor = PremiumEmerald
                 )
             ) {
                 Text("Importer")

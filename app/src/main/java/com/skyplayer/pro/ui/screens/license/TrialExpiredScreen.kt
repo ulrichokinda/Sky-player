@@ -60,7 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GradientElectricEnd
 import com.skyplayer.pro.ui.theme.GradientElectricStart
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -231,8 +231,8 @@ fun TrialExpiredScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ElectricSkyBlue.copy(alpha = 0.15f),
-                        contentColor = ElectricSkyBlue
+                        containerColor = PremiumEmerald.copy(alpha = 0.15f),
+                        contentColor = PremiumEmerald
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
@@ -269,7 +269,7 @@ fun TrialExpiredScreen(
                     .fillMaxWidth()
                     .height(60.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricSkyBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumEmerald)
             ) {
                 Icon(
                     imageVector = Icons.Default.OpenInBrowser,
@@ -290,7 +290,7 @@ fun TrialExpiredScreen(
             Text(
                 text = ACTIVATION_SITE,
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    color = ElectricSkyBlue,
+                    color = PremiumEmerald,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.5.sp
                 ),

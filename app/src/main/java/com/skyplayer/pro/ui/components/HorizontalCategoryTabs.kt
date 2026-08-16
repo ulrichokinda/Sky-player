@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.skyplayer.pro.ui.theme.ElectricSkyBlue
+import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.PureBlack
 
 /**
@@ -65,14 +65,14 @@ fun HorizontalCategoryTabs(
                 colors = FilterChipDefaults.filterChipColors(
                     containerColor = Color.White.copy(alpha = 0.1f),
                     labelColor = Color.White.copy(alpha = 0.7f),
-                    selectedContainerColor = ElectricSkyBlue,
+                    selectedContainerColor = PremiumEmerald,
                     selectedLabelColor = PureBlack
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
                     selected = category == selectedCategory,
                     borderColor = if (category == selectedCategory)
-                        ElectricSkyBlue
+                        PremiumEmerald
                     else
                         Color.White.copy(alpha = 0.2f),
                     borderWidth = if (category == selectedCategory) 2.dp else 1.dp
@@ -142,14 +142,14 @@ private fun CategoryTabChip(
         colors = FilterChipDefaults.filterChipColors(
             containerColor = Color.White.copy(alpha = 0.1f),
             labelColor = Color.White.copy(alpha = 0.7f),
-            selectedContainerColor = category.color ?: ElectricSkyBlue,
+            selectedContainerColor = category.color ?: PremiumEmerald,
             selectedLabelColor = PureBlack
         ),
         border = FilterChipDefaults.filterChipBorder(
             enabled = true,
             selected = isSelected,
             borderColor = if (isSelected)
-                (category.color ?: ElectricSkyBlue)
+                (category.color ?: PremiumEmerald)
             else
                 Color.White.copy(alpha = 0.2f),
             borderWidth = if (isSelected) 2.dp else 1.dp
