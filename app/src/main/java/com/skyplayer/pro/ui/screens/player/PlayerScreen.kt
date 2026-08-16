@@ -12,6 +12,11 @@ import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -71,6 +76,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -796,16 +802,39 @@ private fun GlowingPlayButton(
     isPlaying: Boolean,
     onClick: () -> Unit
 ) {
+    // Pulsation douce du halo — captivant, vivant
+    val pulse = rememberInfiniteTransition(label = "playPulse")
+    val haloScale by pulse.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "haloScale"
+    )
+    val haloAlpha by pulse.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.32f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "haloAlpha"
+    )
+
     Box(
         modifier = Modifier.size(96.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Halo externe
+        // Halo externe pulsant
         Box(
             modifier = Modifier
                 .size(96.dp)
-                .background(PremiumEmerald.copy(alpha = 0.18f), CircleShape)
+                .scale(haloScale)
+                .background(PremiumEmerald.copy(alpha = haloAlpha), CircleShape)
         )
+        Box(Modifier.size(96.dp).scale(haloScale * 1.12f).background(PremiumCyan.copy(alpha = haloAlpha * 0.5f), CircleShape))
         Box(
             modifier = Modifier
                 .size(76.dp)

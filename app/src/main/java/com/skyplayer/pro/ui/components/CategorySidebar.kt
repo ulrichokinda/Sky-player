@@ -66,11 +66,29 @@ fun CategorySidebar(
     onCategorySelected: (ChannelCategory) -> Unit,
     modifier: Modifier = Modifier,
     accentColor: Color = PremiumEmerald,
+    sectionLabel: String = "CATÉGORIES",
     onSearchQueryChange: (String) -> Unit = {},
     parentalManager: ParentalControlManager = hiltViewModel<com.skyplayer.pro.ui.viewmodel.ParentalViewModel>().manager
 ) {
     val listState = rememberLazyListState()
     var searchQuery by remember { mutableStateOf("") }
+
+    // Catégories filtrées par la recherche (partagées scroll + liste)
+    val filteredCategories = categories.filter {
+        it.name.contains(searchQuery, ignoreCase = true)
+    }
+
+    // Fusion avec le changement de section : le sidebar défile en douceur
+    // vers la catégorie active pour que la sélection reste toujours visible
+    LaunchedEffect(selectedCategory, filteredCategories) {
+        val targetIndex = when {
+            selectedCategory == null || selectedCategory == "ALL" -> 0
+            else -> filteredCategories.indexOfFirst { it.name == selectedCategory }
+        }
+        if (targetIndex >= 0) {
+            listState.animateScrollToItem(targetIndex)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -110,6 +128,21 @@ fun CategorySidebar(
         )
 
         Column(modifier = Modifier.padding(top = 16.dp)) {
+            // En-tête de section — fusionne le sidebar avec la section courante
+            Text(
+                text = sectionLabel,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    brush = Brush.horizontalGradient(
+                        listOf(accentColor, Color.White.copy(alpha = 0.9f))
+                    ),
+                    letterSpacing = 3.sp
+                ),
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // Recherche intégrée en haut de la sidebar (style verre)
             OutlinedTextField(
                 value = searchQuery,
@@ -152,10 +185,6 @@ fun CategorySidebar(
                         accentColor = accentColor,
                         onClick = { onCategorySelected(ChannelCategory("ALL", emptyList())) }
                     )
-                }
-
-                val filteredCategories = categories.filter {
-                    it.name.contains(searchQuery, ignoreCase = true)
                 }
 
                 items(

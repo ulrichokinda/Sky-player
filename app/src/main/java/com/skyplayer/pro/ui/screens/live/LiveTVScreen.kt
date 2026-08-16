@@ -169,6 +169,7 @@ fun LiveTVScreen(
                 selectedCategory = selectedCategory,
                 onCategorySelected = onCategoryClick,
                 accentColor = LiveTvColor,
+                sectionLabel = "CHAÎNES",
                 onSearchQueryChange = { viewModel.searchLive(it) }
             )
         }

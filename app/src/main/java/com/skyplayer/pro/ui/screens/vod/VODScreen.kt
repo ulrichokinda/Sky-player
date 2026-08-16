@@ -135,6 +135,7 @@ fun VODScreen(
                     }
                 },
                 accentColor = VodColor,
+                sectionLabel = "FILMS",
                 onSearchQueryChange = { viewModel.searchMovies(it) }
             )
         }

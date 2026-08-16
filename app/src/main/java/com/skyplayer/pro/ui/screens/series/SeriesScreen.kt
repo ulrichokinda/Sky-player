@@ -136,6 +136,7 @@ fun SeriesScreen(
                     }
                 },
                 accentColor = SeriesColor,
+                sectionLabel = "SÉRIES",
                 onSearchQueryChange = { viewModel.searchSeries(it) }
             )
         }
