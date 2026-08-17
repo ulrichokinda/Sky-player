@@ -29,7 +29,11 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .fallbackToDestructiveMigration() // Recrée la DB si migration impossible
+            // Migration propre 5→6 (index + epgUrl). Le fallback destructif n'est
+            // conservé que pour les bases antérieures à v5 (versions de test pré-1.0,
+            // dont les schémas ne sont plus exportés) — jamais pour la v5 actuelle.
+            .addMigrations(AppDatabase.MIGRATION_5_6)
+            .fallbackToDestructiveMigration()
             .build()
     }
     

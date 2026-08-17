@@ -6,12 +6,14 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.skyplayer.pro.data.local.AppDatabase
 import com.skyplayer.pro.data.local.ChannelDao
 import com.skyplayer.pro.data.local.PlaylistDao
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.ChannelFts
 import com.skyplayer.pro.data.model.Playlist
 import com.skyplayer.pro.data.parser.M3UParserFlow
+import androidx.room.withTransaction
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -36,7 +38,8 @@ class SmartPlaylistRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val playlistDao: PlaylistDao,
     private val channelDao: ChannelDao,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val database: AppDatabase
 ) {
     companion object {
         private const val REFRESH_INTERVAL_HOURS = 24 // Rafraîchir toutes les 24h
@@ -60,7 +63,7 @@ class SmartPlaylistRepository @Inject constructor(
      * Charge les chaînes de manière intelligente :
      * 1. Émet immédiatement les chaînes depuis la base locale
      * 2. Vérifie en parallèle si une mise à jour est nécessaire
-     * 3. Rafraîchit et ré-émet si nouvelles données disponibles
+     * 3. Rafraîchit en arrière-plan et ré-émet l'état final de la base
      *
      * @param playlist La playlist à charger
      * @return Flow<List<Channel>> Flux de chaînes (local puis éventuellement mis à jour)
@@ -77,13 +80,13 @@ class SmartPlaylistRepository @Inject constructor(
             _refreshState.value = RefreshState.CheckingForUpdates
 
             try {
-                // 3. RAFRAÎCHISSEMENT silencieux
-                refreshPlaylist(playlist)
-                    .collect { batch ->
-                        // Accumuler et émettre les nouvelles chaînes
-                        val updatedChannels = localChannels + batch
-                        emit(updatedChannels)
-                    }
+                // 3. RAFRAÎCHISSEMENT silencieux : télécharge + remplace en une transaction.
+                // Le collect ne sert qu'à exécuter le flow (les paquets intermédiaires ne
+                // sont PAS émis ici : la liste locale serait doublée à l'écran).
+                refreshPlaylist(playlist).collect { }
+
+                // Ré-émettre l'état final complet depuis la base (remplace la liste locale)
+                emit(loadChannelsFromLocal(playlist.id))
 
                 _refreshState.value = RefreshState.Success
                 Timber.i("✅ Playlist rafraîchie avec succès")
@@ -142,8 +145,14 @@ class SmartPlaylistRepository @Inject constructor(
     }
 
     /**
-     * Rafraîchit la playlist depuis l'URL M3U
-     * Émet les chaînes par paquets pour mise à jour progressive de l'UI
+     * Rafraîchit la playlist depuis l'URL M3U.
+     *
+     * 1. Télécharge et parse **sans écrire en base** (les insertions par paquets
+     *    provoquaient une invalidation Room par batch → ré-organisation en cascade,
+     *    et des doublons car les anciennes lignes n'étaient jamais supprimées).
+     * 2. Remplace tout le contenu de la playlist dans **une seule transaction** :
+     *    suppression + réinsertion + FTS + compteur. Un refresh interrompu ne laisse
+     *    jamais un état partiel, et les chaînes retirées du M3U disparaissent.
      */
     private fun refreshPlaylist(playlist: Playlist): Flow<List<Channel>> = flow {
         if (playlist.url == null) {
@@ -153,39 +162,43 @@ class SmartPlaylistRepository @Inject constructor(
 
         val playlistId = playlist.id
         val startTime = System.currentTimeMillis()
-        var totalChannels = 0
         val allChannels = mutableListOf<Channel>()
 
         _refreshState.value = RefreshState.Downloading
 
-        // Parser et émettre par paquets
+        // Téléchargement + parsing complet en mémoire (paquets pour backpressure)
         parser.parseFromUrlAsFlow(playlist.url, playlistId, okHttpClient)
             .collect { batch ->
-                totalChannels += batch.size
                 allChannels.addAll(batch)
-
-                // Sauvegarder chaque batch dans la base locale
-                channelDao.insertChannels(batch)
-
-                // Mettre à jour l'index de recherche (FTS)
-                channelDao.insertChannelsFts(batch.map {
-                    ChannelFts(it.id, it.name, it.category, it.groupTitle)
-                })
-
-                // Émettre pour mise à jour UI
-                emit(batch)
-
-                Timber.d("📦 Batch reçu: ${batch.size} chaînes (Total: $totalChannels)")
+                emit(batch) // progression réseau (consommé par loadChannelsSmart, qui ne ré-émet pas)
+                Timber.d("📦 Batch reçu: ${batch.size} chaînes (Total: ${allChannels.size})")
             }
 
-        // Mettre à jour les métadonnées
+        if (allChannels.isEmpty()) {
+            throw Exception("La source distante est vide ou inaccessible")
+        }
+
+        // Remplacement atomique : une seule invalidation Room, pas de doublons,
+        // pas d'état partiel si le refresh est interrompu.
+        database.withTransaction {
+            channelDao.deleteChannelsByPlaylistId(playlistId)
+            channelDao.deleteChannelsFtsByPlaylistId(playlistId)
+
+            allChannels.chunked(500).forEach { chunk ->
+                channelDao.insertChannels(chunk)
+                channelDao.insertChannelsFts(chunk.map {
+                    ChannelFts(it.id, it.name, it.category, it.groupTitle)
+                })
+            }
+
+            // Mettre à jour les métadonnées + compteur
+            playlistDao.updateChannelCount(playlistId, allChannels.size)
+        }
+
         updateRefreshMetadata(playlist)
 
-        // Mettre à jour le compteur de chaînes dans la playlist
-        playlistDao.updateChannelCount(playlistId, totalChannels)
-
         val duration = System.currentTimeMillis() - startTime
-        Timber.i("✅ Rafraîchissement terminé: $totalChannels chaînes en ${duration}ms")
+        Timber.i("✅ Rafraîchissement terminé: ${allChannels.size} chaînes en ${duration}ms")
     }.flowOn(Dispatchers.IO)
 
     /**
@@ -196,10 +209,8 @@ class SmartPlaylistRepository @Inject constructor(
         _refreshState.value = RefreshState.Downloading
 
         try {
-            // Supprimer les anciennes chaînes
-            channelDao.deleteChannelsByPlaylistId(playlist.id)
-
-            // Re-parser complètement
+            // refreshPlaylist remplace tout le contenu dans une transaction atomique
+            // (suppression + réinsertion) — plus besoin de pré-supprimer.
             refreshPlaylist(playlist).collect { _ -> }
 
             _refreshState.value = RefreshState.Success

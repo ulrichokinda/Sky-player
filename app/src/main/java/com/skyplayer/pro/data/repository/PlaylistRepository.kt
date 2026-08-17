@@ -34,6 +34,7 @@ import okhttp3.Request
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -126,6 +127,10 @@ class PlaylistRepository @Inject constructor(
 
             // Valider et parser la playlist
             var epgUrl: String? = null
+            // Le playlistId est généré AVANT le parsing : le parser construit les IDs des
+            // chaînes avec ce préfixe (une seule fois, comme au refresh → IDs stables
+            // entre import et synchronisation, favoris/historique préservés).
+            val playlistId = "playlist_${System.currentTimeMillis()}"
             emit(PlaylistLoadProgress.Loading("Téléchargement de la playlist..."))
             val response = try {
                 val request = Request.Builder()
@@ -167,7 +172,7 @@ class PlaylistRepository @Inject constructor(
             val channels = try {
                 m3uParser.parseFromInputStream(
                     inputStream = bufferedInputStream,
-                    playlistId = "temp",
+                    playlistId = playlistId,
                     sourceUrl = cleanUrl,
                     onEpgUrlFound = { epgUrl = it }
                 )
@@ -183,24 +188,18 @@ class PlaylistRepository @Inject constructor(
                 throw Exception("Aucune chaîne trouvée dans la playlist")
             } else {
                 emit(PlaylistLoadProgress.Loading("Sauvegarde des chaînes..."))
-                val playlistId = "playlist_${System.currentTimeMillis()}"
+                // Les IDs portent déjà le préfixe playlistId (pas de double préfixe)
+                insertChannelsWithFts(channels)
 
-                // Sauvegarder les chaînes d'abord (Metadata Cache)
-                val preparedChannels = channels.map { it.copy(id = "${playlistId}_${it.id}") }
-                channelDao.insertChannels(preparedChannels)
-
-                // Mettre à jour l'index de recherche (FTS)
-                channelDao.insertChannelsFts(preparedChannels.map {
-                    ChannelFts(it.id, it.name, it.category, it.groupTitle)
-                })
-
-                // Sauvegarder la playlist
+                // Sauvegarder la playlist (l'URL EPG est persistée pour éviter une
+                // requête HTTP de re-détection à chaque refresh)
                 val playlist = Playlist(
                     id = playlistId,
                     name = name,
                     sourceType = SourceType.M3U_URL,
                     url = cleanUrl,
-                    channelCount = channels.size
+                    channelCount = channels.size,
+                    epgUrl = epgUrl
                 )
                 playlistDao.insertPlaylist(playlist)
 
@@ -258,11 +257,9 @@ class PlaylistRepository @Inject constructor(
                 return@withContext Result.failure(Exception("Aucune chaîne trouvée"))
             }
 
-            val preparedChannels = channels.map { it.copy(id = "${playlistId}_${it.id}") }
-            channelDao.insertChannels(preparedChannels)
-            channelDao.insertChannelsFts(preparedChannels.map {
-                ChannelFts(it.id, it.name, it.category, it.groupTitle)
-            })
+            // Le parser reçoit déjà le vrai playlistId → ses IDs sont définitifs,
+            // PAS de double préfixe (qui changeait les IDs après refresh).
+            insertChannelsWithFts(channels)
 
             playlistDao.insertPlaylist(
                 Playlist(
@@ -270,7 +267,8 @@ class PlaylistRepository @Inject constructor(
                     name        = name,
                     sourceType  = SourceType.M3U_URL,
                     url         = url,
-                    channelCount = channels.size
+                    channelCount = channels.size,
+                    epgUrl      = epgUrl
                 )
             )
 
@@ -457,11 +455,8 @@ class PlaylistRepository @Inject constructor(
             }
 
             emit(PlaylistLoadProgress.Loading("Sauvegarde des chaînes live...", 0.5f))
-            // Batch insert pour éviter de saturer la DB
-            channelDao.insertChannels(liveChannels)
-            channelDao.insertChannelsFts(liveChannels.map {
-                ChannelFts(it.id, it.name, it.category, it.groupTitle)
-            })
+            // Batch insert chunké pour éviter de saturer la DB sur les gros panels
+            insertChannelsWithFts(liveChannels)
             totalChannels += liveChannels.size
             Timber.i("✅ ${liveChannels.size} chaînes live sauvegardées pour la playlist $name")
 
@@ -503,10 +498,7 @@ class PlaylistRepository @Inject constructor(
                         )
                     }
 
-                    channelDao.insertChannels(vodChannels)
-                    channelDao.insertChannelsFts(vodChannels.map {
-                        ChannelFts(it.id, it.name, it.category, it.groupTitle)
-                    })
+                    insertChannelsWithFts(vodChannels)
                     totalChannels += vodChannels.size
                     playlistDao.updateChannelCount(playlistId, totalChannels)
                     Timber.i("✅ ${vodChannels.size} films sauvegardés")
@@ -559,10 +551,7 @@ class PlaylistRepository @Inject constructor(
                         )
                     }
 
-                    channelDao.insertChannels(seriesChannels)
-                    channelDao.insertChannelsFts(seriesChannels.map {
-                        ChannelFts(it.id, it.name, it.category, it.groupTitle)
-                    })
+                    insertChannelsWithFts(seriesChannels)
 
                     // Sauvegarder les métadonnées pour affichage riche
                     val metadataList = series.map { item ->
@@ -627,41 +616,65 @@ class PlaylistRepository @Inject constructor(
 
                     val cleanBaseUrl = serverUrl.trim().trimEnd('/')
                     val apiUrl = XtreamUrlNormalizer.apiUrl(cleanBaseUrl)
-                    val liveCategories = runCatching {
-                        xtreamApi.getLiveCategories(apiUrl, username, password).associate { it.id to it.name }
-                    }.getOrElse { emptyMap() }
-                    val vodCategories = runCatching {
-                        xtreamApi.getVodCategories(apiUrl, username, password).associate { it.id to it.name }
-                    }.getOrElse { emptyMap() }
-                    val seriesCategories = runCatching {
-                        xtreamApi.getSeriesCategories(apiUrl, username, password).associate { it.id to it.name }
-                    }.getOrElse { emptyMap() }
 
-                    val streams = xtreamApi.getLiveStreams(apiUrl, username, password)
-                    val vodStreams = runCatching {
-                        xtreamApi.getVodStreams(apiUrl, username, password)
-                    }.getOrElse {
-                        Timber.w("Erreur VOD pour $playlistId: ${it.message}")
-                        emptyList()
+                    // Les 6 appels (catégories + streams) étaient séquentiels : sur un gros
+                    // panel, le refresh pouvait dépasser plusieurs minutes. Exécution en
+                    // parallèle — les échecs VOD/Séries restent non critiques, le live est
+                    // requis (getLiveStreams lève une exception en cas d'échec).
+                    val liveCategories = async {
+                        runCatching {
+                            xtreamApi.getLiveCategories(apiUrl, username, password).associate { it.id to it.name }
+                        }.getOrElse { emptyMap() }
                     }
-                    val series = runCatching {
-                        xtreamApi.getSeries(apiUrl, username, password)
-                    }.getOrElse {
-                        Timber.w("Erreur séries pour $playlistId: ${it.message}")
-                        emptyList()
+                    val vodCategories = async {
+                        runCatching {
+                            xtreamApi.getVodCategories(apiUrl, username, password).associate { it.id to it.name }
+                        }.getOrElse { emptyMap() }
                     }
+                    val seriesCategories = async {
+                        runCatching {
+                            xtreamApi.getSeriesCategories(apiUrl, username, password).associate { it.id to it.name }
+                        }.getOrElse { emptyMap() }
+                    }
+                    val liveStreams = async {
+                        xtreamApi.getLiveStreams(apiUrl, username, password)
+                    }
+                    val vodStreams = async {
+                        runCatching {
+                            xtreamApi.getVodStreams(apiUrl, username, password)
+                        }.getOrElse {
+                            Timber.w("Erreur VOD pour $playlistId: ${it.message}")
+                            emptyList()
+                        }
+                    }
+                    val series = async {
+                        runCatching {
+                            xtreamApi.getSeries(apiUrl, username, password)
+                        }.getOrElse {
+                            Timber.w("Erreur séries pour $playlistId: ${it.message}")
+                            emptyList()
+                        }
+                    }
+
+                    val streams = liveStreams.await()
+                    val liveCat = liveCategories.await()
+                    val vodCat = vodCategories.await()
+                    val seriesCat = seriesCategories.await()
+
+                    val vodStreamsFinal = vodStreams.await()
+                    val seriesFinal = series.await()
 
                     val combined = mutableListOf<Channel>()
                     combined.addAll(streams.map {
-                        it.toChannel(serverUrl, username, password, playlistId, liveCategories[it.categoryId], null)
+                        it.toChannel(serverUrl, username, password, playlistId, liveCat[it.categoryId], null)
                     })
-                    combined.addAll(vodStreams.map {
-                        it.toChannel(serverUrl, username, password, playlistId, vodCategories[it.categoryId], ContentType.VOD_MOVIE)
+                    combined.addAll(vodStreamsFinal.map {
+                        it.toChannel(serverUrl, username, password, playlistId, vodCat[it.categoryId], ContentType.VOD_MOVIE)
                     })
-                    combined.addAll(series.map { item ->
+                    combined.addAll(seriesFinal.map { item ->
                         val resolvedCategory = com.skyplayer.pro.data.organizer.ContentClassifier.inferCategory(
                             name = item.name,
-                            groupTitle = seriesCategories[item.categoryId],
+                            groupTitle = seriesCat[item.categoryId],
                             contentType = ContentType.VOD_SERIES
                         )
                         Channel(
@@ -766,6 +779,20 @@ class PlaylistRepository @Inject constructor(
         }
     }
 
+    /**
+     * Insertion chunkée (500) : chaînes + index FTS en parallèle.
+     * Un seul appel Room sur 50k+ lignes peut dépasser les limites SQLite/variables
+     * et saturer la transaction ; le chunking est identique au chemin refresh.
+     */
+    private suspend fun insertChannelsWithFts(channels: List<Channel>) {
+        channels.chunked(500).forEach { chunk ->
+            channelDao.insertChannels(chunk)
+            channelDao.insertChannelsFts(chunk.map {
+                ChannelFts(it.id, it.name, it.category, it.groupTitle)
+            })
+        }
+    }
+
     private fun saveXtreamCredentials(playlistId: String, username: String, password: String, baseUrl: String) {
         secureXtreamPrefs.edit()
             .putString("$playlistId.username", username)
@@ -811,9 +838,10 @@ class PlaylistRepository @Inject constructor(
 
             when (activePlaylist.sourceType) {
                 SourceType.M3U_URL -> {
-                    val playlistUrl = activePlaylist.url
-                        ?: return@withContext Result.failure(Exception("URL playlist manquante"))
-                    val epgUrl = extractEpgUrlFromM3uHeader(playlistUrl)
+                    // URL EPG persistée à l'import ; re-détection HTTP uniquement en
+                    // secours pour les playlists importées avant cette version.
+                    val epgUrl = activePlaylist.epgUrl
+                        ?: activePlaylist.url?.let { extractEpgUrlFromM3uHeader(it) }
                         ?: return@withContext Result.failure(Exception("Aucune URL EPG trouvée dans la playlist active"))
 
                     Timber.i("🔄 Rafraîchissement EPG depuis $epgUrl")

@@ -12,11 +12,15 @@ import com.skyplayer.pro.data.repository.ChannelRepository
 import com.skyplayer.pro.data.repository.EpgRepository
 import com.skyplayer.pro.data.remote.XtreamCodesApi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -60,20 +64,27 @@ class OrganizedContentViewModel @Inject constructor(
         loadAllChannels()
     }
 
+    @OptIn(FlowPreview::class)
     private fun loadAllChannels() {
         viewModelScope.launch {
             _isLoading.value = true
-            // On récupère toutes les chaînes pour les organiser en onglets séparés
+            // On récupère toutes les chaînes pour les organiser en onglets séparés.
+            // Debounce : un refresh par lots (SmartPlaylistRepository) invalide Room à
+            // chaque insert → on ne réorganise que sur l'état stable, pas à chaque batch.
             channelRepository.getAllChannels()
                 .catch { e ->
                     Timber.e(e, "Erreur chargement contenu")
                     _isLoading.value = false
                 }
+                .debounce(200)
                 .collect { channels ->
                     allChannels = channels
 
-                    // Organisation asynchrone des 3 listes
-                    val organized = contentOrganizer.organizeChannels(channels)
+                    // Organisation des 3 listes : lourde en CPU (regex de
+                    // classification + tris) → hors du thread principal.
+                    val organized = withContext(Dispatchers.Default) {
+                        contentOrganizer.organizeChannels(channels)
+                    }
 
                     _liveCategories.value = organized.liveChannels
                     _movies.value = organized.movies
@@ -147,20 +158,27 @@ class OrganizedContentViewModel @Inject constructor(
 
     private fun applyFilters() {
         val categoryFilter = _selectedLiveCategory.value
-        val filteredLive = allChannels
-            .filter { it.type in ChannelRepository.LIVE_CONTENT_TYPES }
-            .filter { channel ->
-                categoryFilter == null || channel.category == categoryFilter || channel.groupTitle == categoryFilter
+        val query = currentSearchQuery
+        viewModelScope.launch {
+            // Filtre + tri sur la liste complète (potentiellement des dizaines de
+            // milliers de chaînes) → hors du thread principal.
+            val filteredLive = withContext(Dispatchers.Default) {
+                allChannels
+                    .filter { it.type in ChannelRepository.LIVE_CONTENT_TYPES }
+                    .filter { channel ->
+                        categoryFilter == null || channel.category == categoryFilter || channel.groupTitle == categoryFilter
+                    }
+                    .filter { channel ->
+                        query.isBlank() ||
+                            channel.name.contains(query, ignoreCase = true) ||
+                            channel.category.contains(query, ignoreCase = true)
+                    }
+                    .sortedWith(compareBy<Channel> { it.category }.thenBy { it.name })
             }
-            .filter { channel ->
-                currentSearchQuery.isBlank() ||
-                    channel.name.contains(currentSearchQuery, ignoreCase = true) ||
-                    channel.category.contains(currentSearchQuery, ignoreCase = true)
-            }
-            .sortedWith(compareBy<Channel> { it.category }.thenBy { it.name })
 
-        _liveChannels.value = filteredLive
-        loadEpgForVisibleChannels(filteredLive)
+            _liveChannels.value = filteredLive
+            loadEpgForVisibleChannels(filteredLive)
+        }
     }
 
     private fun loadEpgForVisibleChannels(channels: List<Channel>) {

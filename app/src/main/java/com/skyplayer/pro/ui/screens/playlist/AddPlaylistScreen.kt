@@ -1,5 +1,8 @@
 package com.skyplayer.pro.ui.screens.playlist
 
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +47,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -51,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.skyplayer.pro.ui.theme.GradientStart
+import kotlinx.coroutines.delay
 
 /**
  * Écran d'ajout de playlist
@@ -66,8 +74,21 @@ fun AddPlaylistScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val isSuccess by viewModel.isSuccess.collectAsStateWithLifecycle()
-    
+
     var selectedTab by remember { mutableIntStateOf(0) }
+
+    // Focus initial sur le premier champ du formulaire pour la télécommande TV
+    // (le clavier reste accessible au doigt sur mobile — pas de focus forcé).
+    val context = LocalContext.current
+    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+    val isTV = uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    val formFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(selectedTab) {
+        if (isTV) {
+            delay(150)
+            formFocusRequester.requestFocus()
+        }
+    }
     
     // Champs M3U
     var m3uName by remember { mutableStateOf("") }
@@ -159,6 +180,7 @@ fun AddPlaylistScreen(
                     onNameChange = { m3uName = it },
                     onUrlChange = { m3uUrl = it },
                     isLoading = isLoading,
+                    focusRequester = formFocusRequester,
                     onSubmit = {
                         viewModel.addM3UPlaylist(m3uName, m3uUrl)
                     }
@@ -173,6 +195,7 @@ fun AddPlaylistScreen(
                     onPasswordChange = { password = it },
                     onServerUrlChange = { serverUrl = it },
                     isLoading = isLoading,
+                    focusRequester = formFocusRequester,
                     onSubmit = {
                         viewModel.addXtreamPlaylist(xtreamName, username, password, serverUrl)
                     }
@@ -199,6 +222,7 @@ private fun M3UForm(
     onNameChange: (String) -> Unit,
     onUrlChange: (String) -> Unit,
     isLoading: Boolean,
+    focusRequester: FocusRequester,
     onSubmit: () -> Unit
 ) {
     Column(
@@ -212,7 +236,9 @@ private fun M3UForm(
             leadingIcon = {
                 Icon(Icons.Default.PlayCircle, null, modifier = Modifier.size(20.dp))
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
         )
@@ -269,6 +295,7 @@ private fun XtreamForm(
     onPasswordChange: (String) -> Unit,
     onServerUrlChange: (String) -> Unit,
     isLoading: Boolean,
+    focusRequester: FocusRequester,
     onSubmit: () -> Unit
 ) {
     Column(
@@ -281,7 +308,9 @@ private fun XtreamForm(
             leadingIcon = {
                 Icon(Icons.Default.PlayCircle, null, modifier = Modifier.size(20.dp))
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
             singleLine = true
         )
         

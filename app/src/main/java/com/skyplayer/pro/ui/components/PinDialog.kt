@@ -11,6 +11,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -33,6 +35,12 @@ fun PinDialog(
     error: String? = null
 ) {
     var pin by remember { mutableStateOf("") }
+
+    // Focus initial sur le champ PIN pour la télécommande TV (saisie par touches chiffres)
+    val pinFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        pinFocusRequester.requestFocus()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -69,7 +77,9 @@ fun PinDialog(
                 OutlinedTextField(
                     value = pin,
                     onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 4) pin = it },
-                    modifier = Modifier.width(160.dp),
+                    modifier = Modifier
+                        .width(160.dp)
+                        .focusRequester(pinFocusRequester),
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
@@ -137,6 +147,12 @@ fun SetupPinDialog(
     var step by remember { mutableIntStateOf(1) } // 1: PIN, 2: Security Question
     var error by remember { mutableStateOf<String?>(null) }
 
+    // Focus initial sur le premier champ pour la télécommande TV
+    val pinFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        pinFocusRequester.requestFocus()
+    }
+
     val securityQuestions = listOf(
         "Ville de naissance ?",
         "Nom de votre premier animal ?",
@@ -176,7 +192,9 @@ fun SetupPinDialog(
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(pinFocusRequester),
                         colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -294,6 +312,12 @@ fun RecoveryPinDialog(
 ) {
     var answer by remember { mutableStateOf("") }
 
+    // Focus initial sur le champ réponse pour la télécommande TV
+    val answerFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        answerFocusRequester.requestFocus()
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CardBlack,
@@ -332,7 +356,9 @@ fun RecoveryPinDialog(
                     onValueChange = { answer = it },
                     label = { Text("Votre réponse") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(answerFocusRequester),
                     colors = TextFieldDefaults.colors(focusedIndicatorColor = PremiumEmerald)
                 )
                 

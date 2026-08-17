@@ -304,8 +304,17 @@ fun XtreamStream.toChannel(
         contentType = resolvedType
     )
 
+    // ID préfixé par type : les IDs Live et VOD Xtream recommencent à 1 sur la plupart
+    // des panels. Sans préfixe, un stream live et un film avec le même ID partageaient
+    // la même clé primaire → l'un écrasait silencieusement l'autre (REPLACE).
+    val idPrefix = when (resolvedType) {
+        ContentType.VOD_MOVIE -> "vod"
+        ContentType.VOD_SERIES, ContentType.SERIES_EPISODE -> "series"
+        else -> "live"
+    }
+
     return Channel(
-        id = "${playlistId}_${streamId}",
+        id = "${playlistId}_${idPrefix}_${streamId}",
         name = name.ifBlank { "Contenu sans nom" },
         url = streamUrl,
         logoUrl = streamIcon,
@@ -336,7 +345,7 @@ fun XtreamSeries.toChannel(
     )
 
     return Channel(
-        id = "${playlistId}_${seriesId}",
+        id = "${playlistId}_series_${seriesId}",
         name = name.ifBlank { "Série sans nom" },
         url = streamUrl,
         logoUrl = cover,

@@ -23,6 +23,21 @@ class ChannelRepository @Inject constructor(
             ContentType.LIVE_NEWS,
             ContentType.RADIO
         )
+
+        /**
+         * Échappe une saisie utilisateur avant injection dans `MATCH` (FTS4).
+         *
+         * Sans échappement, un caractère d'opérateur FTS (`"`, `*`, `(`, `-`, …)
+         * lève une `SQLiteException` → crash de l'app. On retire ces caractères,
+         * puis chaque terme devient un préfixe (`terme*`) pour la recherche partielle.
+         */
+        fun sanitizeFtsQuery(raw: String): String {
+            val tokens = raw.trim().split(Regex("\\s+")).mapNotNull { token ->
+                token.replace(Regex("""["*()\-^<>=~!\\]"""), "")
+                    .takeIf { it.isNotBlank() }
+            }
+            return tokens.joinToString(" ") { "$it*" }.ifEmpty { "\"\"" }
+        }
     }
 
     // Toutes les chaînes
@@ -49,7 +64,7 @@ class ChannelRepository @Inject constructor(
 
     // Recherche ultra-rapide (FTS4)
     fun searchChannels(query: String): Flow<List<Channel>> =
-        channelDao.searchChannels(query)
+        channelDao.searchChannels(sanitizeFtsQuery(query))
 
     // Historique
     suspend fun updateLastWatched(channelId: String) {

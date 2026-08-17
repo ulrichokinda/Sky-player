@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.organizer.ChannelCategory
 import com.skyplayer.pro.data.security.ParentalControlManager
 import com.skyplayer.pro.ui.theme.PremiumEmerald
@@ -337,6 +338,85 @@ private fun CategoryItem(
             )
         }
     }
+}
+
+/**
+ * En-tête de section affiché au début de chaque catégorie (mode TOUT).
+ * Utilisé par les listes (Live) et les grilles (VOD/Séries) pour marquer
+ * visuellement le début de chaque section pendant le scroll.
+ */
+@Composable
+fun CategorySectionHeader(
+    title: String,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(24.dp)
+                .height(2.dp)
+                .background(accentColor.copy(alpha = 0.6f), RoundedCornerShape(1.dp))
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = title.uppercase(),
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 2.sp,
+                color = accentColor
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.08f))
+        )
+    }
+}
+
+/**
+ * Élément d'une grille en mode TOUT : soit un en-tête de catégorie, soit une carte.
+ *
+ * [key] doit être unique dans la grille (utilisé par LazyVerticalGrid).
+ */
+sealed interface GridSectionEntry {
+    val category: String
+    val key: String
+
+    data class Header(override val category: String) : GridSectionEntry {
+        override val key: String get() = "section_header_$category"
+    }
+
+    data class Content(val channel: Channel, override val category: String) : GridSectionEntry {
+        override val key: String get() = channel.id
+    }
+}
+
+/**
+ * Convertit une liste triée par catégorie en entrées de grille avec un en-tête
+ * au début de chaque catégorie (mode TOUT).
+ */
+fun List<Channel>.withSectionHeaders(): List<GridSectionEntry> {
+    val entries = ArrayList<GridSectionEntry>(size)
+    var previousCategory: String? = null
+    for (channel in this) {
+        if (channel.category != previousCategory) {
+            entries.add(GridSectionEntry.Header(channel.category))
+            previousCategory = channel.category
+        }
+        entries.add(GridSectionEntry.Content(channel, channel.category))
+    }
+    return entries
 }
 
 /**

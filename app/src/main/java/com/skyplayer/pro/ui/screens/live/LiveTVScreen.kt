@@ -4,6 +4,7 @@ import android.app.UiModeManager
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,13 +23,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import android.view.KeyEvent
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,8 +59,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,7 +79,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.skyplayer.pro.data.model.Channel
+import com.skyplayer.pro.data.model.EpgProgram
 import com.skyplayer.pro.data.organizer.ChannelCategory
+import com.skyplayer.pro.ui.components.CategorySectionHeader
 import com.skyplayer.pro.ui.components.CategorySidebar
 import com.skyplayer.pro.ui.components.ChannelLoadMonitor
 import com.skyplayer.pro.ui.components.ChannelListShimmer
@@ -149,9 +159,41 @@ fun LiveTVScreen(
         }
     }
 
+    // ── Zapping D-pad TV ───────────────────────────────
+    // Haut/Bas = changement de chaîne rapide avec OSD (quand la grille a le focus),
+    // Centre/OK = lecture directe. Gauche/Droite reste sur la navigation par focus
+    // (sidebar ↔ grille).
+    var gridFocused by remember { mutableStateOf(false) }
+    var zapIndex by remember { mutableIntStateOf(0) }
+    var showZapOsd by remember { mutableStateOf(false) }
+    val zapCoroutineScope = rememberCoroutineScope()
+    val zap = { direction: Int ->
+        if (channels.isNotEmpty()) {
+            val last = channels.lastIndex
+            val current = zapIndex.coerceIn(0, last)
+            zapIndex = ((current + direction) % channels.size + channels.size) % channels.size
+            zapCoroutineScope.launch { contentListState.animateScrollToItem(zapIndex) }
+            showZapOsd = true
+        }
+    }
+    // Remet le minuteur à zéro à chaque zapping pour garder l'OSD visible
+    LaunchedEffect(showZapOsd, zapIndex) {
+        if (showZapOsd) {
+            delay(2500)
+            showZapOsd = false
+        }
+    }
+
     // Revenir en haut quand une catégorie est choisie via le sidebar
     LaunchedEffect(selectedCategory) {
+        zapIndex = 0
         contentListState.scrollToItem(0)
+    }
+
+    // La recherche dans le sidebar filtre la liste : on repart du haut au
+    // prochain zapping pour ne pas rester sur un index hors de la liste filtrée.
+    LaunchedEffect(channels) {
+        zapIndex = 0
     }
 
     var showPinDialog by remember { mutableStateOf(false) }
@@ -190,6 +232,30 @@ fun LiveTVScreen(
                     )
                 )
             )
+            // Zapping en amont de la navigation par focus : on intercepte Haut/Bas
+            // uniquement quand la grille a le focus, sinon le D-pad navigue normalement.
+            .onPreviewKeyEvent { keyEvent ->
+                if (isTV && gridFocused && keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_UP -> {
+                            zap(-1)
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_DOWN -> {
+                            zap(1)
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                            channels.getOrNull(zapIndex.coerceIn(0, channels.lastIndex))
+                                ?.let { onChannelClick(it) }
+                            true
+                        }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
     ) {
         // Navigation conditionnelle: Sidebar pour TV/Tablette, Onglets horizontaux pour Mobile
         if (isTV) {
@@ -301,11 +367,23 @@ fun LiveTVScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .focusRequester(contentFocusRequester)
+                                .onFocusChanged { gridFocused = it.isFocused }
                         ) {
-                            items(
+                            itemsIndexed(
                                 items = channels,
-                                key = { it.id }
-                            ) { channel ->
+                                key = { _, item -> item.id }
+                            ) { index, channel ->
+                                // En mode TOUT, la liste traverse toutes les catégories :
+                                // on insère un en-tête au début de chaque section pour
+                                // visualiser clairement où elle commence pendant le scroll.
+                                val showSectionHeader = index == 0 ||
+                                    channels[index - 1].category != channel.category
+                                if (showSectionHeader) {
+                                    CategorySectionHeader(
+                                        title = channel.category.ifBlank { "Chaînes" },
+                                        accentColor = LiveTvColor
+                                    )
+                                }
                                 val program = currentPrograms[channel.epgId]
                                 CompactChannelRow(
                                     channel = channel,
@@ -322,6 +400,22 @@ fun LiveTVScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                // OSD zapping — chaîne courante pendant le zapping D-pad (TV)
+                if (showZapOsd) {
+                    channels.getOrNull(zapIndex.coerceIn(0, channels.lastIndex))?.let { channel ->
+                        ZapOsd(
+                            channel = channel,
+                            program = currentPrograms[channel.epgId],
+                            index = zapIndex.coerceIn(0, channels.lastIndex),
+                            total = channels.size,
+                            accentColor = LiveTvColor,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 16.dp)
+                        )
                     }
                 }
             }
@@ -501,6 +595,90 @@ private fun CompactChannelRow(
                     contentDescription = null,
                     tint = Color.Red,
                     modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * OSD compact affiché pendant le zapping D-pad (changement de chaîne rapide).
+ * Affiche logo, nom, position dans la liste et programme EPG en cours.
+ */
+@Composable
+private fun ZapOsd(
+    channel: Channel,
+    program: EpgProgram?,
+    index: Int,
+    total: Int,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black.copy(alpha = 0.85f))
+            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color.White.copy(alpha = 0.05f)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (channel.logoUrl != null) {
+                AsyncImage(
+                    model = channel.logoUrl,
+                    contentDescription = channel.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.LiveTv,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.3f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.widthIn(max = 360.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${index + 1} / $total",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        color = accentColor
+                    ),
+                    modifier = Modifier
+                        .background(accentColor.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = channel.name,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (program != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = program.title,
+                    style = MaterialTheme.typography.labelSmall.copy(color = Color.White.copy(alpha = 0.6f)),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

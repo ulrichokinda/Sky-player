@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -172,10 +173,53 @@ class SmartContentOrganizer @Inject constructor() {
         )
     }
 
+    // Cache de l'organisation : la classification/tri est lourde (regex + tris sur
+    // des dizaines de milliers d'éléments). On ne la recalcule que si le catalogue
+    // a réellement changé (signature stable), sinon on ressort le dernier résultat.
+    private val organizationCache = ConcurrentHashMap<Long, OrganizedContent>()
+
     /**
-     * Organise et trie les chaînes par type avec structure hiérarchique pour les séries
+     * Organise et trie les chaînes par type avec structure hiérarchique pour les séries.
+     *
+     * Résultat mis en cache : les collectes répétées du flux Room (refresh, toggle
+     * favori, re-rendu) ne relancent pas toute l'organisation tant que le catalogue
+     * n'a pas changé.
      */
     fun organizeChannels(channels: List<Channel>): OrganizedContent {
+        val signature = computeCatalogSignature(channels)
+        organizationCache[signature]?.let { return it }
+
+        val result = doOrganizeChannels(channels)
+        organizationCache[signature] = result
+
+        // Cache borné : on garde au plus quelques catalogues pour éviter les fuites mémoire.
+        if (organizationCache.size > 8) {
+            organizationCache.clear()
+        }
+        return result
+    }
+
+    /**
+     * Signature stable du catalogue : ne dépend que des champs réellement lus par
+     * l'organisation + des champs affichés dans les listes organisées (favori,
+     * dernier visionnage, logo) pour ne jamais renvoyer des références périmées.
+     */
+    private fun computeCatalogSignature(channels: List<Channel>): Long {
+        var hash = 1125899906842597L
+        for (channel in channels) {
+            hash = hash * 31 + channel.id.hashCode()
+            hash = hash * 31 + channel.name.hashCode()
+            hash = hash * 31 + (channel.logoUrl?.hashCode() ?: 0)
+            hash = hash * 31 + channel.category.hashCode()
+            hash = hash * 31 + channel.type.hashCode()
+            hash = hash * 31 + (channel.groupTitle?.hashCode() ?: 0)
+            hash = hash * 31 + channel.isFavorite.hashCode()
+            hash = hash * 31 + (channel.lastWatched ?: 0L)
+        }
+        return hash
+    }
+
+    private fun doOrganizeChannels(channels: List<Channel>): OrganizedContent {
         val startTime = System.currentTimeMillis()
 
         // 1. Filtrage strict par type (déjà séparé par ContentClassifier)

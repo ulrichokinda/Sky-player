@@ -118,8 +118,10 @@ class M3UParserFlow {
         try {
             val request = okhttp3.Request.Builder()
                 .url(url)
-                .header("User-Agent", "SkyPlayerPro/1.0")
-                .header("Accept", "application/vnd.apple.mpegurl, audio/mpegurl, text/plain")
+                // Même User-Agent navigateur que partout ailleurs : certains serveurs
+                // IPTV bloquent les User-Agents inconnus du type "SkyPlayerPro/1.0".
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+                .header("Accept", "application/vnd.apple.mpegurl, audio/mpegurl, text/plain, */*")
                 .build()
 
             val response = okHttpClient.newCall(request).execute()
@@ -242,8 +244,10 @@ class M3UParserFlow {
             )
             val inferredCategory = ContentClassifier.inferCategory(name, attrs["group-title"], contentType)
 
+            // ID déterministe : tvg-id si présent, sinon hash de l'URL. Stable entre
+            // deux parses → favoris/historique préservés + REPLACE dédoublonne.
             Channel(
-                id = "${playlistId}_${attrs["tvg-id"] ?: System.nanoTime()}_${lineNumber}",
+                id = M3UChannelId.forChannel(playlistId, attrs["tvg-id"], urlLine),
                 name = name,
                 url = urlLine.trim(),
                 logoUrl = attrs["tvg-logo"],

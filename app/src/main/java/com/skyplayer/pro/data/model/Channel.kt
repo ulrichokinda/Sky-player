@@ -2,13 +2,22 @@ package com.skyplayer.pro.data.model
 
 import androidx.room.Entity
 import androidx.room.Fts4
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * Modèle de données pour une chaîne TV ou contenu VOD
  * Compatible avec Room pour persistance locale
  */
-@Entity(tableName = "channels")
+@Entity(
+    tableName = "channels",
+    indices = [
+        // Index pour les requêtes fréquentes Live/VOD/Séries (full scan évité sur 50k+ lignes)
+        Index("type"),
+        Index("category"),
+        Index("isFavorite")
+    ]
+)
 data class Channel(
     @PrimaryKey
     val id: String,
@@ -82,7 +91,8 @@ data class Playlist(
     val baseUrl: String? = null, // Pour Xtream
     val isActive: Boolean = true,
     val lastUpdated: Long = System.currentTimeMillis(),
-    val channelCount: Int = 0
+    val channelCount: Int = 0,
+    val epgUrl: String? = null // URL EPG extraite à l'import (évite une requête HTTP au refresh)
 )
 
 enum class SourceType {

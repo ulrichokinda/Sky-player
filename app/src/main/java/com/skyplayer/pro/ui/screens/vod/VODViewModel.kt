@@ -8,12 +8,16 @@ import com.skyplayer.pro.data.organizer.ChannelCategory
 import com.skyplayer.pro.data.organizer.SmartContentOrganizer
 import com.skyplayer.pro.data.repository.ChannelRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -42,16 +46,23 @@ class VODViewModel @Inject constructor(
         loadAllMovies()
     }
 
+    @OptIn(FlowPreview::class)
     private fun loadAllMovies() {
         viewModelScope.launch {
             _isLoading.value = true
+            // Debounce : un refresh par lots invalide Room à chaque insert → on ne
+            // réorganise que sur l'état stable, pas à chaque batch.
             channelRepository.getVodContent()
                 .catch { e ->
                     Timber.e(e, "Erreur chargement films VOD")
                     _isLoading.value = false
                 }
+                .debounce(200)
                 .collectLatest { allMovies ->
-                    val organized = contentOrganizer.organizeChannels(allMovies)
+                    // Organisation lourde en CPU (nettoyage catégories + tris) → hors thread principal
+                    val organized = withContext(Dispatchers.Default) {
+                        contentOrganizer.organizeChannels(allMovies)
+                    }
                     _categories.value = organized.movies
                     // Défaut = TOUT : toutes les catégories groupées dans la grille,
                     // le scroll traverse les sections et le sidebar suit.

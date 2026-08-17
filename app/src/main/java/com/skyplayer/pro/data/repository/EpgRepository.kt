@@ -1,5 +1,6 @@
 package com.skyplayer.pro.data.repository
 
+import com.skyplayer.pro.data.local.AppDatabase
 import com.skyplayer.pro.data.local.EpgDao
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.EpgProgram
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import androidx.room.withTransaction
 import timber.log.Timber
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
@@ -22,7 +24,8 @@ import javax.inject.Singleton
 class EpgRepository @Inject constructor(
     private val epgDao: EpgDao,
     private val xtreamApi: XtreamCodesApi,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val database: AppDatabase
 ) {
     private val parser = EpgParser()
 
@@ -47,10 +50,14 @@ class EpgRepository @Inject constructor(
 
                 val programs = parser.parse(finalStream)
                 if (programs.isNotEmpty()) {
-                    epgDao.deleteOldPrograms()
-                    // Chunking pour Room
-                    programs.chunked(1000).forEach { chunk ->
-                        epgDao.insertPrograms(chunk)
+                    // Suppression + insertion dans UNE transaction : un refresh interrompu
+                    // ne laisse jamais l'EPG dans un état partiel.
+                    database.withTransaction {
+                        epgDao.deleteOldPrograms()
+                        // Chunking pour Room
+                        programs.chunked(1000).forEach { chunk ->
+                            epgDao.insertPrograms(chunk)
+                        }
                     }
                     Timber.i("✅ EPG mis à jour : ${programs.size} programmes")
                     Result.success(programs.size)

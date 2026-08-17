@@ -1,9 +1,13 @@
 package com.skyplayer.pro.ui.screens.epg
 
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,10 +41,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.LocalContext
+import android.view.KeyEvent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -82,6 +92,32 @@ fun EpgGuideScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val lastRefreshTime by viewModel.lastRefreshTime.collectAsStateWithLifecycle()
 
+    // Focus initial sur la liste des chaînes pour la télécommande TV
+    val context = LocalContext.current
+    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+    val isTV = uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    val contentFocusRequester = remember { FocusRequester() }
+    // On ne demande le focus que lorsque la liste est réellement composée
+    // (pas pendant l'état de chargement) pour rester robuste.
+    LaunchedEffect(isTV, isLoading, entries.isEmpty()) {
+        if (isTV && !isLoading && entries.isNotEmpty()) {
+            delay(150)
+            contentFocusRequester.requestFocus()
+        }
+    }
+
+    // Zapping D-pad TV : Haut/Bas navigue naturellement dans la liste des chaînes,
+    // Gauche/Droite change de filtre catégorie (boucle sur « Toutes » + catégories).
+    val selectableFilters = remember(categories) { listOf<String?>(null) + categories }
+    val currentFilterIndex = selectableFilters.indexOfFirst { it == selectedCategory }.coerceAtLeast(0)
+    val cycleCategory = { direction: Int ->
+        if (selectableFilters.isNotEmpty()) {
+            val newIndex = ((currentFilterIndex + direction) % selectableFilters.size
+                + selectableFilters.size) % selectableFilters.size
+            viewModel.selectCategory(selectableFilters[newIndex])
+        }
+    }
+
     // Auto-refresh every 60 seconds
     LaunchedEffect(Unit) {
         while (true) {
@@ -102,6 +138,26 @@ fun EpgGuideScreen(
                     )
                 )
             )
+            .onKeyEvent { keyEvent ->
+                // Gauche/Droite : filtre catégorie précédente/suivante (TV uniquement).
+                // Les événements de navigation déjà consommés (pills, liste) ne remontent pas ici.
+                if (isTV && keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_LEFT -> {
+                            cycleCategory(-1)
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                            cycleCategory(1)
+                            true
+                        }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
+            .focusable()
     ) {
         // ——— Header ———
         Row(
@@ -194,7 +250,10 @@ fun EpgGuideScreen(
 
             else -> {
                 LazyColumn(
-                    contentPadding = PaddingValues(bottom = 24.dp)
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .focusRequester(contentFocusRequester)
                 ) {
                     items(entries, key = { it.channel.id }) { entry ->
                         EpgChannelRow(

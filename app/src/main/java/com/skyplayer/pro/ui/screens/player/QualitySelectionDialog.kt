@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -32,10 +32,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,7 +71,13 @@ fun QualitySelectionDialog(
     val networkStability by adaptiveManager.networkStability.collectAsStateWithLifecycle(initialValue = AdaptiveBitrateManager.NetworkStability.UNKNOWN)
     val bandwidthEstimate by adaptiveManager.bandwidthEstimate.collectAsStateWithLifecycle(initialValue = 0L)
     val recommendation = adaptiveManager.getQualityRecommendation()
-    
+
+    // Focus initial sur la première qualité pour la télécommande TV
+    val firstOptionFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        firstOptionFocusRequester.requestFocus()
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -130,13 +143,18 @@ fun QualitySelectionDialog(
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(availableQualities) { quality ->
+                    itemsIndexed(availableQualities) { index, quality ->
                         QualityOptionItem(
                             quality = quality,
                             isSelected = currentQuality == quality,
                             onClick = {
                                 viewModel.setVideoQuality(quality)
                                 onDismiss()
+                            },
+                            modifier = if (index == 0) {
+                                Modifier.focusRequester(firstOptionFocusRequester)
+                            } else {
+                                Modifier
                             }
                         )
                     }
@@ -248,8 +266,11 @@ private fun NetworkStatusCard(
 private fun QualityOptionItem(
     quality: VideoQuality,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     val icon = when {
         quality == VideoQuality.AUTO -> Icons.Default.Speed
         quality.height >= 1080 -> Icons.Default.HighQuality
@@ -271,8 +292,9 @@ private fun QualityOptionItem(
     }
     
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .onFocusChanged { isFocused = it.isFocused }
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
@@ -281,10 +303,10 @@ private fun QualityOptionItem(
             else 
                 GlassWhite.copy(alpha = 0.3f)
         ),
-        border = if (isSelected) 
+        border = if (isSelected || isFocused) 
             androidx.compose.foundation.BorderStroke(
                 width = 2.dp,
-                color = PremiumEmerald
+                color = if (isFocused) Color.White else PremiumEmerald
             ) 
         else null
     ) {

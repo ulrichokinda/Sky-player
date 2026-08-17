@@ -164,12 +164,12 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
                                 try {
                                     if (isValidStreamUrl(trimmedLine)) {
                                         val resolvedUrl = resolveStreamUrl(trimmedLine, sourceUrl)
-                                        val channel = parseChannel(extInf, resolvedUrl, playlistId, channels.size)
+                                        val channel = parseChannel(extInf, resolvedUrl, playlistId)
                                         channels.add(channel)
                                     } else {
                                         val resolved = resolveStreamUrl(trimmedLine, sourceUrl)
                                         if (isValidStreamUrl(resolved)) {
-                                            val channel = parseChannel(extInf, resolved, playlistId, channels.size)
+                                            val channel = parseChannel(extInf, resolved, playlistId)
                                             channels.add(channel)
                                         } else {
                                             Timber.w("⚠️ URL de flux invalide à la ligne $lineNumber : ${trimmedLine.take(50)}...")
@@ -266,8 +266,7 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
     private fun parseChannel(
         extInfLine: String,
         urlLine: String,
-        playlistId: String,
-        index: Int
+        playlistId: String
     ): Channel {
         // Extraire la durée et le titre
         val duration = DURATION_REGEX.find(extInfLine)?.groupValues?.get(1)?.toIntOrNull() ?: -1
@@ -293,8 +292,8 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
         // Construire le groupe avec fallback intelligent
         val groupTitle = ContentClassifier.inferCategory(cleanTitle, rawGroupTitle, contentType)
 
-        // Générer ID unique stable
-        val stableId = generateStableId(playlistId, urlLine, cleanTitle, index)
+        // Générer ID unique stable (tvg-id ou hash de l'URL — jamais de nanoTime/ligne)
+        val stableId = M3UChannelId.forChannel(playlistId, attributes[ATTR_TVG_ID], urlLine)
 
         // Nettoyer et valider l'URL du logo
         val logoUrl = attributes[ATTR_TVG_LOGO]?.let { cleanLogoUrl(it) }
@@ -357,16 +356,6 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
             url.startsWith("//") -> "https:$url"
             else -> url
         }
-    }
-
-    /**
-     * Génère un ID stable et unique pour la chaîne
-     */
-    private fun generateStableId(playlistId: String, url: String, name: String, index: Int): String {
-        // Hash combiné pour stabilité entre les mises à jour
-        val hashInput = "${playlistId}_${name}_${url}"
-        val hash = hashInput.hashCode().toString().replace("-", "n")
-        return "${playlistId}_${hash}_${index}"
     }
 
     /**

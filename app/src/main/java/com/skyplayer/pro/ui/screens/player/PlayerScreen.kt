@@ -4,7 +4,10 @@ import androidx.media3.common.util.UnstableApi
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.PictureInPictureParams
+import android.app.UiModeManager
+import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Build
 import android.util.Rational
 import android.view.View
@@ -111,6 +114,9 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import android.view.KeyEvent
 
 /**
@@ -130,6 +136,18 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
+
+    // Focus initial pour la télécommande TV : sans lui, le zapping D-pad
+    // (Haut/Bas) n'est pas capturé car le focus reste sur l'écran précédent.
+    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+    val isTV = uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    val keyFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (isTV) {
+            delay(200)
+            keyFocusRequester.requestFocus()
+        }
+    }
 
     val connectionState by viewModel.connectionState.collectAsStateWithLifecycle(initialValue = PlayerConnectionState.Idle)
     val exoPlayer by viewModel.exoPlayer.collectAsStateWithLifecycle(initialValue = null)
@@ -235,6 +253,7 @@ fun PlayerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .focusRequester(keyFocusRequester)
             .onKeyEvent { keyEvent ->
                 if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                     when (keyEvent.nativeKeyEvent.keyCode) {
@@ -891,18 +910,28 @@ private fun PlaybackSpeedDialog(
 ) {
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
 
+    // Focus initial sur la première option pour la télécommande TV
+    val firstOptionFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        firstOptionFocusRequester.requestFocus()
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Vitesse de lecture") },
         text = {
             Column {
-                speeds.forEach { speed ->
+                speeds.forEachIndexed { index, speed ->
                     TextButton(
                         onClick = {
                             onSpeedSelected(speed)
                             onDismiss()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = if (index == 0) {
+                            Modifier.fillMaxWidth().focusRequester(firstOptionFocusRequester)
+                        } else {
+                            Modifier.fillMaxWidth()
+                        }
                     ) {
                         Text(
                             text = "${speed}x ${if (speed == currentSpeed) "✓" else ""}",
@@ -932,6 +961,12 @@ private fun AudioTrackDialog(
     onDismiss: () -> Unit
 ) {
     var selectedTrack by remember { mutableIntStateOf(0) }
+
+    // Focus initial sur la première piste pour la télécommande TV
+    val firstOptionFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        firstOptionFocusRequester.requestFocus()
+    }
 
     val tracks = remember(exoPlayer) {
         exoPlayer?.let { player ->
@@ -978,7 +1013,11 @@ private fun AudioTrackDialog(
                             selectedTrack = index
                             onDismiss()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = if (index == 0) {
+                            Modifier.fillMaxWidth().focusRequester(firstOptionFocusRequester)
+                        } else {
+                            Modifier.fillMaxWidth()
+                        }
                     ) {
                         Text(
                             text = "$label ${if (index == selectedTrack) "✓" else ""}",
@@ -1008,6 +1047,12 @@ private fun SubtitleDialog(
     onDismiss: () -> Unit
 ) {
     var selectedSub by remember { mutableIntStateOf(-1) }
+
+    // Focus initial sur « Désactivé » pour la télécommande TV
+    val firstOptionFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        firstOptionFocusRequester.requestFocus()
+    }
 
     val subtitles = remember(exoPlayer) {
         exoPlayer?.let { player ->
@@ -1046,7 +1091,7 @@ private fun SubtitleDialog(
                         selectedSub = -1
                         onDismiss()
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().focusRequester(firstOptionFocusRequester)
                 ) {
                     Text(
                         text = "Désactivé ${if (selectedSub == -1) "✓" else ""}",
@@ -1246,6 +1291,13 @@ private fun QuickQualitySelector(
 ) {
     val autoMode = currentQuality == AdaptiveBitrateManager.VideoQuality.AUTO
 
+    // Focus initial sur « Automatique » pour la télécommande TV : sans lui,
+    // le focus tombe sur le voile plein écran et le D-pad ne navigue pas.
+    val firstOptionFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        firstOptionFocusRequester.requestFocus()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1293,6 +1345,7 @@ private fun QuickQualitySelector(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(firstOptionFocusRequester)
                         .clickable { onQualitySelected(AdaptiveBitrateManager.VideoQuality.AUTO) },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
@@ -1415,15 +1468,18 @@ private fun QualityQuickOption(
         else -> Color.Transparent
     }
 
+    var isFocused by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier
             .aspectRatio(1.2f)
+            .onFocusChanged { isFocused = it.isFocused }
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
         border = androidx.compose.foundation.BorderStroke(
-            width = if (isSelected) 2.dp else 1.dp,
-            color = borderColor
+            width = if (isSelected || isFocused) 2.dp else 1.dp,
+            color = if (isFocused) Color.White else borderColor
         )
     ) {
         Column(

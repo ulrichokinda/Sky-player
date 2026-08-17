@@ -7,12 +7,16 @@ import com.skyplayer.pro.data.model.EpgProgram
 import com.skyplayer.pro.data.repository.ChannelRepository
 import com.skyplayer.pro.data.repository.EpgRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -50,49 +54,57 @@ class EpgGuideViewModel @Inject constructor(
         loadEpgGuide()
     }
 
+    @OptIn(FlowPreview::class)
     fun loadEpgGuide() {
         viewModelScope.launch {
             _isLoading.value = true
+            // Debounce : un refresh par lots invalide Room à chaque insert → on ne
+            // reconstruit le guide que sur l'état stable.
             channelRepository.getLiveChannels()
                 .catch { e ->
                     Timber.e(e, "Erreur chargement EPG")
                     _isLoading.value = false
                 }
+                .debounce(200)
                 .collect { channels ->
-                    // Extract unique categories
-                    val cats = channels.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
-                    _categories.value = cats
+                    // Construction du guide (filtres + N requêtes Room séquentielles)
+                    // → hors du thread principal pour ne pas bloquer l'UI.
+                    withContext(Dispatchers.IO) {
+                        // Extract unique categories
+                        val cats = channels.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
+                        _categories.value = cats
 
-                    // Filter by selected category
-                    val filtered = if (_selectedCategory.value != null) {
-                        channels.filter { it.category == _selectedCategory.value }
-                    } else {
-                        channels
-                    }
-
-                    // Load EPG programs for each channel (only those with epgId)
-                    val entries = filtered.map { channel ->
-                        val current = channel.epgId?.let { epgId ->
-                            try { epgRepository.getCurrentProgram(epgId) } catch (e: Exception) { null }
+                        // Filter by selected category
+                        val filtered = if (_selectedCategory.value != null) {
+                            channels.filter { it.category == _selectedCategory.value }
+                        } else {
+                            channels
                         }
-                        val upcoming = channel.epgId?.let { epgId ->
-                            try {
-                                epgRepository.getUpcomingPrograms(epgId).first()
-                                    .filter { prog -> !prog.isCurrent() }
-                                    .take(3)
-                            } catch (e: Exception) { emptyList() }
-                        } ?: emptyList()
 
-                        EpgGuideEntry(
-                            channel = channel,
-                            currentProgram = current,
-                            nextPrograms = upcoming
-                        )
+                        // Load EPG programs for each channel (only those with epgId)
+                        val entries = filtered.map { channel ->
+                            val current = channel.epgId?.let { epgId ->
+                                try { epgRepository.getCurrentProgram(epgId) } catch (e: Exception) { null }
+                            }
+                            val upcoming = channel.epgId?.let { epgId ->
+                                try {
+                                    epgRepository.getUpcomingPrograms(epgId).first()
+                                        .filter { prog -> !prog.isCurrent() }
+                                        .take(3)
+                                } catch (e: Exception) { emptyList() }
+                            } ?: emptyList()
+
+                            EpgGuideEntry(
+                                channel = channel,
+                                currentProgram = current,
+                                nextPrograms = upcoming
+                            )
+                        }
+
+                        _entries.value = entries
+                        _lastRefreshTime.value = System.currentTimeMillis()
+                        _isLoading.value = false
                     }
-
-                    _entries.value = entries
-                    _lastRefreshTime.value = System.currentTimeMillis()
-                    _isLoading.value = false
                 }
         }
     }

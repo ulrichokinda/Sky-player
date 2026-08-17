@@ -3,8 +3,8 @@ package com.skyplayer.pro.data.repository
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.toObject
 import com.skyplayer.pro.data.license.LicenseManager
-import com.skyplayer.pro.data.remote.LicenseApiService
 import com.skyplayer.pro.data.remote.MacCheckResponse
+import com.skyplayer.pro.data.remote.SkyPlayerBackendApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -56,7 +56,7 @@ data class FirestoreActivation(
 @Singleton
 class LicenseRepository @Inject constructor(
     private val licenseManager: LicenseManager,
-    private val apiService: LicenseApiService,
+    private val backendApi: SkyPlayerBackendApi,
     private val firestore: com.google.firebase.firestore.FirebaseFirestore
 ) {
     private var currentListener: ListenerRegistration? = null
@@ -67,7 +67,7 @@ class LicenseRepository @Inject constructor(
     suspend fun checkAccess(mac: String = licenseManager.getDeviceId()): Result<MacCheckResponse> =
         withContext(Dispatchers.IO) {
             try {
-                val response = apiService.checkMac(mac)
+                val response = backendApi.checkMac(mac)
 
                 if (response.isSuccessful) {
                     val data = response.body()
@@ -103,7 +103,7 @@ class LicenseRepository @Inject constructor(
     suspend fun checkAccessWithServerTime(mac: String = licenseManager.getDeviceId()): Result<ServerAccessResult> =
         withContext(Dispatchers.IO) {
             try {
-                val response = apiService.checkMac(mac)
+                val response = backendApi.checkMac(mac)
 
                 if (response.isSuccessful) {
                     val data = response.body()

@@ -9,12 +9,16 @@ import com.skyplayer.pro.data.organizer.SeriesItem
 import com.skyplayer.pro.data.organizer.SmartContentOrganizer
 import com.skyplayer.pro.data.repository.ChannelRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -43,16 +47,23 @@ class SeriesViewModel @Inject constructor(
         loadAllSeries()
     }
 
+    @OptIn(FlowPreview::class)
     private fun loadAllSeries() {
         viewModelScope.launch {
             _isLoading.value = true
+            // Debounce : un refresh par lots invalide Room à chaque insert → on ne
+            // réorganise que sur l'état stable, pas à chaque batch.
             channelRepository.getSeries()
                 .catch { e ->
                     Timber.e(e, "Erreur chargement séries")
                     _isLoading.value = false
                 }
+                .debounce(200)
                 .collectLatest { allSeries ->
-                    val organized = contentOrganizer.organizeChannels(allSeries)
+                    // Organisation lourde en CPU (groupement saison/épisode + tris) → hors thread principal
+                    val organized = withContext(Dispatchers.Default) {
+                        contentOrganizer.organizeChannels(allSeries)
+                    }
                     
                     // Convertir SeriesItem en ChannelCategory pour la Sidebar
                     val seriesCategories = organized.series

@@ -7,10 +7,12 @@ import com.skyplayer.pro.data.repository.Recommendation
 import com.skyplayer.pro.data.repository.RecommendationEngine
 import com.skyplayer.pro.data.repository.RecommendationType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -65,7 +67,10 @@ class RecommendationViewModel @Inject constructor(
     fun analyzeHabits(channels: List<Channel>) {
         viewModelScope.launch {
             try {
-                recommendationEngine.analyzeAndRecommend(channels)
+                // Analyse sur la liste complète des chaînes → hors du thread principal
+                withContext(Dispatchers.Default) {
+                    recommendationEngine.analyzeAndRecommend(channels)
+                }
             } catch (e: Exception) {
                 Timber.e(e, "❌ Erreur analyse habitudes")
             }

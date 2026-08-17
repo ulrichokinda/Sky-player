@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -61,8 +62,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.CustomFolder
+import com.skyplayer.pro.ui.components.CategorySectionHeader
 import com.skyplayer.pro.ui.components.ChannelListShimmer
+import com.skyplayer.pro.ui.components.GridSectionEntry
 import com.skyplayer.pro.ui.components.ShimmerItem
+import com.skyplayer.pro.ui.components.withSectionHeaders
 import com.skyplayer.pro.ui.theme.PremiumEmerald
 import com.skyplayer.pro.ui.theme.GlassWhite
 import com.skyplayer.pro.ui.theme.PremiumGold
@@ -111,10 +115,12 @@ fun VODScreen(
     // ── Synchro scroll ↔ sidebar ───────────────────────────
     // En mode TOUT, la grille traverse toutes les catégories : le premier élément
     // visible détermine la catégorie surlignée dans le sidebar (tactile OU D-pad).
+    // Les en-têtes de section sont insérés dans la grille (pleine largeur).
+    val gridEntries = remember(movies) { movies.withSectionHeaders() }
     val gridState = rememberLazyGridState()
     val scrollVisibleCategory = rememberVisibleIndexCategory(
         firstVisibleIndexProvider = { gridState.firstVisibleItemIndex },
-        itemCategory = { index -> movies.getOrNull(index)?.category }
+        itemCategory = { index -> gridEntries.getOrNull(index)?.category }
     )
     val sidebarHighlight = scrollVisibleCategory.value ?: selectedCategory
 
@@ -227,12 +233,28 @@ fun VODScreen(
                             .fillMaxSize()
                             .focusRequester(contentFocusRequester)
                     ) {
-                        items(movies, key = { it.id }) { movie ->
-                            ImmersiveMovieCard(
-                                movie = movie,
-                                onClick = { onContentClick(movie) },
-                                accentColor = VodColor
-                            )
+                        items(
+                            count = gridEntries.size,
+                            key = { i -> gridEntries[i].key },
+                            span = { i ->
+                                if (gridEntries[i] is GridSectionEntry.Header) {
+                                    GridItemSpan(maxLineSpan)
+                                } else {
+                                    GridItemSpan(1)
+                                }
+                            }
+                        ) { index ->
+                            when (val entry = gridEntries[index]) {
+                                is GridSectionEntry.Header -> CategorySectionHeader(
+                                    title = entry.category.ifBlank { "Films" },
+                                    accentColor = VodColor
+                                )
+                                is GridSectionEntry.Content -> ImmersiveMovieCard(
+                                    movie = entry.channel,
+                                    onClick = { onContentClick(entry.channel) },
+                                    accentColor = VodColor
+                                )
+                            }
                         }
                     }
                 }

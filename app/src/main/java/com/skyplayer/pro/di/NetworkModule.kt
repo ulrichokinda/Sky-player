@@ -3,7 +3,7 @@ package com.skyplayer.pro.di
 import android.content.Context
 import com.skyplayer.pro.BuildConfig
 import com.skyplayer.pro.data.parser.M3UParser
-import com.skyplayer.pro.data.remote.LicenseApiService
+import com.skyplayer.pro.data.remote.SkyPlayerBackendApi
 import com.skyplayer.pro.data.remote.XtreamCodesApi
 import dagger.Module
 import dagger.Provides
@@ -31,7 +31,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(@ApplicationContext context: Context): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor { message ->
             Timber.tag("OkHttp").v(message)
         }.apply {
@@ -41,6 +41,14 @@ object NetworkModule {
                 HttpLoggingInterceptor.Level.BASIC
             }
         }
+
+        // Cache disque HTTP : les playlists M3U/EPG ne sont re-téléchargées en entier
+        // que si le serveur le demande (ETag/Last-Modified → réponse 304). Inerte pour
+        // les réponses sans en-têtes de validation (jamais servies depuis le cache).
+        val httpCache = Cache(
+            File(context.cacheDir, "http_cache"),
+            50L * 1024 * 1024 // 50 Mo
+        )
 
         return OkHttpClient.Builder()
             // Timeouts ajustés pour stabilité (évite chargements infinis)
@@ -70,6 +78,7 @@ object NetworkModule {
                 Timber.tag("OkHttp").d("Response: ${response.code} for ${request.url}")
                 response
             }
+            .cache(httpCache)
             .addInterceptor(loggingInterceptor)
             .build()
     }
@@ -80,7 +89,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
-        val baseUrl = LicenseApiService.BASE_URL
+        val baseUrl = SkyPlayerBackendApi.BASE_URL
         return Retrofit.Builder()
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
@@ -89,12 +98,12 @@ object NetworkModule {
     }
 
     /**
-     * Fournit le service API pour la gestion des licences
+     * Fournit le client unique du backend Sky-player (devices/check, playlist, mac/check)
      */
     @Provides
     @Singleton
-    fun provideLicenseApiService(retrofit: Retrofit): LicenseApiService {
-        return retrofit.create(LicenseApiService::class.java)
+    fun provideSkyPlayerBackendApi(retrofit: Retrofit): SkyPlayerBackendApi {
+        return retrofit.create(SkyPlayerBackendApi::class.java)
     }
 
     /**

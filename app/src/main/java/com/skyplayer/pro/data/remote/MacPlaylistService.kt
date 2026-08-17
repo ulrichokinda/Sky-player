@@ -1,7 +1,6 @@
 package com.skyplayer.pro.data.remote
 
 import com.google.gson.annotations.SerializedName
-import com.skyplayer.pro.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -9,7 +8,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONObject
 import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
@@ -20,19 +18,15 @@ import javax.inject.Singleton
  * Service de liaison MAC → Playlist via le backend Sky-player
  *
  * Flux complet :
- *  1. GET /api/v1/playlist/{mac}  → vérifie si une playlist est associée à la MAC
+ *  1. GET /api/v1/playlist/{mac}  → vérifie si une playlist est associée à la MAC (client unique)
  *  2. Si active → télécharge le fichier M3U par flux avec rapport de progression
- *
- * Endpoint : {BACKEND_BASE_URL}/api/v1/playlist/{mac}
  */
 @Singleton
 class MacPlaylistService @Inject constructor(
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val backendApi: SkyPlayerBackendApi
 ) {
     companion object {
-        // Utilisation de l'URL injectée via BuildConfig pour cohérence
-        private val BASE_URL = BuildConfig.BACKEND_BASE_URL.trimEnd('/') + "/"
-        private const val APP_KEY   = "skyplayer_pro"
         private const val TIMEOUT_S = 15L
         private const val BUFFER_SIZE = 8192   // 8 Ko par lecture
     }
@@ -53,22 +47,14 @@ class MacPlaylistService @Inject constructor(
     suspend fun checkMacPlaylist(macAddress: String): MacPlaylistResult =
         withContext(Dispatchers.IO) {
             try {
-                // Endpoint du backend Sky-player : GET /api/v1/playlist/{mac}
-                val request = Request.Builder()
-                    .url("${BASE_URL}api/v1/playlist/$macAddress")
-                    .get()
-                    .addHeader("X-App-Key", APP_KEY)
-                    .addHeader("X-Activation-API-Key", BuildConfig.LICENSE_API_KEY)
-                    .build()
-
-                val response = httpClient.newCall(request).execute()
+                val response = backendApi.getMacPlaylist(macAddress)
 
                 if (!response.isSuccessful) {
-                    Timber.w("⚠️ /api/v1/playlist HTTP ${response.code}")
-                    return@withContext MacPlaylistResult.NetworkError("HTTP ${response.code}")
+                    Timber.w("⚠️ /api/v1/playlist HTTP ${response.code()}")
+                    return@withContext MacPlaylistResult.NetworkError("HTTP ${response.code()}")
                 }
 
-                val body = response.body?.string()
+                val body = response.body()
                     ?: return@withContext MacPlaylistResult.NetworkError("Corps de réponse vide")
 
                 parsePlaylistResponse(body)
@@ -156,40 +142,35 @@ class MacPlaylistService @Inject constructor(
 
     }.flowOn(Dispatchers.IO)
 
-    // ── Parsing JSON réponse /api/v1/playlist (backend Sky-player) ────────────
-    private fun parsePlaylistResponse(json: String): MacPlaylistResult {
+    // ── Interprétation de la réponse /api/v1/playlist (backend Sky-player) ────
+    private fun parsePlaylistResponse(data: MacPlaylistResponse): MacPlaylistResult {
         return try {
-            val obj = JSONObject(json)
-
-            if (!obj.optBoolean("active", false)) {
-                Timber.i("🌐 /api/v1/playlist: aucune playlist active (${obj.optString("message")})")
+            if (data.active != true) {
+                Timber.i("🌐 /api/v1/playlist: aucune playlist active (${data.message})")
                 return MacPlaylistResult.NoPlaylist
             }
 
-            // Compat snake_case (playlist_url) et camelCase (playlistUrl)
-            val playlistUrl = obj.optString("playlist_url", "").ifBlank { obj.optString("playlistUrl", "") }
-            val xtreamHost = listOf("xtream_host", "xtreamServer")
-                .map { obj.optString(it, "") }
-                .firstOrNull { it.isNotBlank() }
-            val xtreamUser = obj.optString("xtream_username", "").ifBlank { obj.optString("xtreamUser", "") }
-            val xtreamPass = obj.optString("xtream_password", "").ifBlank { obj.optString("xtreamPassword", "") }
+            val playlistUrl = data.playlistUrl.orEmpty()
+            val xtreamHost = data.xtreamHost?.takeIf { it.isNotBlank() }
+            val xtreamUser = data.xtreamUsername.orEmpty()
+            val xtreamPass = data.xtreamPassword.orEmpty()
 
             // Le backend ne renvoie pas de champ "type" : on le déduit des credentials Xtream
             val type = if (xtreamHost != null && xtreamUser.isNotBlank()) "xtream" else "m3u"
 
             MacPlaylistResult.Active(
                 info = MacPlaylistInfo(
-                    name       = obj.optString("name", "Ma Playlist"),
-                    url        = playlistUrl,
-                    type       = type,
-                    expireDate = obj.optString("expire", ""),
-                    xtreamUsername   = xtreamUser,
-                    xtreamPassword   = xtreamPass,
-                    xtreamServerUrl  = xtreamHost ?: ""
+                    name            = data.name ?: "Ma Playlist",
+                    url             = playlistUrl,
+                    type            = type,
+                    expireDate      = data.expire.orEmpty(),
+                    xtreamUsername  = xtreamUser,
+                    xtreamPassword  = xtreamPass,
+                    xtreamServerUrl = xtreamHost ?: ""
                 )
             ).also { Timber.i("🌐 /api/v1/playlist: playlist active ($type)") }
         } catch (e: Exception) {
-            Timber.e(e, "❌ Parsing /api/v1/playlist échoué: $json")
+            Timber.e(e, "❌ Parsing /api/v1/playlist échoué")
             MacPlaylistResult.NetworkError("Parsing JSON échoué")
         }
     }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -62,8 +63,11 @@ import coil.compose.SubcomposeAsyncImage
 import com.skyplayer.pro.data.model.Channel
 import com.skyplayer.pro.data.model.CustomFolder
 import com.skyplayer.pro.data.model.itemCount
+import com.skyplayer.pro.ui.components.CategorySectionHeader
 import com.skyplayer.pro.ui.components.CategorySidebar
 import com.skyplayer.pro.ui.components.ChannelListShimmer
+import com.skyplayer.pro.ui.components.GridSectionEntry
+import com.skyplayer.pro.ui.components.withSectionHeaders
 import com.skyplayer.pro.ui.components.SectionTopBar
 import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
 import com.skyplayer.pro.ui.components.TrustAction
@@ -112,10 +116,12 @@ fun SeriesScreen(
     // ── Synchro scroll ↔ sidebar ───────────────────────────
     // En mode TOUT, la grille traverse toutes les catégories : le premier élément
     // visible détermine la catégorie surlignée dans le sidebar (tactile OU D-pad).
+    // Les en-têtes de section sont insérés dans la grille (pleine largeur).
+    val gridEntries = remember(series) { series.withSectionHeaders() }
     val gridState = rememberLazyGridState()
     val scrollVisibleCategory = rememberVisibleIndexCategory(
         firstVisibleIndexProvider = { gridState.firstVisibleItemIndex },
-        itemCategory = { index -> series.getOrNull(index)?.category }
+        itemCategory = { index -> gridEntries.getOrNull(index)?.category }
     )
     val sidebarHighlight = scrollVisibleCategory.value ?: selectedCategory
 
@@ -228,12 +234,28 @@ fun SeriesScreen(
                             .fillMaxSize()
                             .focusRequester(contentFocusRequester)
                     ) {
-                        items(series, key = { it.id }) { item ->
-                            ImmersiveSeriesCard(
-                                series = item,
-                                onClick = { onSeriesClick(item) },
-                                accentColor = SeriesColor
-                            )
+                        items(
+                            count = gridEntries.size,
+                            key = { i -> gridEntries[i].key },
+                            span = { i ->
+                                if (gridEntries[i] is GridSectionEntry.Header) {
+                                    GridItemSpan(maxLineSpan)
+                                } else {
+                                    GridItemSpan(1)
+                                }
+                            }
+                        ) { index ->
+                            when (val entry = gridEntries[index]) {
+                                is GridSectionEntry.Header -> CategorySectionHeader(
+                                    title = entry.category.ifBlank { "Séries" },
+                                    accentColor = SeriesColor
+                                )
+                                is GridSectionEntry.Content -> ImmersiveSeriesCard(
+                                    series = entry.channel,
+                                    onClick = { onSeriesClick(entry.channel) },
+                                    accentColor = SeriesColor
+                                )
+                            }
                         }
                     }
                 }

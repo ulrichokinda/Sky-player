@@ -1,5 +1,8 @@
 package com.skyplayer.pro.ui.screens.favorites
 
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,10 +32,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +60,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.ui.res.stringResource
 import com.skyplayer.pro.R
 import com.skyplayer.pro.ui.viewmodel.FavoritesViewModel
+import kotlinx.coroutines.delay
 
 /**
  * Écran Favoris - Liste des chaînes favorites
@@ -69,6 +78,20 @@ fun FavoritesScreen(
     BackHandler { onBackToHome() }
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+
+    // Focus initial sur la liste pour la télécommande TV
+    val context = LocalContext.current
+    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+    val isTV = uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    val contentFocusRequester = remember { FocusRequester() }
+    // On ne demande le focus que lorsque la liste est réellement composée
+    // (pas pendant le shimmer de chargement) pour rester robuste.
+    LaunchedEffect(isTV, isLoading, favorites.isEmpty()) {
+        if (isTV && !isLoading && favorites.isNotEmpty()) {
+            delay(150)
+            contentFocusRequester.requestFocus()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -109,7 +132,10 @@ fun FavoritesScreen(
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .focusRequester(contentFocusRequester)
                 ) {
                     items(favorites, key = { it.id }) { channel ->
                         FavoriteChannelCard(

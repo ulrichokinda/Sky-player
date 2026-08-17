@@ -67,6 +67,11 @@ class StreamHealthMonitor @Inject constructor(
     private var lastErrorTimestamp = 0L
     private var testedUrls = mutableSetOf<String>() // URLs déjà testées et échouées
 
+    // Début du buffering en cours (0 = pas de buffering). Remplacé la valeur initialisée
+    // à 0 pour `lastErrorTimestamp` : au premier check, `now - 0` donnait un délai
+    // astronomique → faux BufferUnderrun dès le démarrage d'un flux lent.
+    private var bufferingStartMs = 0L
+
     // Stocker le listener pour le retirer proprement
     private val analyticsListener = AnalyticsEventListener()
 
@@ -85,6 +90,7 @@ class StreamHealthMonitor @Inject constructor(
         allChannels = availableChannels
         testedUrls.clear()
         consecutiveErrors = 0
+        bufferingStartMs = 0L
         _healthState.value = StreamHealth.Healthy
         _fallbackInfo.value = null
 
@@ -135,7 +141,11 @@ class StreamHealthMonitor @Inject constructor(
                 player.isPlaying
 
             if (playbackState == androidx.media3.common.Player.STATE_BUFFERING && player.playWhenReady) {
-                val bufferingDuration = System.currentTimeMillis() - lastErrorTimestamp
+                val bufferingDuration = if (bufferingStartMs > 0) {
+                    System.currentTimeMillis() - bufferingStartMs
+                } else {
+                    0L // Buffering jamais observé via analytics : pas encore éligible
+                }
                 if (bufferingDuration > BUFFER_UNDERRUN_THRESHOLD_MS) {
                     Timber.w("⚠️ Buffering prolongé sur ${channel.name}: ${bufferingDuration / 1000}s")
                     handleStreamIssue(channel, StreamIssue.BufferUnderrun)
@@ -397,6 +407,14 @@ class StreamHealthMonitor @Inject constructor(
             eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
             state: Int
         ) {
+            when (state) {
+                androidx.media3.common.Player.STATE_BUFFERING -> {
+                    if (bufferingStartMs == 0L) bufferingStartMs = System.currentTimeMillis()
+                }
+                androidx.media3.common.Player.STATE_READY,
+                androidx.media3.common.Player.STATE_ENDED,
+                androidx.media3.common.Player.STATE_IDLE -> bufferingStartMs = 0L
+            }
             if (state == androidx.media3.common.Player.STATE_BUFFERING) {
                 lastErrorTimestamp = System.currentTimeMillis()
             }
@@ -410,9 +428,14 @@ class StreamHealthMonitor @Inject constructor(
                 consecutiveErrors++
                 Timber.w("🚨 Player error #${consecutiveErrors}: ${it.message}")
 
-                coroutineScope.launch {
-                    currentChannel?.let { channel ->
-                        handleStreamIssue(channel, StreamIssue.PlayerError(it))
+                // Même seuil que le lien mort : ne pas basculer sur la première erreur
+                // transitoire (buffer vide momentané, erreur de segment isolée…).
+                if (consecutiveErrors >= ERROR_THRESHOLD) {
+                    consecutiveErrors = 0 // évite les déclenchements en rafale
+                    coroutineScope.launch {
+                        currentChannel?.let { channel ->
+                            handleStreamIssue(channel, StreamIssue.PlayerError(it))
+                        }
                     }
                 }
             }
