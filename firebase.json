@@ -45,7 +45,11 @@
       },
       {
         "source": "/admin",
-        "function": "adminDashboard"
+        "destination": "/admin/index.html"
+      },
+      {
+        "source": "/admin/**",
+        "destination": "/admin/index.html"
       },
       {
         "source": "**",
