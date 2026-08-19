@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import com.skyplayer.pro.data.remote.BackendResilience
+import com.skyplayer.pro.data.remote.CircuitOpenException
 import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -57,9 +59,14 @@ data class FirestoreActivation(
 class LicenseRepository @Inject constructor(
     private val licenseManager: LicenseManager,
     private val backendApi: SkyPlayerBackendApi,
-    private val firestore: com.google.firebase.firestore.FirebaseFirestore
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore,
+    private val resilience: BackendResilience
 ) {
     private var currentListener: ListenerRegistration? = null
+
+    companion object {
+        private const val ENDPOINT_MAC_CHECK = "mac/check"
+    }
 
     /**
      * Vérifie le statut d'une MAC sur le backend Sky-player (source de vérité serveur).
@@ -67,7 +74,9 @@ class LicenseRepository @Inject constructor(
     suspend fun checkAccess(mac: String = licenseManager.getDeviceId()): Result<MacCheckResponse> =
         withContext(Dispatchers.IO) {
             try {
-                val response = backendApi.checkMac(mac)
+                val response = resilience.execute(ENDPOINT_MAC_CHECK) {
+                    backendApi.checkMac(mac)
+                }
 
                 if (response.isSuccessful) {
                     val data = response.body()
@@ -82,6 +91,9 @@ class LicenseRepository @Inject constructor(
                     Timber.e("❌ Backend erreur: $errorMsg")
                     Result.failure(Exception(errorMsg))
                 }
+            } catch (e: CircuitOpenException) {
+                Timber.w("🚫 MAC check: serveur down — ${e.retryAfterSeconds}s")
+                Result.failure(e)
             } catch (e: Exception) {
                 Timber.e(e, "❌ Exception backend")
                 Result.failure(e)
@@ -103,7 +115,9 @@ class LicenseRepository @Inject constructor(
     suspend fun checkAccessWithServerTime(mac: String = licenseManager.getDeviceId()): Result<ServerAccessResult> =
         withContext(Dispatchers.IO) {
             try {
-                val response = backendApi.checkMac(mac)
+                val response = resilience.execute(ENDPOINT_MAC_CHECK) {
+                    backendApi.checkMac(mac)
+                }
 
                 if (response.isSuccessful) {
                     val data = response.body()
@@ -119,6 +133,9 @@ class LicenseRepository @Inject constructor(
                     Timber.e("❌ Backend erreur: $errorMsg")
                     Result.failure(Exception(errorMsg))
                 }
+            } catch (e: CircuitOpenException) {
+                Timber.w("🚫 MAC check with time: serveur down — ${e.retryAfterSeconds}s")
+                Result.failure(e)
             } catch (e: Exception) {
                 Timber.e(e, "❌ Exception backend")
                 Result.failure(e)

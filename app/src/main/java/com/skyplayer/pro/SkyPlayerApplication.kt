@@ -14,7 +14,9 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import com.skyplayer.pro.BuildConfig
+import com.skyplayer.pro.data.remote.BackendConfig
 import com.skyplayer.pro.receiver.NetworkReceiver
+import javax.inject.Inject
 
 /**
  * Application principale de Sky Player Pro
@@ -22,6 +24,8 @@ import com.skyplayer.pro.receiver.NetworkReceiver
  */
 @HiltAndroidApp
 class SkyPlayerApplication : Application(), ImageLoaderFactory {
+
+    @Inject lateinit var backendConfig: BackendConfig
 
     override fun onCreate() {
         super.onCreate()
@@ -47,6 +51,9 @@ class SkyPlayerApplication : Application(), ImageLoaderFactory {
         }
         
         Timber.d("📱 Sky Player Pro démarré - Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+
+        // Fetch Firebase Remote Config (API key dynamique)
+        backendConfig.fetchAndUpdate()
 
         // Enregistrer le callback réseau pour les versions modernes d'Android
         NetworkReceiver.registerNetworkCallback(this)

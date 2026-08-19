@@ -5,6 +5,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,10 +17,12 @@ import javax.inject.Singleton
 @Singleton
 class DeviceCheckService @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val backendApi: SkyPlayerBackendApi
+    private val backendApi: SkyPlayerBackendApi,
+    private val resilience: BackendResilience
 ) {
     companion object {
         private const val TRIAL_DAYS = 14
+        private const val ENDPOINT = "devices/check"
     }
 
     /**
@@ -76,11 +79,14 @@ class DeviceCheckService @Inject constructor(
                 android.provider.Settings.Secure.ANDROID_ID
             ) ?: "unknown"
 
+            val hardwareFingerprint = getHardwareFingerprint()
+
             val request = DeviceCheckRequest(
                 macAddress = macAddress,
                 androidId = androidId,
                 deviceId = "$macAddress|$androidId",
                 appId = SkyPlayerBackendApi.DEVICE_APP_ID,
+                hardwareFingerprint = hardwareFingerprint,
                 brand = android.os.Build.BRAND,
                 model = android.os.Build.MODEL,
                 androidVersion = android.os.Build.VERSION.RELEASE
@@ -88,7 +94,9 @@ class DeviceCheckService @Inject constructor(
 
             Timber.i("🔐 DeviceCheck - MAC: ${macAddress.take(8)}... AndroidID: ${androidId.take(8)}...")
 
-            val response = backendApi.checkDevice(request)
+            val response = resilience.execute(ENDPOINT) {
+                backendApi.checkDevice(request)
+            }
 
             if (!response.isSuccessful) {
                 Timber.w("⚠️ DeviceCheck: HTTP ${response.code()}")
@@ -100,6 +108,9 @@ class DeviceCheckService @Inject constructor(
 
             parseDeviceResponse(body, macAddress)
 
+        } catch (e: CircuitOpenException) {
+            Timber.w("🚫 DeviceCheck: serveur down — ${e.retryAfterSeconds}s avant retry")
+            DeviceStatus.Offline
         } catch (e: Exception) {
             Timber.w("⚠️ DeviceCheck erreur: ${e.message}")
             DeviceStatus.Offline
@@ -149,5 +160,27 @@ class DeviceCheckService @Inject constructor(
             Timber.e("❌ Erreur parsing réponse: ${e.message}")
             DeviceStatus.Offline
         }
+    }
+
+    /**
+     * Empreinte hardware déterministe — SHA-256 des champs Build.
+     * Utilisée côté serveur pour détecter les reinstalls (même hardware, nouvel ANDROID_ID).
+     */
+    private fun getHardwareFingerprint(): String {
+        val raw = buildString {
+            append(android.os.Build.BOARD)
+            append("|")
+            append(android.os.Build.BRAND)
+            append("|")
+            append(android.os.Build.DEVICE)
+            append("|")
+            append(android.os.Build.HARDWARE)
+            append("|")
+            append(android.os.Build.MANUFACTURER)
+            append("|")
+            append(android.os.Build.PRODUCT)
+        }
+        val hash = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray(Charsets.UTF_8))
+        return hash.take(16).joinToString("") { "%02x".format(it) }
     }
 }

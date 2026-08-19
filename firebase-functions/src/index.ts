@@ -71,7 +71,7 @@ export const checkDeviceStatus = functions.https.onRequest(async (req, res) => {
   if (!validateApiKey(req)) { res.status(401).json({error: "Invalid API key"}); return; }
 
   try {
-    const {mac_address, android_id, app_id, brand, model, android_version} = req.body;
+    const {mac_address, android_id, app_id, hardware_fingerprint, brand, model, android_version} = req.body;
     if (!mac_address) { res.status(400).json({error: "mac_address required"}); return; }
 
     const mac = normalizeMac(mac_address);
@@ -83,9 +83,59 @@ export const checkDeviceStatus = functions.https.onRequest(async (req, res) => {
     const snapshot = await activationsRef.where("target_mac", "==", mac).limit(1).get();
 
     if (snapshot.empty) {
-      // New device → create trial activation
+      // ── ANTI-REINSTALL: check if this hardware already has an activation ──
+      if (hardware_fingerprint) {
+        const hwSnapshot = await activationsRef
+          .where("hardware_fingerprint", "==", hardware_fingerprint).limit(1).get();
+        if (!hwSnapshot.empty) {
+          const existingDoc = hwSnapshot.docs[0];
+          const existingData = existingDoc.data();
+          const existingStatus = (existingData.status || "").toUpperCase();
+          console.log(`🔒 Hardware fingerprint match: MAC ${mac} → existing MAC ${existingData.target_mac} (status: ${existingStatus})`);
+
+          // Re-link: update the existing activation with the new MAC
+          await existingDoc.ref.update({
+            target_mac: mac,
+            hardware_fingerprint,
+            device_info: {brand, model, android_version, android_id, app_id},
+            remapped_at: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          // Return the existing activation status (not a new trial)
+          const existingTrialEnd = existingData.trial_end || trialEnd;
+          if (existingStatus === "TRIAL" && now <= existingTrialEnd) {
+            const daysRemaining = Math.ceil((existingTrialEnd - now) / (24 * 60 * 60 * 1000));
+            res.status(200).json({
+              status: "trial_active",
+              days_remaining: daysRemaining,
+              playlist_url: existingData.playlist_url || null,
+              playlist_name: existingData.playlist_name || null,
+              type: existingData.type || "m3u",
+            });
+            return;
+          }
+          if (existingStatus === "ACTIVE" || existingStatus === "ACTIF") {
+            res.status(200).json({
+              status: "premium_active",
+              playlist_url: existingData.playlist_url || null,
+              playlist_name: existingData.playlist_name || null,
+              type: existingData.type || "m3u",
+              xtream_username: existingData.xtream_username || null,
+              xtream_password: existingData.xtream_password || null,
+              xtream_server_url: existingData.xtream_host || null,
+            });
+            return;
+          }
+          // Trial or other expired → return expired
+          res.status(200).json({status: existingStatus.includes("EXPIRED") ? "expired" : "expired"});
+          return;
+        }
+      }
+
+      // Genuinely new device → create trial activation
       const activation = {
         target_mac: mac,
+        hardware_fingerprint: hardware_fingerprint || null,
         status: "TRIAL",
         trial_start: now,
         trial_end: trialEnd,

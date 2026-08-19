@@ -1,8 +1,8 @@
 package com.skyplayer.pro.data.remote
 
 import androidx.annotation.Keep
-import com.skyplayer.pro.BuildConfig
 import com.google.gson.annotations.SerializedName
+import com.skyplayer.pro.BuildConfig
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -31,8 +31,7 @@ interface SkyPlayerBackendApi {
     @POST("api/devices/check")
     suspend fun checkDevice(
         @Body body: DeviceCheckRequest,
-        @Header("X-App-Key") appKey: String = DEVICE_APP_ID,
-        @Header("X-Activation-API-Key") activationKey: String = BuildConfig.LICENSE_API_KEY
+        @Header("X-App-Key") appKey: String = DEVICE_APP_ID
     ): Response<DeviceCheckResponse>
 
     /**
@@ -41,8 +40,7 @@ interface SkyPlayerBackendApi {
     @GET("api/v1/playlist/{mac}")
     suspend fun getMacPlaylist(
         @Path("mac") mac: String,
-        @Header("X-App-Key") appKey: String = PLAYLIST_APP_KEY,
-        @Header("X-Activation-API-Key") activationKey: String = BuildConfig.LICENSE_API_KEY
+        @Header("X-App-Key") appKey: String = PLAYLIST_APP_KEY
     ): Response<MacPlaylistResponse>
 
     /**
@@ -50,8 +48,7 @@ interface SkyPlayerBackendApi {
      */
     @GET("api/mac/check/{mac}")
     suspend fun checkMac(
-        @Path("mac") mac: String,
-        @Header("X-Activation-API-Key") activationKey: String = BuildConfig.LICENSE_API_KEY
+        @Path("mac") mac: String
     ): Response<MacCheckResponse>
 
     companion object {
@@ -75,6 +72,7 @@ data class DeviceCheckRequest(
     @SerializedName("android_id") val androidId: String,
     @SerializedName("device_id") val deviceId: String,
     @SerializedName("app_id") val appId: String,
+    @SerializedName("hardware_fingerprint") val hardwareFingerprint: String,
     val brand: String,
     val model: String,
     @SerializedName("android_version") val androidVersion: String

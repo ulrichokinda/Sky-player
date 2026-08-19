@@ -3,6 +3,8 @@ package com.skyplayer.pro.di
 import android.content.Context
 import com.skyplayer.pro.BuildConfig
 import com.skyplayer.pro.data.parser.M3UParser
+import com.skyplayer.pro.data.remote.ApiKeyInterceptor
+import com.skyplayer.pro.data.remote.BackendConfig
 import com.skyplayer.pro.data.remote.SkyPlayerBackendApi
 import com.skyplayer.pro.data.remote.XtreamCodesApi
 import dagger.Module
@@ -31,7 +33,14 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(@ApplicationContext context: Context): OkHttpClient {
+    fun provideBackendConfig(): BackendConfig = BackendConfig()
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        @ApplicationContext context: Context,
+        apiKeyInterceptor: ApiKeyInterceptor
+    ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor { message ->
             Timber.tag("OkHttp").v(message)
         }.apply {
@@ -79,6 +88,7 @@ object NetworkModule {
                 response
             }
             .cache(httpCache)
+            .addInterceptor(apiKeyInterceptor)
             .addInterceptor(loggingInterceptor)
             .build()
     }
