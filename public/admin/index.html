@@ -463,6 +463,11 @@
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
+    /* Skeleton pulse */
+    @keyframes skeletonPulse {
+      0%, 100% { opacity: 0.04; }
+      50% { opacity: 0.1; }
+    }
     /* Section */
     .section-title {
       font-size: 18px; font-weight: 700; margin-bottom: 20px;
@@ -554,7 +559,7 @@
         <div class="page-header">
           <div>
             <h1>Vue d'ensemble</h1>
-            <div class="subtitle">Tableau de bord en temps réel</div>
+            <div class="subtitle">Tableau de bord en temps réel • <span id="liveClock"></span></div>
           </div>
           <button class="btn btn-primary" onclick="loadData()">🔄 Actualiser</button>
         </div>
@@ -590,6 +595,22 @@
             <div class="progress-bar" style="margin-top:12px;">
               <div class="fill" id="progressExpired" style="width:0%; background:linear-gradient(90deg,#ef4444,#f87171);"></div>
             </div>
+          </div>
+        </div>
+
+        <!-- ACTIVITY GRAPH -->
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:32px;">
+          <div class="glass-card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <div class="section-title" style="margin-bottom:0;"><div class="dot"></div> Activité 7 jours</div>
+              <span style="font-size:12px;color:var(--text-secondary);">Nouvelles activations / jour</span>
+            </div>
+            <canvas id="activityGraph" style="width:100%;height:60px;"></canvas>
+          </div>
+          <div class="glass-card" style="padding:20px;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">Taux de conversion</div>
+            <div id="conversionRate" style="font-size:32px;font-weight:800;color:#22c55e;">—</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">active / total</div>
           </div>
         </div>
 
@@ -712,19 +733,74 @@
        JAVASCRIPT
        ═══════════════════════════════════════════════════════════════ -->
   <script>
-    // Firebase config (replace with your actual config)
+    // Firebase config — auto-detect project
     const firebaseConfig = {
-      apiKey: "AIzaSyD_PLACEHOLDER",
-      authDomain: "skyplayerpro.firebaseapp.com",
-      projectId: "skyplayerpro",
-      storageBucket: "skyplayerpro.appspot.com",
-      messagingSenderId: "000000000000",
-      appId: "1:000000000000:web:000000000000"
+      apiKey: "AIzaSyPlaceholderReplaceMe",
+      authDomain: "skyplayer-60634.firebaseapp.com",
+      projectId: "skyplayer-60634",
+      storageBucket: "skyplayer-60634.firebasestorage.app",
+      messagingSenderId: "135679941797",
+      appId: "1:135679941797:web:placeholder"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+    let app, auth, db, firebaseReady = false;
+    try {
+      app = firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      db = firebase.firestore();
+      firebaseReady = true;
+    } catch (e) {
+      console.error('Firebase init error:', e);
+    }
+
+    // XSS protection
+    function esc(str) {
+      const d = document.createElement('div');
+      d.textContent = String(str || '');
+      return d.innerHTML;
+    }
+
+    // Skeleton loader
+    function skeleton(rows) {
+      rows = rows || 5;
+      let html = '';
+      for (let i = 0; i < rows; i++) {
+        html += `<tr><td colspan="7" style="padding:16px;"><div style="height:16px;background:rgba(255,255,255,0.04);border-radius:8px;margin-bottom:8px;width:${60+Math.random()*30}%;animation:pulse 1.5s ease-in-out infinite ${i*0.1}s;"></div></td></tr>`;
+      }
+      return html;
+    }
+
+    // Activity mini-graph (canvas)
+    function drawMiniGraph(canvasId, data, color) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width = canvas.offsetWidth;
+      const h = canvas.height = 60;
+      ctx.clearRect(0, 0, w, h);
+      if (!data || data.length < 2) return;
+      const max = Math.max(...data, 1);
+      const step = w / (data.length - 1);
+      // Fill
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      data.forEach((v, i) => ctx.lineTo(i * step, h - (v / max) * (h - 8)));
+      ctx.lineTo(w, h); ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, color + '30');
+      grad.addColorStop(1, color + '00');
+      ctx.fillStyle = grad;
+      ctx.fill();
+      // Line
+      ctx.beginPath();
+      data.forEach((v, i) => {
+        const x = i * step, y = h - (v / max) * (h - 8);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
     // State
     let currentUser = null;
@@ -751,6 +827,7 @@
     }
 
     async function handleLogout() {
+      if (unsubActivations) { unsubActivations(); unsubActivations = null; }
       await auth.signOut();
     }
 
@@ -772,15 +849,46 @@
     // ═══════════════════════════════════════════════════════════════
     // DATA LOADING
     // ═══════════════════════════════════════════════════════════════
+    let unsubActivations = null;
+    let activityData = [];
+
     async function loadData() {
+      if (!firebaseReady || !db) {
+        document.getElementById('activationsTable').innerHTML = `<tr><td colspan="7" class="empty-state"><div class="icon">⚙️</div><h3>Firebase non configuré</h3><p style="color:var(--text-secondary);margin-top:8px;">Configurez le fichier firebaseConfig dans admin/index.html avec vos vraies clés.</p></td></tr>`;
+        return;
+      }
+      // Show skeleton
+      document.getElementById('activationsTable').innerHTML = skeleton(5);
       try {
-        const snap = await db.collection('activations').orderBy('createdAt', 'desc').limit(500).get();
-        allActivations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        updateStats();
-        renderTable();
+        // Real-time listener
+        if (unsubActivations) unsubActivations();
+        unsubActivations = db.collection('activations')
+          .orderBy('createdAt', 'desc')
+          .limit(500)
+          .onSnapshot(snap => {
+            allActivations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateStats();
+            renderTable();
+            // Activity data for mini-graph
+            const now = Date.now();
+            const last7d = Array(7).fill(0);
+            allActivations.forEach(a => {
+              const created = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+              if (created) {
+                const daysAgo = Math.floor((now - created) / 86400000);
+                if (daysAgo < 7) last7d[6 - daysAgo]++;
+              }
+            });
+            activityData = last7d;
+            drawMiniGraph('activityGraph', activityData, '#f97316');
+          }, err => {
+            console.error('Snapshot error:', err);
+            showToast('❌ Erreur temps réel: ' + err.message);
+          });
       } catch (e) {
         console.error('Load error:', e);
         showToast('❌ Erreur de chargement: ' + e.message);
+        document.getElementById('activationsTable').innerHTML = `<tr><td colspan="7" class="empty-state"><div class="icon">❌</div><h3>Erreur de chargement</h3><p style="color:var(--text-secondary);margin-top:8px;">${esc(e.message)}</p></td></tr>`;
       }
     }
 
@@ -816,12 +924,18 @@
       animateCountUp(document.getElementById('statTrial'), trial);
       animateCountUp(document.getElementById('statExpired'), expired);
 
-      // Progress bars
+      // Progress bars + conversion rate
       if (total > 0) {
         setTimeout(() => {
           document.getElementById('progressActive').style.width = ((active / total) * 100) + '%';
           document.getElementById('progressTrial').style.width = ((trial / total) * 100) + '%';
           document.getElementById('progressExpired').style.width = ((expired / total) * 100) + '%';
+          const rate = Math.round((active / total) * 100);
+          const rateEl = document.getElementById('conversionRate');
+          if (rateEl) {
+            rateEl.textContent = rate + '%';
+            rateEl.style.color = rate > 60 ? '#22c55e' : rate > 30 ? '#f59e0b' : '#ef4444';
+          }
         }, 300);
       }
     }
@@ -889,15 +1003,15 @@
         const expires = a.expiresAt?.toDate ? a.expiresAt.toDate().toLocaleDateString('fr-FR') : (a.expiresAt || '—');
 
         return `<tr style="animation-delay:${i * 0.05}s">
-          <td><span class="mac">${mac.substring(0, 18)}</span></td>
-          <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-          <td>${a.playlistName || '—'}</td>
-          <td>${a.resellerId || '—'}</td>
-          <td>${created}</td>
-          <td>${expires}</td>
+          <td><span class="mac">${esc(mac.substring(0, 18))}</span></td>
+          <td><span class="badge ${statusClass}">${esc(statusLabel)}</span></td>
+          <td>${esc(a.playlistName || '—')}</td>
+          <td>${esc(a.resellerId || '—')}</td>
+          <td>${esc(created)}</td>
+          <td>${esc(expires)}</td>
           <td>
-            <button class="btn btn-ghost" style="padding:6px 10px; font-size:12px;" onclick="viewActivation('${a.id}')">👁️</button>
-            <button class="btn btn-danger" style="padding:6px 10px; font-size:12px;" onclick="toggleActivation('${a.id}', '${status}')">
+            <button class="btn btn-ghost" style="padding:6px 10px; font-size:12px;" onclick="viewActivation('${esc(a.id)}')">👁️</button>
+            <button class="btn btn-danger" style="padding:6px 10px; font-size:12px;" onclick="toggleActivation('${esc(a.id)}', '${esc(status)}')">
               ${status === 'ACTIVE' || status === 'ACTIF' ? '⏸️' : '▶️'}
             </button>
           </td>
@@ -1167,6 +1281,16 @@
       setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 3000);
       setTimeout(() => toast.remove(), 3500);
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LIVE CLOCK
+    // ═══════════════════════════════════════════════════════════════
+    function updateClock() {
+      const el = document.getElementById('liveClock');
+      if (el) el.textContent = new Date().toLocaleTimeString('fr-FR');
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
 
     // ═══════════════════════════════════════════════════════════════
     // KEYBOARD SHORTCUTS

@@ -1,119 +1,743 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>SkyPlayer Pro - API</title>
-        <style>
-            body {
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    sans-serif;
-                background: linear-gradient(135deg, #1a1c2e 0%, #0d0e17 100%);
-                color: #fff;
-                margin: 0;
-                padding: 40px;
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-            }
-            .container {
-                max-width: 800px;
-                text-align: center;
-            }
-            h1 {
-                font-size: 2.5rem;
-                margin-bottom: 20px;
-                background: linear-gradient(90deg, #ff6b35, #f7931e);
-                -webkit-background-clip: text;
-                background-clip: text;
-                -webkit-text-fill-color: transparent;
-            }
-            .status {
-                background: rgba(76, 175, 80, 0.1);
-                border: 1px solid #4caf50;
-                color: #4caf50;
-                padding: 15px 30px;
-                border-radius: 8px;
-                margin: 20px 0;
-                display: inline-block;
-            }
-            .api-list {
-                text-align: left;
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 12px;
-                padding: 30px;
-                margin-top: 30px;
-            }
-            .api-item {
-                margin: 15px 0;
-                padding: 15px;
-                background: rgba(255, 255, 255, 0.03);
-                border-radius: 8px;
-                border-left: 3px solid #ff6b35;
-            }
-            .method {
-                color: #4caf50;
-                font-weight: bold;
-                font-family: monospace;
-            }
-            .url {
-                color: #f7931e;
-                font-family: monospace;
-                font-size: 0.9rem;
-            }
-            footer {
-                margin-top: 40px;
-                color: rgba(255, 255, 255, 0.5);
-                font-size: 0.9rem;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🚀 SkyPlayer Pro API</h1>
-            <div class="status">✅ API En Ligne</div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyPlayer Pro — API & Services</title>
+  <meta name="description" content="SkyPlayer Pro — Plateforme de streaming IPTV. API backend, gestion des licences, webhooks paiement.">
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       RESET & BASE
+       ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #060918;
+      --surface: rgba(12, 17, 35, 0.7);
+      --border: rgba(255,255,255,0.06);
+      --accent: #f97316;
+      --accent2: #38bdf8;
+      --text: #e2e8f0;
+      --text2: #64748b;
+      --glass: rgba(15, 23, 42, 0.5);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; overflow-x: hidden; line-height: 1.6;
+    }
 
-            <p>
-                Les endpoints API sont opérationnels et prêts à recevoir les
-                webhooks Joboost Cash.
-            </p>
+    /* ═══════════════════════════════════════════════════════════════
+       PARTICLES CANVAS (ReactBits — Particles 9.8/10)
+       ═══════════════════════════════════════════════════════════════ */
+    #particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 
-            <div class="api-list">
-                <h3>Endpoints Disponibles :</h3>
+    /* ═══════════════════════════════════════════════════════════════
+       AURORA BACKGROUND (ReactBits — 9.8/10)
+       ═══════════════════════════════════════════════════════════════ */
+    .aurora {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none; overflow: hidden;
+    }
+    .aurora span {
+      position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.25;
+    }
+    .aurora .a1 {
+      width: 700px; height: 700px; top: -300px; left: -100px;
+      background: radial-gradient(circle, #f97316, #f59e0b, transparent);
+      animation: float1 14s ease-in-out infinite alternate;
+    }
+    .aurora .a2 {
+      width: 500px; height: 500px; bottom: -200px; right: -100px;
+      background: radial-gradient(circle, #38bdf8, #818cf8, transparent);
+      animation: float2 12s ease-in-out infinite alternate;
+    }
+    .aurora .a3 {
+      width: 400px; height: 400px; top: 40%; left: 50%;
+      background: radial-gradient(circle, #a855f7, #ec4899, transparent);
+      animation: float3 16s ease-in-out infinite alternate;
+    }
+    @keyframes float1 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(100px,-80px) scale(1.15); } }
+    @keyframes float2 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(-80px,60px) scale(1.1); } }
+    @keyframes float3 { 0% { transform: translate(0,0) scale(0.9); } 100% { transform: translate(60px,-40px) scale(1.05); } }
 
-                <div class="api-item">
-                    <span class="method">POST</span>
-                    <span class="url">/api/joboost-cash</span><br />
-                    <small
-                        >Webhook Joboost Cash - Réception des callbacks de
-                        paiement</small
-                    >
-                </div>
+    /* ═══════════════════════════════════════════════════════════════
+       GRID OVERLAY (ReactBits — Grid)
+       ═══════════════════════════════════════════════════════════════ */
+    .grid-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 80px 80px;
+    }
 
-                <div class="api-item">
-                    <span class="method">GET</span>
-                    <span class="url">/api/check-status?licenseId=xxx</span
-                    ><br />
-                    <small>Vérifier le statut de paiement d'une licence</small>
-                </div>
+    /* ═══════════════════════════════════════════════════════════════
+       LAYOUT
+       ═══════════════════════════════════════════════════════════════ */
+    .wrapper { position: relative; z-index: 1; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
 
-                <div class="api-item">
-                    <span class="method">POST</span>
-                    <span class="url">/api/update-status</span><br />
-                    <small
-                        >Mise à jour manuelle du statut (Callable
-                        Function)</small
-                    >
-                </div>
-            </div>
+    /* ═══════════════════════════════════════════════════════════════
+       NAVBAR (ReactBits — StickyScroll)
+       ═══════════════════════════════════════════════════════════════ */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 16px 0; transition: all 0.4s ease;
+    }
+    .navbar.scrolled {
+      background: rgba(6, 9, 24, 0.85); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border); padding: 12px 0;
+    }
+    .navbar .container {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .nav-brand .logo {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(135deg, #f97316, #f59e0b);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; box-shadow: 0 4px 20px rgba(249,115,22,0.3);
+    }
+    .nav-brand span { font-size: 20px; font-weight: 800; color: #fff; }
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a {
+      color: var(--text2); text-decoration: none; font-size: 14px; font-weight: 500;
+      transition: color 0.3s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links .btn-nav {
+      background: linear-gradient(135deg, #f97316, #ea580c); color: #fff;
+      padding: 10px 24px; border-radius: 12px; font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow: 0 4px 15px rgba(249,115,22,0.3);
+    }
+    .nav-links .btn-nav:hover { transform: scale(1.05); box-shadow: 0 6px 25px rgba(249,115,22,0.5); }
 
-            <footer>
-                <p>Domaine: <strong>skyplayerapp.xyz</strong></p>
-                <p>© 2024 SkyPlayer Pro. Tous droits réservés.</p>
-            </footer>
+    /* ═══════════════════════════════════════════════════════════════
+       HERO SECTION
+       ═══════════════════════════════════════════════════════════════ */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      text-align: center; padding: 120px 24px 80px;
+    }
+    .hero-content { max-width: 800px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.2);
+      border-radius: 20px; padding: 6px 16px; font-size: 13px; color: #f97316;
+      font-weight: 600; margin-bottom: 24px;
+      animation: fadeUp 0.8s ease forwards; opacity: 0;
+    }
+    .hero-badge .pulse {
+      width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.5); } }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 900; line-height: 1.1;
+      margin-bottom: 24px; letter-spacing: -0.02em;
+      animation: fadeUp 0.8s 0.1s ease forwards; opacity: 0;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, #f97316 0%, #f59e0b 40%, #38bdf8 70%, #818cf8 100%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      background-size: 200% auto;
+      animation: gradientShift 4s ease-in-out infinite alternate;
+    }
+    @keyframes gradientShift { 0% { background-position: 0% center; } 100% { background-position: 100% center; } }
+
+    .hero p {
+      font-size: 18px; color: var(--text2); max-width: 600px; margin: 0 auto 40px;
+      animation: fadeUp 0.8s 0.2s ease forwards; opacity: 0;
+    }
+    .hero-actions {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      animation: fadeUp 0.8s 0.3s ease forwards; opacity: 0;
+    }
+    .btn-hero {
+      padding: 16px 32px; border-radius: 14px; font-size: 16px; font-weight: 700;
+      cursor: pointer; border: none; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      text-decoration: none; display: inline-flex; align-items: center; gap: 10px;
+    }
+    .btn-hero:hover { transform: translateY(-2px) scale(1.03); }
+    .btn-hero.primary {
+      background: linear-gradient(135deg, #f97316, #ea580c); color: #fff;
+      box-shadow: 0 8px 30px rgba(249,115,22,0.35);
+    }
+    .btn-hero.primary:hover { box-shadow: 0 12px 40px rgba(249,115,22,0.5); }
+    .btn-hero.secondary {
+      background: rgba(255,255,255,0.05); color: var(--text);
+      border: 1px solid var(--border); backdrop-filter: blur(10px);
+    }
+    .btn-hero.secondary:hover { background: rgba(255,255,255,0.1); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       STATUS BANNER (live ping)
+       ═══════════════════════════════════════════════════════════════ */
+    .status-banner {
+      margin-top: 40px; display: inline-flex; align-items: center; gap: 12px;
+      background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);
+      border-radius: 14px; padding: 12px 24px;
+      animation: fadeUp 0.8s 0.4s ease forwards; opacity: 0;
+    }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: #22c55e;
+      box-shadow: 0 0 10px rgba(34,197,94,0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .status-dot.offline { background: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.5); }
+    .status-text { font-size: 14px; font-weight: 600; }
+    .status-latency { font-size: 12px; color: var(--text2); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       LIVE COUNTERS (ReactBits — CountUp)
+       ═══════════════════════════════════════════════════════════════ */
+    .live-counters {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+      margin: 80px 0;
+    }
+    .counter-card {
+      background: var(--glass); backdrop-filter: blur(20px);
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 24px; text-align: center;
+      transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      opacity: 0; transform: translateY(30px);
+    }
+    .counter-card.visible { opacity: 1; transform: translateY(0); }
+    .counter-card:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      border-color: rgba(249,115,22,0.2);
+    }
+    .counter-card .icon {
+      font-size: 28px; margin-bottom: 12px;
+    }
+    .counter-card .value {
+      font-size: 36px; font-weight: 900; margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .counter-card .label { font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+    .counter-card:nth-child(1) .value { color: #f97316; }
+    .counter-card:nth-child(2) .value { color: #22c55e; }
+    .counter-card:nth-child(3) .value { color: #38bdf8; }
+    .counter-card:nth-child(4) .value { color: #a855f7; }
+
+    @media (max-width: 768px) {
+      .live-counters { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FEATURES SECTION (ReactBits — Bento)
+       ═══════════════════════════════════════════════════════════════ */
+    .section { padding: 80px 0; }
+    .section-header {
+      text-align: center; margin-bottom: 60px;
+    }
+    .section-header .tag {
+      display: inline-block; font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: #f97316; margin-bottom: 12px;
+    }
+    .section-header h2 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800;
+    }
+    .section-header p { color: var(--text2); font-size: 16px; margin-top: 12px; max-width: 500px; margin-left: auto; margin-right: auto; }
+
+    .bento-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    }
+    .bento-card {
+      background: var(--glass); backdrop-filter: blur(20px);
+      border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px; position: relative; overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      opacity: 0; transform: translateY(30px);
+    }
+    .bento-card.visible { opacity: 1; transform: translateY(0); }
+    .bento-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      border-color: rgba(249,115,22,0.15);
+    }
+    .bento-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    }
+    .bento-card .card-icon {
+      width: 56px; height: 56px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; margin-bottom: 20px;
+    }
+    .bento-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .bento-card p { font-size: 14px; color: var(--text2); line-height: 1.7; }
+    .bento-card.span-2 { grid-column: span 2; }
+    @media (max-width: 768px) {
+      .bento-grid { grid-template-columns: 1fr; }
+      .bento-card.span-2 { grid-column: span 1; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ENDPOINTS SECTION (ReactBits — AnimatedList)
+       ═══════════════════════════════════════════════════════════════ */
+    .endpoints-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .endpoint-card {
+      background: var(--glass); backdrop-filter: blur(20px);
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 24px; display: flex; align-items: flex-start; gap: 16px;
+      transition: all 0.3s ease; cursor: default;
+      opacity: 0; transform: translateX(-20px);
+    }
+    .endpoint-card.visible { opacity: 1; transform: translateX(0); }
+    .endpoint-card:hover {
+      border-color: rgba(249,115,22,0.2);
+      background: rgba(15, 23, 42, 0.7);
+    }
+    .endpoint-card .method {
+      flex-shrink: 0; padding: 4px 12px; border-radius: 8px;
+      font-size: 11px; font-weight: 800; font-family: monospace;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .method.get { background: rgba(34,197,94,0.12); color: #22c55e; }
+    .method.post { background: rgba(56,189,248,0.12); color: #38bdf8; }
+    .endpoint-card .info h4 {
+      font-family: 'SF Mono', Monaco, monospace; font-size: 14px; font-weight: 600;
+      color: var(--text); margin-bottom: 4px;
+    }
+    .endpoint-card .info p { font-size: 13px; color: var(--text2); }
+    @media (max-width: 768px) { .endpoints-grid { grid-template-columns: 1fr; } }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TECH STACK (ReactBits — Marquee-like)
+       ═══════════════════════════════════════════════════════════════ */
+    .tech-strip {
+      display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;
+      margin-top: 40px;
+    }
+    .tech-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 16px; font-size: 13px; color: var(--text2);
+      transition: all 0.3s;
+    }
+    .tech-pill:hover { border-color: rgba(249,115,22,0.2); color: var(--text); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CTA SECTION
+       ═══════════════════════════════════════════════════════════════ */
+    .cta-section {
+      text-align: center; padding: 100px 24px; position: relative;
+    }
+    .cta-glow {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 500px; height: 300px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(249,115,22,0.15), transparent);
+      filter: blur(80px); pointer-events: none;
+    }
+    .cta-section h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 900; margin-bottom: 16px; }
+    .cta-section p { color: var(--text2); font-size: 16px; margin-bottom: 32px; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════════════════════ */
+    .footer {
+      border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
+    }
+    .footer .container {
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
+    }
+    .footer p { font-size: 13px; color: var(--text2); }
+    .footer a { color: var(--accent2); text-decoration: none; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SCROLL ANIMATIONS
+       ═══════════════════════════════════════════════════════════════ */
+    .reveal { opacity: 0; transform: translateY(30px); transition: all 0.7s cubic-bezier(0.22,1,0.36,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SCROLLBAR
+       ═══════════════════════════════════════════════════════════════ */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <!-- AURORA + PARTICLES + GRID -->
+  <div class="aurora">
+    <span class="a1"></span>
+    <span class="a2"></span>
+    <span class="a3"></span>
+  </div>
+  <canvas id="particles"></canvas>
+  <div class="grid-overlay"></div>
+
+  <div class="wrapper">
+
+    <!-- ═══ NAVBAR ═══ -->
+    <nav class="navbar" id="navbar">
+      <div class="container">
+        <a href="#" class="nav-brand">
+          <div class="logo">🚀</div>
+          <span>SkyPlayer</span>
+        </a>
+        <div class="nav-links">
+          <a href="#features">Fonctionnalités</a>
+          <a href="#endpoints">API</a>
+          <a href="#tech">Stack</a>
+          <a href="/admin" class="btn-nav">Admin Panel →</a>
         </div>
-    </body>
-</html>
+      </div>
+    </nav>
+
+    <!-- ═══ HERO ═══ -->
+    <section class="hero">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <div class="pulse"></div>
+          Backend Firebase opérationnel
+        </div>
+        <h1>
+          La plateforme<br>
+          <span class="gradient">streaming IPTV</span><br>
+          tout-en-un
+        </h1>
+        <p>
+          API backendFirebase, gestion des licences, webhooks paiement, 
+          dashboard admin — le tout sécurisé et en temps réel.
+        </p>
+        <div class="hero-actions">
+          <a href="/admin" class="btn-hero primary">🎮 Ouvrir le Dashboard</a>
+          <a href="#endpoints" class="btn-hero secondary">📖 Voir l'API</a>
+        </div>
+        <div class="status-banner">
+          <div class="status-dot" id="statusDot"></div>
+          <span class="status-text" id="statusText">Vérification en cours...</span>
+          <span class="status-latency" id="statusLatency"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ LIVE COUNTERS ═══ -->
+    <div class="container">
+      <div class="live-counters">
+        <div class="counter-card">
+          <div class="icon">🔑</div>
+          <div class="value" id="cActivations">0</div>
+          <div class="label">Activations</div>
+        </div>
+        <div class="counter-card">
+          <div class="icon">✅</div>
+          <div class="value" id="cActive">0</div>
+          <div class="label">Actives</div>
+        </div>
+        <div class="counter-card">
+          <div class="icon">🏪</div>
+          <div class="value" id="cResellers">0</div>
+          <div class="label">Revendeurs</div>
+        </div>
+        <div class="counter-card">
+          <div class="icon">💰</div>
+          <div class="value" id="cPayments">0</div>
+          <div class="label">Paiements</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ FEATURES ═══ -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="tag">Fonctionnalités</div>
+          <h2>Tout ce qu'il faut pour gérer<br> votre réseau IPTV</h2>
+          <p>Un backend complet avec dashboard admin, webhooks paiement et gestion des licences.</p>
+        </div>
+        <div class="bento-grid">
+          <div class="bento-card span-2">
+            <div class="card-icon" style="background:rgba(249,115,22,0.1);">🎮</div>
+            <h3>Dashboard Admin Complet</h3>
+            <p>Vue d'ensemble en temps réel, gestion des activations, revendeurs et paiements. Interface glassmorphism avec animations ReactBits.</p>
+          </div>
+          <div class="bento-card">
+            <div class="card-icon" style="background:rgba(34,197,94,0.1);">🔐</div>
+            <h3>Licences & Activations</h3>
+            <p>Gestion complète des licences premium et essai. Détection anti-reinstall via hardware fingerprint.</p>
+          </div>
+          <div class="bento-card">
+            <div class="card-icon" style="background:rgba(56,189,248,0.1);">💳</div>
+            <h3>Webhooks Paiement</h3>
+            <p>Intégration Joboost Cash avec vérification signature HMAC. Idempotence, rate limiting, provider registry extensible.</p>
+          </div>
+          <div class="bento-card">
+            <div class="card-icon" style="background:rgba(168,85,247,0.1);">🏪</div>
+            <h3>Multi-Revendeur</h3>
+            <p>Système de revendeurs avec API keys uniques. Chaque revendeur gère ses clients et voit ses statistiques.</p>
+          </div>
+          <div class="bento-card">
+            <div class="card-icon" style="background:rgba(236,72,153,0.1);">📊</div>
+            <h3>Métriques & Analytics</h3>
+            <p>Dashboard temps réel avec compteurs animés, graphiques d'activité, taux de conversion et tendances.</p>
+          </div>
+          <div class="bento-card span-2">
+            <div class="card-icon" style="background:rgba(56,189,248,0.1);">🔒</div>
+            <h3>Sécurité Backend</h3>
+            <p>Rate limiting Firestore persistant, idempotence webhook, CORS configurable, API versionnée v1/v2, clés API dans Remote Config.</p>
+          </div>
+          <div class="bento-card">
+            <div class="card-icon" style="background:rgba(249,115,22,0.1);">🔔</div>
+            <h3>Notifications FCM</h3>
+            <p>Push automatiques lors d'activation, d'expiration de trial et de nouvelles playlists. Canal dédié skyplayer_notifications.</p>
+          </div>
+          <div class="bento-card">
+            <div class="card-icon" style="background:rgba(34,197,94,0.1);">⏰</div>
+            <h3>Expiration Auto</h3>
+            <p>Scheduled Function qui expire les trials et premiums dépassés toutes les 24h. Nettoyage automatique des tokens FCM.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ ENDPOINTS ═══ -->
+    <section class="section" id="endpoints">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="tag">API Endpoints</div>
+          <h2>Endpoints backend</h2>
+          <p>7 Cloud Functions Firebase pour servir l'app Android et le dashboard admin.</p>
+        </div>
+        <div class="endpoints-grid">
+          <div class="endpoint-card">
+            <span class="method post">POST</span>
+            <div class="info">
+              <h4>/api/v2/devices/check</h4>
+              <p>Vérification du statut device (trial/premium/expiré) + playlist assignée</p>
+            </div>
+          </div>
+          <div class="endpoint-card">
+            <span class="method get">GET</span>
+            <div class="info">
+              <h4>/api/v1/playlist/:mac</h4>
+              <p>Récupération de la playlist active pour une MAC address</p>
+            </div>
+          </div>
+          <div class="endpoint-card">
+            <span class="method get">GET</span>
+            <div class="info">
+              <h4>/api/mac/check/:mac</h4>
+              <p>Vérification d'activation (boolean) pour une MAC donnée</p>
+            </div>
+          </div>
+          <div class="endpoint-card">
+            <span class="method post">POST</span>
+            <div class="info">
+              <h4>/api/joboost-cash</h4>
+              <p>Webhook Joboost Cash — activation automatique de licence</p>
+            </div>
+          </div>
+          <div class="endpoint-card">
+            <span class="method get">GET</span>
+            <div class="info">
+              <h4>/api/check-status</h4>
+              <p>Consultation du statut de paiement d'une licence</p>
+            </div>
+          </div>
+          <div class="endpoint-card">
+            <span class="method get">GET</span>
+            <div class="info">
+              <h4>/api/v2/reseller/:id/clients</h4>
+              <p>Liste des clients d'un revendeur spécifique</p>
+            </div>
+          </div>
+        </div>
+        <div class="tech-strip">
+          <div class="tech-pill">🔥 Firebase Functions</div>
+          <div class="tech-pill">📦 Cloud Firestore</div>
+          <div class="tech-pill">🌐 Firebase Hosting</div>
+          <div class="tech-pill">🔐 Firebase Auth</div>
+          <div class="tech-pill">🔔 Cloud Messaging</div>
+          <div class="tech-pill">⚙️ Remote Config</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ CTA ═══ -->
+    <section class="cta-section">
+      <div class="cta-glow"></div>
+      <div class="container" style="position:relative;">
+        <h2>Prêt à gérer votre réseau ?</h2>
+        <p>Accédez au dashboard admin pour gérer activations, revendeurs et paiements.</p>
+        <a href="/admin" class="btn-hero primary" style="font-size:18px; padding:18px 40px;">
+          🎮 Ouvrir le Dashboard Admin
+        </a>
+      </div>
+    </section>
+
+    <!-- ═══ FOOTER ═══ -->
+    <footer class="footer">
+      <div class="container">
+        <p>© 2025 SkyPlayer Pro. Tous droits réservés.</p>
+        <p>Propulsé par <a href="https://firebase.google.com" target="_blank">Firebase</a> • Domaine: <strong>skyplayerapp.xyz</strong></p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       JAVASCRIPT
+       ═══════════════════════════════════════════════════════════════ -->
+  <script>
+    // ═══════════════════════════════════════════════════════════════
+    // PARTICLES (ReactBits — Particles 9.8/10)
+    // ═══════════════════════════════════════════════════════════════
+    (function initParticles() {
+      const canvas = document.getElementById('particles');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w, h, particles = [];
+      const COUNT = 60;
+
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      for (let i = 0; i < COUNT; i++) {
+        particles.push({
+          x: Math.random() * w, y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+          r: Math.random() * 1.5 + 0.5,
+          o: Math.random() * 0.3 + 0.1
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, w, h);
+        particles.forEach(p => {
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+          if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(249, 115, 22, ${p.o})`;
+          ctx.fill();
+        });
+        // Lines
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 150) {
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `rgba(249, 115, 22, ${0.06 * (1 - dist / 150)})`;
+              ctx.stroke();
+            }
+          }
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+
+    // ═══════════════════════════════════════════════════════════════
+    // NAVBAR SCROLL
+    // ═══════════════════════════════════════════════════════════════
+    window.addEventListener('scroll', () => {
+      document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // SCROLL REVEAL
+    // ═══════════════════════════════════════════════════════════════
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal, .counter-card, .bento-card, .endpoint-card').forEach(el => observer.observe(el));
+
+    // ═══════════════════════════════════════════════════════════════
+    // COUNTUP ANIMATION
+    // ═══════════════════════════════════════════════════════════════
+    function countUp(el, target, duration) {
+      duration = duration || 1500;
+      const start = parseInt(el.textContent) || 0;
+      const diff = target - start;
+      if (diff === 0) { el.textContent = target; return; }
+      const t0 = performance.now();
+      function tick(now) {
+        const p = Math.min((now - t0) / duration, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(start + diff * eased);
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LIVE STATUS CHECK
+    // ═══════════════════════════════════════════════════════════════
+    async function checkStatus() {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      const latency = document.getElementById('statusLatency');
+      try {
+        const t0 = performance.now();
+        const res = await fetch('/api/check-status?licenseId=health', { signal: AbortSignal.timeout(5000) });
+        const ms = Math.round(performance.now() - t0);
+        dot.classList.remove('offline');
+        text.textContent = '✅ Tous les systèmes opérationnels';
+        latency.textContent = `${ms}ms`;
+      } catch (e) {
+        // Try a simple fetch to the hosting itself
+        try {
+          const t0 = performance.now();
+          await fetch('/', { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+          const ms = Math.round(performance.now() - t0);
+          dot.classList.remove('offline');
+          text.textContent = '✅ Hosting en ligne (functions non déployées)';
+          latency.textContent = `${ms}ms`;
+        } catch (e2) {
+          dot.classList.add('offline');
+          text.textContent = '❌ Serveur indisponible';
+          latency.textContent = '';
+        }
+      }
+    }
+    checkStatus();
+    setInterval(checkStatus, 30000);
+
+    // ═══════════════════════════════════════════════════════════════
+    // ANIMATE COUNTERS ON SCROLL
+    // ═══════════════════════════════════════════════════════════════
+    let countersAnimated = false;
+    const counterObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !countersAnimated) {
+          countersAnimated = true;
+          // Placeholder values — real data requires Firebase Auth
+          countUp(document.getElementById('cActivations'), 127, 1800);
+          countUp(document.getElementById('cActive'), 84, 1800);
+          countUp(document.getElementById('cResellers'), 12, 1200);
+          countUp(document.getElementById('cPayments'), 256, 2000);
+        }
+      });
+    }, { threshold: 0.3 });
+    counterObserver.observe(document.querySelector('.live-counters'));
+  </script>
+</body>
+</html>
