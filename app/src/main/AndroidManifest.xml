@@ -23,9 +23,6 @@
     <!-- Permission pour éviter la mise en veille pendant la lecture -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Notifications (FCM + PiP) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
 
 
     <application
@@ -87,15 +84,6 @@
             <property
                 android:name="android.app.PROPERTY_FOREGROUND_SERVICE_TYPE"
                 android:value="mediaPlayback" />
-        </service>
-
-        <!-- FCM Messaging Service -->
-        <service
-            android:name=".service.SkyFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
         </service>
 
         <!-- Receiver pour la reconnexion réseau (API 24-27) -->

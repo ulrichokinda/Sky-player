@@ -222,9 +222,6 @@ dependencies {
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.analytics.ktx)
     implementation(libs.firebase.crashlytics.ktx)
-    implementation(libs.firebase.config.ktx)
-    implementation(libs.firebase.messaging.ktx)
-    implementation(libs.firebase.functions.ktx)
 
     // Debug only (UI tooling)
     debugImplementation(libs.androidx.ui.tooling)

@@ -5,10 +5,9 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-# Local configuration (contains API keys — never commit)
+# Local configuration
 local.properties
 keystore.properties
-gradle.properties
 
 # Android Studio
 .idea/

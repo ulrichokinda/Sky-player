@@ -238,28 +238,6 @@ class LicenseManager @Inject constructor(
     }
     
     /**
-     * Empreinte hardware stable — combiné du Build fingerprint.
-     * Utilisé côté serveur pour détecter les reinstalls (même hardware, nouvel ANDROID_ID).
-     */
-    fun getHardwareFingerprint(): String {
-        val raw = buildString {
-            append(android.os.Build.BOARD)
-            append("|")
-            append(android.os.Build.BRAND)
-            append("|")
-            append(android.os.Build.DEVICE)
-            append("|")
-            append(android.os.Build.HARDWARE)
-            append("|")
-            append(android.os.Build.MANUFACTURER)
-            append("|")
-            append(android.os.Build.PRODUCT)
-        }
-        val hash = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray(Charsets.UTF_8))
-        return hash.take(16).joinToString("") { "%02x".format(it) }
-    }
-
-    /**
      * Récupère les informations complètes de licence
      */
     fun getLicenseInfo(): LicenseInfo {

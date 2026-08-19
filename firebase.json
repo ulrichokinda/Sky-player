@@ -2,34 +2,11 @@
   "database": {
     "rules": "database.rules.json"
   },
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
   "hosting": {
+    "site": "skyplayerapp",
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
-      {
-        "source": "/api/v2/devices/check",
-        "function": "checkDeviceStatus"
-      },
-      {
-        "source": "/api/devices/check",
-        "function": "checkDeviceStatus"
-      },
-      {
-        "source": "/api/v2/playlist/:mac",
-        "function": "getMacPlaylist"
-      },
-      {
-        "source": "/api/v1/playlist/:mac",
-        "function": "getMacPlaylist"
-      },
-      {
-        "source": "/api/mac/check/:mac",
-        "function": "checkMacActivation"
-      },
       {
         "source": "/api/joboost-cash",
         "function": "joboostCashWebhook"
@@ -39,17 +16,10 @@
         "function": "checkPaymentStatus"
       },
       {
-        "source": "/api/v2/reseller/:id/clients",
-        "function": "getResellerClients"
+        "source": "/api/update-status",
+        "function": "updateLicenseStatus"
       },
-      {
-        "source": "/admin",
-        "destination": "/admin/index.html"
-      },
-      {
-        "source": "/admin/**",
-        "destination": "/admin/index.html"
-      },
+
       {
         "source": "**",
         "destination": "/index.html"
@@ -61,7 +31,7 @@
         "headers": [
           {
             "key": "Access-Control-Allow-Origin",
-            "value": "*"
+            "value": "https://skyplayerapp.xyz"
           },
           {
             "key": "Access-Control-Allow-Methods",
@@ -69,7 +39,7 @@
           },
           {
             "key": "Access-Control-Allow-Headers",
-            "value": "Content-Type, X-Activation-API-Key, X-App-Key, X-Joboost-Cash-Signature, X-API-Version"
+            "value": "Content-Type, X-Joboost-Cash-Signature"
           }
         ]
       }
@@ -78,7 +48,7 @@
   "functions": [
     {
       "source": "firebase-functions",
-      "codebase": "skyplayer-backend",
+      "codebase": "joboost-cash-integration",
       "runtime": "nodejs20"
     }
   ]
