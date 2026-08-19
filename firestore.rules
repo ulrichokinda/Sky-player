@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Activations ──────────────────────────────────────────────────────
+    // Seul le serveur (via Admin SDK dans les Cloud Functions) peut écrire.
+    // Les apps lisent uniquement via les Cloud Functions (pas d'accès direct).
+    match /activations/{activationId} {
+      allow read: if false;  // Read via Cloud Functions only
+      allow write: if false; // Write via Admin SDK only (Cloud Functions)
+    }
+
+    // ── Payments ─────────────────────────────────────────────────────────
+    // Historique des transactions — écriture serveur uniquement.
+    match /payments/{paymentId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ── Default deny ─────────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

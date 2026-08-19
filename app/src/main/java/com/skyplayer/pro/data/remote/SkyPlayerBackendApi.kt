@@ -11,12 +11,11 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 /**
- * Client unique du backend Sky-player — dédié à la gestion des clients, des panels,
- * des achats de crédit et au provisionnement des playlists synchronisées avec l'app.
+ * Client unique du backend Sky-player — Firebase Functions via Firebase Hosting rewrites.
  *
- * Avant, trois implémentations distinctes (DeviceCheckService en OkHttp brut,
- * MacPlaylistService en OkHttp brut, LicenseApiService en Retrofit) dupliquaient les
- * appels, les en-têtes et les parsings vers le même backend. Consolidées ici.
+ * Les endpoints sont servis par Firebase Hosting (skyplayerapp.xyz) et redirigés
+ * vers les Cloud Functions correspondantes. La clé API est validée côté serveur
+ * via le secret ACTIVATION_API_KEY.
  *
  * Endpoints :
  *  - POST /api/devices/check      → statut appareil (trial / premium / expiré) + playlist liée
@@ -56,13 +55,12 @@ interface SkyPlayerBackendApi {
     ): Response<MacCheckResponse>
 
     companion object {
-        /** URL du backend déployé (injectée via BuildConfig) */
+        /** URL du backend — Firebase Hosting redirige vers les Cloud Functions */
         const val BASE_URL = BuildConfig.BACKEND_BASE_URL
 
         /**
-         * Clés `X-App-Key` par endpoint. Valeurs historiques conservées : le backend
-         * les utilise pour distinguer les générations d'essais côté serveur — ne pas
-         * unifier sans modifier le serveur en parallèle.
+         * Clés X-App-Key par endpoint (conservées pour compatibilité historique).
+         * Le backend Firebase les utilise pour identifier la génération d'essai.
          */
         const val DEVICE_APP_ID = "skyplayer_pro_v2"
         const val PLAYLIST_APP_KEY = "skyplayer_pro"
@@ -124,7 +122,6 @@ data class MacPlaylistResponse(
 @androidx.annotation.Keep
 data class MacCheckResponse(
     val active: Boolean,
-    // Document d'activation Firestore (schéma variable côté serveur → Map)
     val activation: Map<String, Any>? = null,
     val error: String? = null
 )

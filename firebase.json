@@ -2,11 +2,26 @@
   "database": {
     "rules": "database.rules.json"
   },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "site": "skyplayerapp",
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
+      {
+        "source": "/api/devices/check",
+        "function": "checkDeviceStatus"
+      },
+      {
+        "source": "/api/v1/playlist/:mac",
+        "function": "getMacPlaylist"
+      },
+      {
+        "source": "/api/mac/check/:mac",
+        "function": "checkMacActivation"
+      },
       {
         "source": "/api/joboost-cash",
         "function": "joboostCashWebhook"
@@ -19,7 +34,6 @@
         "source": "/api/update-status",
         "function": "updateLicenseStatus"
       },
-
       {
         "source": "**",
         "destination": "/index.html"
@@ -31,7 +45,7 @@
         "headers": [
           {
             "key": "Access-Control-Allow-Origin",
-            "value": "https://skyplayerapp.xyz"
+            "value": "*"
           },
           {
             "key": "Access-Control-Allow-Methods",
@@ -39,7 +53,7 @@
           },
           {
             "key": "Access-Control-Allow-Headers",
-            "value": "Content-Type, X-Joboost-Cash-Signature"
+            "value": "Content-Type, X-Activation-API-Key, X-App-Key, X-Joboost-Cash-Signature"
           }
         ]
       }
@@ -48,7 +62,7 @@
   "functions": [
     {
       "source": "firebase-functions",
-      "codebase": "joboost-cash-integration",
+      "codebase": "skyplayer-backend",
       "runtime": "nodejs20"
     }
   ]
