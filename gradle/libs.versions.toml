@@ -114,6 +114,8 @@ firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-fires
 firebase-analytics-ktx = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
 firebase-crashlytics-ktx = { group = "com.google.firebase", name = "firebase-crashlytics-ktx" }
 firebase-config-ktx = { group = "com.google.firebase", name = "firebase-config-ktx" }
+firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
+firebase-functions-ktx = { group = "com.google.firebase", name = "firebase-functions-ktx" }
 
 # QR Code (ZXing)
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
