@@ -12,8 +12,16 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
+        "source": "/api/v2/devices/check",
+        "function": "checkDeviceStatus"
+      },
+      {
         "source": "/api/devices/check",
         "function": "checkDeviceStatus"
+      },
+      {
+        "source": "/api/v2/playlist/:mac",
+        "function": "getMacPlaylist"
       },
       {
         "source": "/api/v1/playlist/:mac",
@@ -32,8 +40,12 @@
         "function": "checkPaymentStatus"
       },
       {
-        "source": "/api/update-status",
-        "function": "updateLicenseStatus"
+        "source": "/api/v2/reseller/:id/clients",
+        "function": "getResellerClients"
+      },
+      {
+        "source": "/admin",
+        "function": "adminDashboard"
       },
       {
         "source": "**",
@@ -54,7 +66,7 @@
           },
           {
             "key": "Access-Control-Allow-Headers",
-            "value": "Content-Type, X-Activation-API-Key, X-App-Key, X-Joboost-Cash-Signature"
+            "value": "Content-Type, X-Activation-API-Key, X-App-Key, X-Joboost-Cash-Signature, X-API-Version"
           }
         ]
       }

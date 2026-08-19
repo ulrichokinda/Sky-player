@@ -2,24 +2,45 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Activations ──────────────────────────────────────────────────────
-    // Seul le serveur (via Admin SDK dans les Cloud Functions) peut écrire.
-    // Les apps lisent uniquement via les Cloud Functions (pas d'accès direct).
-    match /activations/{activationId} {
-      allow read: if false;  // Read via Cloud Functions only
-      allow write: if false; // Write via Admin SDK only (Cloud Functions)
-    }
-
-    // ── Payments ─────────────────────────────────────────────────────────
-    // Historique des transactions — écriture serveur uniquement.
-    match /payments/{paymentId} {
-      allow read: if false;
-      allow write: if false;
-    }
-
-    // ── Default deny ─────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // DEFAULT: deny-all (all access via Cloud Functions Admin SDK)
+    // ═══════════════════════════════════════════════════════════════
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // B11: ADMIN DASHBOARD — allow authenticated admin users
+    // ═══════════════════════════════════════════════════════════════
+    match /activations/{docId} {
+      allow read: if request.auth != null && isAdmin();
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /payments/{docId} {
+      allow read: if request.auth != null && isAdmin();
+    }
+
+    match /metrics/{docId} {
+      allow read: if request.auth != null && isAdmin();
+    }
+
+    match /resellers/{docId} {
+      allow read, write: if request.auth != null && isAdmin();
+    }
+
+    match /fcm_tokens/{docId} {
+      allow read, write: if false; // Only via Cloud Functions
+    }
+
+    match /rate_limits/{docId} {
+      allow read, write: if false; // Only via Cloud Functions
+    }
+
+    // Helper function: check if user is admin
+    function isAdmin() {
+      return request.auth.token.admin == true
+          || request.auth.token.role == 'admin';
     }
   }
 }
