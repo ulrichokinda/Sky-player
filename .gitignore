@@ -65,3 +65,8 @@ app/debug/
 # Firebase local
 firebase-functions/.env
 firebase-functions/node_modules/
+
+# Firebase config (API keys)
+firebase-applet-config.json
+.env
+.env.*
