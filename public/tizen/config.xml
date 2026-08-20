@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/SkyPlayer" version="1.0.0" viewmodes="fullscreen">
+    <tizen:application id="skyplayer.tv" package="skyplayer.tv" required_version="2.3"/>
+    <content src="index.html"/>
+    <feature name="http://tizen.org/feature/screen.size.all"/>
+    <icon src="icon.png"/>
+    <name>Sky Player Pro</name>
+    
+    <!-- IMPORTANT: Contournement CORS & HTTP(S) -->
+    <!-- Autorise l'accès à tous les domaines externes, incluant le protocole HTTP -->
+    <access origin="*" subdomains="true"/>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/network.get"/>
+    
+    <!-- Configuration de l'affichage TV -->
+    <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+    
+    <!-- CSP souple (Attention à la sécurité en prod, mais utile pour les flux IPTV variés) -->
+    <tizen:allow-navigation>
+        <tizen:allow-navigation origin="*"/>
+    </tizen:allow-navigation>
+</widget>

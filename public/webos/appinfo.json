@@ -1,0 +1,24 @@
+{
+    "id": "com.skyplayer.app",
+    "version": "1.0.0",
+    "vendor": "SkyPlayerTech",
+    "type": "web",
+    "main": "index.html",
+    "title": "Sky Player Pro",
+    "icon": "icon.png",
+    "largeIcon": "largeIcon.png",
+    "bgImage": "bgImage.png",
+    "splashBackground": "#000000",
+    "appDescription": "Application IPTV optimisée pour webOS",
+    "resolution": "1920x1080",
+    "transparent": false,
+    
+    // IMPORTANT: Contournement CORS / Sécurité sur webOS
+    "trustLevel" : "default", // peut nécessiter d'être 'trusted' via partenariat LG
+    "requiredPermissions": [
+        "network.get",
+        "internet"
+    ],
+    // Désactiver la politique CORS native stricte sur certaines versions webOS
+    "enableInspectable": true // Pour le debug Chromium
+}
