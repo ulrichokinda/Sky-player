@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>SkyPlayer Admin</title>
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#060918;--surface:rgba(15,23,42,0.7);--border:rgba(255,255,255,0.06);--accent:#2d7af6;--green:#22c55e;--red:#ef4444;--orange:#f59e0b;--text:#e2e8f0;--text2:#64748b}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    .login{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+    .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px;backdrop-filter:blur(12px)}
+    .login-box h1{font-size:1.5rem;margin-bottom:8px}
+    .login-box p{color:var(--text2);font-size:0.85rem;margin-bottom:24px}
+    .login-box input{width:100%;padding:12px 16px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font-size:0.9rem;margin-bottom:12px;outline:none}
+    .login-box input:focus{border-color:var(--accent)}
+    .login-box button{width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;font-size:0.9rem}
+    .login-box button:hover{opacity:0.9}
+    .login-error{color:var(--red);font-size:0.8rem;margin-top:8px;display:none}
+    .dashboard{display:none;padding:24px;max-width:1200px;margin:0 auto}
+    .dashboard-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px}
+    .dashboard-header h1{font-size:1.5rem}
+    .btn-logout{padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:0.8rem}
+    .btn-logout:hover{border-color:var(--red);color:var(--red)}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;backdrop-filter:blur(12px)}
+    .stat-card .label{font-size:0.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:700}
+    .stat-card .value{font-size:2rem;font-weight:900;margin-top:4px}
+    .stat-card .value.green{color:var(--green)}
+    .stat-card .value.orange{color:var(--orange)}
+    .stat-card .value.blue{color:var(--accent)}
+    .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;backdrop-filter:blur(12px)}
+    .table-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+    .table-header h2{font-size:1.1rem}
+    .search{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font-size:0.8rem;outline:none;width:250px}
+    table{width:100%;border-collapse:collapse}
+    th{text-align:left;padding:12px 24px;font-size:0.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;border-bottom:1px solid var(--border)}
+    td{padding:14px 24px;font-size:0.85rem;border-bottom:1px solid var(--border)}
+    tr:last-child td{border-bottom:none}
+    .badge{padding:4px 10px;border-radius:6px;font-size:0.7rem;font-weight:700;display:inline-block}
+    .badge-active{background:rgba(34,197,94,0.15);color:var(--green)}
+    .badge-expired{background:rgba(239,68,68,0.15);color:var(--red)}
+    .badge-trial{background:rgba(245,158,11,0.15);color:var(--orange)}
+    .empty{text-align:center;padding:60px;color:var(--text2);font-size:0.9rem}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .fade-in{animation:fadeIn 0.4s ease}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login" id="loginView">
+  <div class="login-box">
+    <h1>🚀 SkyPlayer Admin</h1>
+    <p>Connectez-vous pour gérer les activations et clients</p>
+    <input type="email" id="email" placeholder="Email"/>
+    <input type="password" id="password" placeholder="Mot de passe"/>
+    <button onclick="doLogin()">Se connecter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboardView">
+  <div class="dashboard-header">
+    <h1>🚀 SkyPlayer Admin</h1>
+    <div style="display:flex;gap:12px;align-items:center">
+      <span id="userEmail" style="font-size:0.8rem;color:var(--text2)"></span>
+      <button class="btn-logout" onclick="doLogout()">Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="stats-grid fade-in">
+    <div class="stat-card">
+      <div class="label">Activations totales</div>
+      <div class="value blue" id="statTotal">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Actives</div>
+      <div class="value green" id="statActive">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Expirées</div>
+      <div class="value orange" id="statExpired">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Utilisateurs</div>
+      <div class="value blue" id="statUsers">-</div>
+    </div>
+  </div>
+
+  <div class="table-wrap fade-in">
+    <div class="table-header">
+      <h2>Activations</h2>
+      <input class="search" id="searchInput" placeholder="Rechercher MAC, revendeur..." oninput="filterTable()"/>
+    </div>
+    <table>
+      <thead>
+        <tr><th>MAC</th><th>Revendeur</th><th>Statut</th><th>Expire le</th><th>Dernière connexion</th></tr>
+      </thead>
+      <tbody id="actBody"></tbody>
+    </table>
+    <div class="empty" id="emptyMsg">Chargement...</div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import { getFirestore, collection, getDocs, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  // Firebase config — replace with your actual keys
+  const firebaseConfig = {
+    apiKey: "AIzaSyCx3NV7zoZpazgMTABspe6fnteuYrJskp8",
+    authDomain: "skyplayer-60634.firebaseapp.com",
+    projectId: "skyplayer-60634",
+    storageBucket: "skyplayer-60634.firebasestorage.app",
+    messagingSenderId: "000000000000",
+    appId: "1:000000000000:web:000000000000"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let allActivations = [];
+
+  // Auth state
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('dashboardView').style.display = 'block';
+      document.getElementById('userEmail').textContent = user.email;
+      loadActivations();
+    } else {
+      document.getElementById('loginView').style.display = 'flex';
+      document.getElementById('dashboardView').style.display = 'none';
+    }
+  });
+
+  // Login
+  window.doLogin = async () => {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const errEl = document.getElementById('loginError');
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      errEl.style.display = 'none';
+    } catch (e) {
+      errEl.textContent = e.code === 'auth/invalid-credential' ? 'Email ou mot de passe incorrect' : e.message;
+      errEl.style.display = 'block';
+    }
+  };
+
+  // Logout
+  window.doLogout = () => signOut(auth);
+
+  // Load data
+  async function loadActivations() {
+    try {
+      const q = query(collection(db, 'activations'), orderBy('createdAt', 'desc'), limit(200));
+      const snap = await getDocs(q);
+      allActivations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderTable(allActivations);
+      updateStats(allActivations);
+    } catch (e) {
+      console.error('Load error:', e);
+      document.getElementById('emptyMsg').textContent = 'Erreur de chargement: ' + e.message;
+    }
+  }
+
+  function renderTable(list) {
+    const body = document.getElementById('actBody');
+    const empty = document.getElementById('emptyMsg');
+    if (list.length === 0) {
+      body.innerHTML = '';
+      empty.textContent = 'Aucune activation trouvée';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    body.innerHTML = list.map(a => {
+      const mac = a.target_mac || '-';
+      const reseller = a.resellerId || '-';
+      const isExpired = a.expiryDate && new Date(a.expiryDate) < new Date();
+      const isActive = a.status === 'ACTIF' && !isExpired;
+      const badge = isActive ? '<span class="badge badge-active">ACTIF</span>'
+        : isExpired ? '<span class="badge badge-expired">EXPIRÉ</span>'
+        : '<span class="badge badge-trial">ESSAI</span>';
+      const expiry = a.expiryDate ? new Date(a.expiryDate).toLocaleDateString('fr-FR') : '-';
+      const lastConn = a.last_connection?.toDate?.() ? new Date(a.last_connection.toDate()).toLocaleString('fr-FR') : '-';
+      return `<tr><td style="font-family:monospace;font-size:0.8rem">${mac}</td><td>${reseller}</td><td>${badge}</td><td>${expiry}</td><td style="font-size:0.8rem;color:var(--text2)">${lastConn}</td></tr>`;
+    }).join('');
+  }
+
+  function updateStats(list) {
+    document.getElementById('statTotal').textContent = list.length;
+    const now = new Date();
+    const active = list.filter(a => a.status === 'ACTIF' && a.expiryDate && new Date(a.expiryDate) > now).length;
+    const expired = list.filter(a => a.expiryDate && new Date(a.expiryDate) <= now).length;
+    document.getElementById('statActive').textContent = active;
+    document.getElementById('statExpired').textContent = expired;
+    document.getElementById('statUsers').textContent = new Set(list.map(a => a.resellerId).filter(Boolean)).size;
+  }
+
+  // Search
+  window.filterTable = () => {
+    const s = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allActivations.filter(a =>
+      (a.target_mac || '').toLowerCase().includes(s) ||
+      (a.resellerId || '').toLowerCase().includes(s) ||
+      (a.note || '').toLowerCase().includes(s)
+    );
+    renderTable(filtered);
+  };
+
+  // Enter key on login
+  document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') window.doLogin(); });
+</script>
+</body>
+</html>

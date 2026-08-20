@@ -3,11 +3,11 @@
   "hosting": {
     "site": "skyplayerapp",
     "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [
-      { "source": "/api/check-status", "function": "checkPaymentStatus" },
-      { "source": "/api/update-status", "function": "updateLicenseStatus" },
-      { "source": "**", "destination": "/index.html" }
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],    "rewrites": [
+      {"source": "/admin", "destination": "/admin/index.html"},
+      {"source": "/api/check-status", "function": "checkPaymentStatus"},
+      {"source": "/api/update-status", "function": "updateLicenseStatus"},
+      {"source": "**", "destination": "/index.html"}
     ],
     "headers": [
       { "source": "/api/**", "headers": [

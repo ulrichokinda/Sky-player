@@ -161,9 +161,40 @@ async function startServer() {
   //  ROUTES
   // ═══════════════════════════════════════════════════════════
 
-  app.get('/api/health', (_req, res) => {
-    res.status(200).json({ status: 'ok', version: VERSION, uptime: process.uptime() });
+  app.get('/api/health', async (_req, res) => {
+    const mem = process.memoryUsage();
+    let firestoreOk = false;
+    try {
+      const db = getDb();
+      if (db) {
+        const p = db.collection('test').doc('connection').get();
+        const t = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000));
+        await Promise.race([p, t]);
+        firestoreOk = true;
+      }
+    } catch { firestoreOk = false; }
+    res.status(200).json({
+      status: 'ok', version: VERSION, uptime: Math.round(process.uptime()),
+      memory: { rss: Math.round(mem.rss / 1048576), heap: Math.round(mem.heapUsed / 1048576) },
+      firestore: firestoreOk ? 'connected' : 'unavailable',
+      timestamp: new Date().toISOString(),
+    });
   });
+
+  // ─── Admin Dashboard (static) ───────────────────────────────
+  app.get('/admin', (_req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'admin', 'index.html'));
+  });
+
+  // ─── Metrics (Firestore) ────────────────────────────────────
+  const logMetric = async (event: string, details: Record<string, any> = {}) => {
+    try {
+      const firestore = getDb();
+      if (firestore) {
+        await firestore.collection('metrics').add({ event, ...details, timestamp: admin.firestore.FieldValue.serverTimestamp(), server: VERSION });
+      }
+    } catch { /* silent */ }
+  };
 
   // ─── Proxy (anti-SSRF + retry) ─────────────────────────────
   app.get('/api/proxy/playlist', async (req, res) => {
@@ -260,6 +291,7 @@ async function startServer() {
         last_connection: admin.firestore.FieldValue.serverTimestamp(), status: 'ACTIF',
       });
       console.log(`[API] Activation created: ${docRef.id} for MAC ${normalizedMac}`);
+      logMetric('activation_created', { mac: normalizedMac, resellerId, id: docRef.id });
       res.json({ success: true, id: docRef.id });
     } catch (error: any) { console.error('[API] Activation Error:', error); res.status(500).json({ error: error.message }); }
   });
@@ -379,6 +411,7 @@ async function startServer() {
       const depositId = crypto.randomBytes(9).toString('hex');
       await firestore.collection('payments').add({ userId, amount: parseFloat(amount), credits_purchased: credits_purchased || 0, payment_method: methodId || null, provider, status: 'pending', external_id: depositId, createdAt: admin.firestore.FieldValue.serverTimestamp() });
       console.log(`[API] Payment initiated: ${provider} (${methodId}) for ${phoneNumber}, ${amount}`);
+      logMetric('payment_initiated', { provider, amount, userId });
       res.json({ success: true, depositId, message: `Paiement via ${provider} initié.` });
     } catch (error) { console.error('Payment Error:', error); res.status(500).json({ error: 'Erreur paiement' }); }
   });
