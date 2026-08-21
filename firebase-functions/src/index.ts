@@ -16,12 +16,31 @@ export const checkPaymentStatus = functions.https.onRequest(async (req, res) => 
   } catch (error) { console.error("❌ Erreur:", error); res.status(500).json({ error: "Erreur serveur" }); }
 });
 
-export const updateLicenseStatus = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Auth requise");
-  const { licenseId, isActive, reason } = data;
-  if (!licenseId || typeof isActive !== "boolean") throw new functions.https.HttpsError("invalid-argument", "licenseId et isActive requis");
+// firebase-functions v6 API: onCall receives (request) where request.data and request.auth are available
+export const updateLicenseStatus = functions.https.onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) throw new functions.https.HttpsError("unauthenticated", "Auth requise");
+
+  const body = request.data as { licenseId?: string; isActive?: boolean; reason?: string };
+  const licenseId = body.licenseId;
+  const isActive = body.isActive;
+  const reason = body.reason;
+
+  if (!licenseId || typeof isActive !== "boolean") {
+    throw new functions.https.HttpsError("invalid-argument", "licenseId et isActive requis");
+  }
+
   try {
-    await db.ref(`licenses/${licenseId}`).update({ isActive, manualUpdate: true, updatedBy: context.auth.uid, updateReason: reason || "Manual update", updatedAt: admin.database.ServerValue.TIMESTAMP });
-    return { success: true, licenseId, isActive, updatedBy: context.auth.uid };
-  } catch (error) { console.error("❌ Erreur:", error); throw new functions.https.HttpsError("internal", "Erreur mise à jour"); }
+    await db.ref(`licenses/${licenseId}`).update({
+      isActive,
+      manualUpdate: true,
+      updatedBy: auth.uid,
+      updateReason: reason || "Manual update",
+      updatedAt: admin.database.ServerValue.TIMESTAMP
+    });
+    return { success: true, licenseId, isActive, updatedBy: auth.uid };
+  } catch (error) {
+    console.error("❌ Erreur:", error);
+    throw new functions.https.HttpsError("internal", "Erreur mise à jour");
+  }
 });
