@@ -178,7 +178,7 @@ export function Connect() {
                     type="url" 
                     placeholder="http://exemple.com/get.php?username=...&password=...&type=m3u_plus" 
                     value={m3uUrl}
-                    onChange={(e) => setM3uUrl(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setM3uUrl(e.target.value)}
                     required
                     className="bg-black border-zinc-800"
                   />
@@ -192,7 +192,7 @@ export function Connect() {
                     type="url" 
                     placeholder="http://serveur-xtream.com:8080" 
                     value={xtreamServer}
-                    onChange={(e) => setXtreamServer(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setXtreamServer(e.target.value)}
                     required
                     className="bg-black border-zinc-800"
                   />
@@ -204,7 +204,7 @@ export function Connect() {
                       type="text" 
                       placeholder="Username" 
                       value={xtreamUser}
-                      onChange={(e) => setXtreamUser(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setXtreamUser(e.target.value)}
                       required
                       className="bg-black border-zinc-800"
                     />
@@ -215,7 +215,7 @@ export function Connect() {
                       type="password" 
                       placeholder="••••••••" 
                       value={xtreamPass}
-                      onChange={(e) => setXtreamPass(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setXtreamPass(e.target.value)}
                       required
                       className="bg-black border-zinc-800"
                     />

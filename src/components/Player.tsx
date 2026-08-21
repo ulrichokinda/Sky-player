@@ -366,7 +366,7 @@ export const Player: React.FC<PlayerProps> = ({
               placeholder="••••" 
               maxLength={4}
               value={pinInput}
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                  setPinInput(e.target.value);
                  if (pinError) setPinError(false);
               }}

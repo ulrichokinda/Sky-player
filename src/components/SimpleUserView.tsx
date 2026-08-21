@@ -70,7 +70,7 @@ export const SimpleUserView: React.FC<SimpleUserViewProps> = ({ onNotify }) => {
         if (tvPlat === 'Tizen') {
           try {
             // @ts-ignore
-            const tizenId = window.tizen?.systeminfo?.getPropertyValue('ID');
+            const tizenId: string | null = window.tizen?.systeminfo?.getPropertyValue('ID') ?? null;
             if (tizenId) {
               devId = tizenId.substring(0, 12).toUpperCase().match(/.{1,2}/g)?.join(':') || tizenId;
               localStorage.setItem('sky_player_device_id', devId);

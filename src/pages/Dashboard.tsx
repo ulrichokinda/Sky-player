@@ -149,7 +149,7 @@ export const Dashboard = () => {
           email: fbUser.email,
           username: fbUser.displayName || fbUser.email?.split('@')[0],
           role: 'client'
-        });
+        }) as any;
       }
       setDbUser(data || null);
       

@@ -1879,8 +1879,8 @@ export const ResellerPanel: React.FC<ResellerPanelProps> = ({ activeTab, setActi
                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Mode de paiement</p>
                         <div className="grid grid-cols-1 gap-3">
                           <button 
-                            onClick={() => setPaymentMethod('joboost')}
-                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all relative overflow-hidden group ${paymentMethod === 'joboost' ? 'border-primary bg-primary/5 text-primary' : 'border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+                            onClick={() => setPaymentMethod('momo')}
+                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all relative overflow-hidden group ${paymentMethod === 'momo' ? 'border-primary bg-primary/5 text-primary' : 'border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
                           >
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-primary flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
                               <Globe size={20} />
