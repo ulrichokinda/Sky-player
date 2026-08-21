@@ -80,7 +80,11 @@ const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const RATE_WINDOW = 60_000;
 const RATE_MAX = 100;
 function rateLimit(req: express.Request, res: express.Response, next: express.NextFunction) {
-  const key = req.ip || 'unknown';
+  // Exempt localhost from rate limiting (dev/preview)
+  const rawIp = req.ip || req.socket?.remoteAddress || "";
+  const isLocal = rawIp.includes("127.0.0.1") || rawIp.includes("::1") || rawIp === "";
+  if (isLocal) return next();
+  const key = rawIp || "unknown";
   const now = Date.now();
   const entry = rateLimitStore.get(key);
   if (!entry || now > entry.resetAt) {
