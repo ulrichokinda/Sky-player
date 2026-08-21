@@ -4,6 +4,7 @@ import android.content.Context
 import com.skyplayer.pro.BuildConfig
 import com.skyplayer.pro.data.parser.M3UParser
 import com.skyplayer.pro.data.remote.LicenseApiService
+import com.skyplayer.pro.data.remote.SkyPlayerBackendApi
 import com.skyplayer.pro.data.remote.XtreamCodesApi
 import dagger.Module
 import dagger.Provides
@@ -95,6 +96,21 @@ object NetworkModule {
     @Singleton
     fun provideLicenseApiService(retrofit: Retrofit): LicenseApiService {
         return retrofit.create(LicenseApiService::class.java)
+    }
+
+    /**
+     * Fournit le client backend Sky-player (devices, playlists, mac check)
+     */
+    @Provides
+    @Singleton
+    fun provideSkyPlayerBackendApi(okHttpClient: OkHttpClient): SkyPlayerBackendApi {
+        val baseUrl = SkyPlayerBackendApi.BASE_URL.trimEnd('/') + "/"
+        return Retrofit.Builder()
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .baseUrl(baseUrl)
+            .build()
+            .create(SkyPlayerBackendApi::class.java)
     }
 
     /**
