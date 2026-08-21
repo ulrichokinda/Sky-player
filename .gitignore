@@ -70,3 +70,4 @@ firebase-functions/node_modules/
 firebase-applet-config.json
 .env
 .env.*
+node_modules/
