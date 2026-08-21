@@ -8,6 +8,7 @@ import { ResellerPricingModal } from '../components/ResellerPricingModal';
 import { CheckCircle2, Menu, X, LayoutDashboard, UserPlus, Download, LogIn, Zap, Shield, Cpu, Monitor, Activity, Sliders, Calendar, Grid, RotateCw, Lock, ChevronRight, Store, CreditCard, ShieldCheck, Wallet, Smartphone, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, onAuthStateChanged } from '../firebase';
+import { MosaicWaves } from '../components/MosaicWaves';
 
 export const Home = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -187,7 +188,40 @@ export const Home = () => {
         )}
       </AnimatePresence>
 
-      <main className="max-w-6xl mx-auto mt-12 md:mt-24 text-center space-y-16 px-4 md:px-6">
+      {/* Mosaic Waves Background — fixed to cover full page */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <MosaicWaves
+          width="100%"
+          height="100%"
+          pitch={5}
+          fill={0.45}
+          shape="square"
+          feather={0.12}
+          speed={0.8}
+          warp={0.4}
+          warpScale={3.5}
+          detailScale={7}
+          waveScale={4}
+          falloff={5}
+          brightness={4}
+          ambient={0.02}
+          color="#1d4ed8"
+          hotColor="#60a5fa"
+          backgroundColor="#030712"
+          gamma={2.2}
+          vignette={0.3}
+          opacity={0.85}
+          cursorInteraction={true}
+          cursorPull={0.3}
+          cursorGlow={0.2}
+          cursorReach={0.3}
+          adaptiveQuality={true}
+          targetFps={60}
+          dpr={2}
+        />
+      </div>
+
+      <main className="relative z-10 max-w-6xl mx-auto mt-12 md:mt-24 text-center space-y-16 px-4 md:px-6">
         
         {/* Titre d'accroche */}
         <div className="space-y-6">

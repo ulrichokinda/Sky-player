@@ -1,16 +1,49 @@
 import React, { useState } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { Button, Input, Card, Badge } from '../components/ui';
+import { useNavigate, Link } from 'react-router-dom';
 import { auth, createUserWithEmailAndPassword, sendEmailVerification, signOut } from '../firebase';
 import { api } from '../services/api';
-import { Mail, Lock, User, Phone, Globe, Chrome, ArrowRight, ShieldCheck, ArrowLeft, Eye, EyeOff, UserPlus } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Mail, Lock, User, Phone, Globe, ArrowRight, ArrowLeft, Eye, EyeOff, UserPlus, CheckCircle, XCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { MosaicWaves } from '../components/MosaicWaves';
 
 const COUNTRIES = [
-  'Bénin', 'Burkina Faso', 'Cameroun', 'Centrafrique', 'Congo (Brazzaville)', 
-  'Côte d\'Ivoire', 'Gabon', 'Guinée', 'Mali', 'Niger', 'RDC (Kinshasa)', 
+  'Bénin', 'Burkina Faso', 'Cameroun', 'Centrafrique', 'Congo (Brazzaville)',
+  "Côte d'Ivoire", 'Gabon', 'Guinée', 'Mali', 'Niger', 'RDC (Kinshasa)',
   'Sénégal', 'TCHAD', 'Togo', 'Autre'
 ];
+
+const PWD_RULES = [
+  { test: (p: string) => p.length >= 8, label: '8 caractères minimum' },
+  { test: (p: string) => /[A-Z]/.test(p), label: 'Une majuscule' },
+  { test: (p: string) => /[a-z]/.test(p), label: 'Une minuscule' },
+  { test: (p: string) => /\d/.test(p), label: 'Un chiffre' },
+  { test: (p: string) => /[@$!%*?&]/.test(p), label: 'Un caractère spécial' },
+];
+
+function FieldInput({ label, type = 'text', icon: Icon, value, onChange, placeholder, required, rightElement, error }: {
+  label: string; type?: string; icon: any; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string; required?: boolean; rightElement?: React.ReactNode; error?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 pl-1">{label}</label>
+      <div className="relative group">
+        <div className="absolute inset-0 rounded-xl bg-blue-500/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 blur-sm" />
+        <div className="relative flex items-center bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden focus-within:border-blue-500/30 transition-colors duration-300">
+          <div className="pl-4 text-white/20 group-focus-within:text-blue-400 transition-colors shrink-0">
+            <Icon size={18} />
+          </div>
+          <input
+            type={type} value={value} onChange={onChange} placeholder={placeholder} required={required}
+            className="w-full bg-transparent px-4 py-3.5 text-sm text-white/90 placeholder:text-white/20 outline-none min-w-0"
+          />
+          {rightElement}
+        </div>
+      </div>
+      {error && <p className="text-[11px] text-red-400 pl-1">{error}</p>}
+    </div>
+  );
+}
 
 export const Register = () => {
   const [firstName, setFirstName] = useState('');
@@ -20,270 +53,196 @@ export const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState(COUNTRIES[0]);
   const [customCountry, setCustomCountry] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      alert('Les mots de passe ne correspondent pas.');
-      return;
-    }
+    setError('');
 
-    // New password requirements
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(password)) {
-      alert('Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.');
-      return;
-    }
-
-    if (country === 'Autre' && !customCountry) {
-      alert('Veuillez préciser votre pays.');
-      return;
-    }
+    if (password !== confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return; }
+    if (!PWD_RULES.every(r => r.test(password))) { setError('Le mot de passe ne respecte pas les critères.'); return; }
+    if (country === 'Autre' && !customCountry) { setError('Précisez votre pays.'); return; }
 
     setLoading(true);
     try {
-      // 1. Create user in Firebase Auth
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      const user = result.user;
-
-      // 2. Send Email Verification
-      await sendEmailVerification(user);
-
-      // 3. Create user profile in Firestore
+      await sendEmailVerification(result.user);
       await api.registerUser({
-        uid: user.uid,
-        email,
-        username,
-        firstName,
-        lastName,
-        phone,
-        country: country === 'Autre' ? customCountry : country,
-        role: 'client'
+        uid: result.user.uid, email, username, firstName, lastName, phone,
+        country: country === 'Autre' ? customCountry : country, role: 'client'
       });
-
-      // 4. Force sign out until email is verified
       await signOut(auth);
-
-      alert('Inscription réussie ! Un e-mail de vérification a été envoyé à ' + email + '. Veuillez confirmer votre e-mail avant de vous connecter.');
-      navigate('/login');
-    } catch (error: any) {
-      alert('Erreur : ' + error.message);
-    } finally {
-      setLoading(false);
-    }
+      setSuccess('Compte créé ! Vérifiez votre email pour activer votre compte.');
+      setTimeout(() => navigate('/login'), 3000);
+    } catch (err: any) {
+      const msg = err.code === 'auth/email-already-in-use' ? 'Cet email est déjà utilisé.'
+        : err.code === 'auth/weak-password' ? 'Mot de passe trop faible.'
+        : 'Erreur lors de l\'inscription.';
+      setError(msg);
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-x-hidden py-12 sm:py-24 perspective-[2000px]">
-      {/* 3D Background elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,_rgba(244,197,10,0.15)_0%,_transparent_40%)] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_80%_80%,_rgba(244,197,10,0.1)_0%,_transparent_50%)] pointer-events-none" />
-      <motion.div 
-        animate={{ rotate: 360 }}
-        transition={{ duration: 150, repeat: Infinity, ease: "linear" }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" 
-      />
+    <div className="min-h-screen bg-[#030712] text-white flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background */}
+      <div className="fixed inset-0 z-0">
+        <MosaicWaves
+          width="100%" height="100%"
+          pitch={6} fill={0.4} shape="dot" speed={0.6}
+          color="#1e40af" hotColor="#60a5fa" backgroundColor="#030712"
+          opacity={0.7} vignette={0.4} gamma={2.0}
+          cursorInteraction={true} cursorGlow={0.3}
+        />
+      </div>
 
-      <Link 
-        to="/" 
-        className="absolute top-6 left-6 sm:top-8 sm:left-8 p-3 bg-zinc-900/40 border border-zinc-800/50 backdrop-blur-xl rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 hover:scale-110 transition-all z-50 group hover:shadow-[0_0_20px_rgba(244,197,10,0.2)]"
-        title="Retour à l'accueil"
-      >
-        <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+      <div className="fixed top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="fixed bottom-1/4 right-1/4 w-80 h-80 bg-indigo-500/8 rounded-full blur-[100px] pointer-events-none z-0" />
+
+      <Link to="/" className="fixed top-6 left-6 z-50 p-2.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-white/50 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300">
+        <ArrowLeft size={18} />
       </Link>
 
-      <motion.div 
-        initial={{ opacity: 0, rotateX: 20, y: 40, scale: 0.9 }}
-        animate={{ opacity: 1, rotateX: 0, y: 0, scale: 1 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[600px] my-12 relative z-10"
-        style={{ transformStyle: 'preserve-3d' }}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-lg"
       >
-        <Card 
-          className="p-6 md:p-10 space-y-8 border-none shadow-[0_20px_50px_rgba(0,0,0,0.5)] bg-zinc-900/40 backdrop-blur-3xl relative overflow-hidden ring-1 ring-zinc-800/50 hover:ring-primary/30 transition-all duration-700"
-          style={{ transform: "translateZ(20px)" }}
-        >
-          {/* Decorative glowing gradient inside card */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-          
-          <header className="text-center space-y-6 relative z-10">
-            <motion.div 
-              whileHover={{ scale: 1.1, rotateY: 180 }}
-              transition={{ duration: 0.6 }}
-              className="mx-auto w-20 h-20 bg-zinc-950/80 rounded-2xl flex items-center justify-center text-primary border border-zinc-800/80 shadow-[0_0_30px_rgba(244,197,10,0.15)] group transition-all duration-500 transform-gpu"
-            >
-              <div className="relative">
-                <UserPlus size={36} className="relative z-10" />
-                <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </div>
-            </motion.div>
-            
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-950/50 border border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] text-primary shadow-[0_0_10px_rgba(244,197,10,0.1)]">
-                <ShieldCheck size={12} className="text-primary" />
-                SKY PLAYER PRO
-              </div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tighter uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-200 to-zinc-400 drop-shadow-sm">
-                Rejoindre le Réseau
-              </h1>
-              <p className="text-zinc-500 text-xs sm:text-sm font-medium w-full mx-auto leading-relaxed">
-                Devenez revendeur officiel et commencez à gagner.
-              </p>
-            </div>
-          </header>
+        <div className="relative rounded-3xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
 
-          <form onSubmit={handleRegister} className="space-y-6 relative z-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5 focus-within:z-20 relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                <Input label="PRÉNOM" value={firstName} onChange={(e: any) => setFirstName(e.target.value)} icon={User} required className="bg-zinc-950/80 border-zinc-800/80 focus:border-primary/50 h-14 relative z-10 shadow-inner" />
-              </div>
-              <div className="space-y-1.5 focus-within:z-20 relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                <Input label="NOM" value={lastName} onChange={(e: any) => setLastName(e.target.value)} icon={User} required className="bg-zinc-950/80 border-zinc-800/80 focus:border-primary/50 h-14 relative z-10 shadow-inner" />
-              </div>
-              <div className="space-y-1.5 focus-within:z-20 relative md:col-span-2 group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                <Input label="NOM D'UTILISATEUR" value={username} onChange={(e: any) => setUsername(e.target.value)} icon={User} required className="bg-zinc-950/80 border-zinc-800/80 focus:border-primary/50 h-14 relative z-10 shadow-inner" />
-              </div>
-              <div className="space-y-1.5 focus-within:z-20 relative md:col-span-2 group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                <Input label="IDENTIFIANT EMAIL" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} icon={Mail} required className="bg-zinc-950/80 border-zinc-800/80 focus:border-primary/50 h-14 relative z-10 shadow-inner" />
-              </div>
-              <div className="space-y-1.5 focus-within:z-20 relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                <Input 
-                  label="MOT DE PASSE" 
-                  type={showPassword ? "text" : "password"} 
-                  value={password} 
-                  onChange={(e: any) => setPassword(e.target.value)} 
-                  icon={Lock} 
-                  required 
-                  className="bg-zinc-950/80 border-zinc-800/80 focus:border-primary/50 h-14 relative z-10 shadow-inner"
-                  rightElement={
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="p-2 pr-4 text-zinc-500 hover:text-white transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  }
-                />
-              </div>
-              <div className="space-y-1.5 focus-within:z-20 relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                <Input 
-                  label="CONFIRMER MOT DE PASSE" 
-                  type={showConfirmPassword ? "text" : "password"} 
-                  value={confirmPassword} 
-                  onChange={(e: any) => setConfirmPassword(e.target.value)} 
-                  icon={Lock} 
-                  required 
-                  className="bg-zinc-950/80 border-zinc-800/80 focus:border-primary/50 h-14 relative z-10 shadow-inner"
-                  error={confirmPassword && password !== confirmPassword ? "Ne correspond pas" : ""}
-                  rightElement={
-                    <button 
-                      type="button" 
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="p-2 pr-4 text-zinc-500 hover:text-white transition-colors"
-                    >
-                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  }
-                />
-              </div>
-              <div className="space-y-1.5 focus-within:z-20 relative md:col-span-2 group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                <Input 
-                  label="TÉLÉPHONE (AVEC INDICATIF)" 
-                  placeholder="+241 00 00 00 00"
-                  value={phone} 
-                  onChange={(e: any) => setPhone(e.target.value)} 
-                  icon={Phone} 
-                  required 
-                  className="bg-zinc-950/80 border-zinc-800/80 focus:border-primary/50 h-14 relative z-10 shadow-inner"
-                />
-              </div>
-              
-              <div className="space-y-1.5 md:col-span-2 focus-within:z-20 relative">
-                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2 flex items-center gap-2">
-                  <Globe size={10} />
-                  PAYS DE RÉSIDENCE
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative group">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                    <select 
-                      value={country} 
-                      onChange={(e) => setCountry(e.target.value)}
-                      className="relative z-10 w-full bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 text-sm focus:border-primary/50 outline-none transition-all hover:border-zinc-700 text-white h-14 appearance-none shadow-inner"
-                      style={{ backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%23a1a1aa\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")', backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
-                    >
-                      {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  {country === 'Autre' && (
-                    <div className="relative group">
-                      <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                      <Input 
-                        placeholder="Précisez votre pays" 
-                        value={customCountry} 
-                        onChange={(e: any) => setCustomCountry(e.target.value)}
-                        required
-                        className="relative z-10 bg-zinc-950/80 border-zinc-800/80 focus:border-primary/50 h-14 shadow-inner"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="pt-2">
-              <Button 
-                type="submit" 
-                fullWidth 
-                size="lg" 
-                loading={loading}
-                className="h-14 sm:h-16 text-xs sm:text-sm font-black uppercase tracking-widest group bg-gradient-to-r from-primary via-[#ffb900] to-primary hover:from-[#ffb900] hover:to-primary text-black border-none shadow-[0_0_20px_rgba(244,197,10,0.3)] transition-all overflow-hidden relative"
+          <div className="p-8 sm:p-10 space-y-7">
+            {/* Header */}
+            <div className="text-center space-y-4">
+              <motion.div
+                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                className="mx-auto w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center"
               >
-                <span className="relative z-10 flex items-center justify-center">
-                  S'inscrire Maintenant
-                  <ArrowRight size={18} className="shrink-0 ml-2 group-hover:translate-x-2 transition-transform" />
-                </span>
-              </Button>
-            </motion.div>
-          </form>
+                <UserPlus size={24} className="text-blue-400" />
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-blue-400/70 mb-2">Sky Player Pro</p>
+                <h1 className="text-2xl font-bold tracking-tight text-white/90">Créer un compte</h1>
+                <p className="text-sm text-white/30 mt-1">Rejoignez le réseau de streaming</p>
+              </motion.div>
+            </div>
 
-          <footer className="text-center pt-6 pb-2 relative z-10 border-t border-zinc-800/50 mt-6">
-            <p className="text-zinc-500 text-xs font-medium">
-              <span>Déjà membre ?</span>{' '}
-              <Link to="/login" className="text-primary font-black hover:text-white transition-colors underline-offset-4 decoration-2 hover:underline">
-                <span>Se connecter</span>
-              </Link>
-            </p>
-          </footer>
-        </Card>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="mt-8 sm:mt-10 flex items-center justify-center gap-2 text-zinc-600 drop-shadow-md pb-12"
-        >
-          <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-center w-full break-words px-4">
-            SKY PLAYER INFRASTRUCTURE &bull; SECURE NODES
-          </p>
-        </motion.div>
+            {/* Alerts */}
+            <AnimatePresence>
+              {error && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium">{error}</motion.div>
+              )}
+              {success && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  className="px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium flex items-center gap-2">
+                  <CheckCircle size={14} /> {success}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Form */}
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <motion.div initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}>
+                  <FieldInput label="Prénom" icon={User} value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Jean" required />
+                </motion.div>
+                <motion.div initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}>
+                  <FieldInput label="Nom" icon={User} value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Dupont" required />
+                </motion.div>
+              </div>
+
+              <motion.div initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
+                <FieldInput label="Nom d'utilisateur" icon={User} value={username} onChange={e => setUsername(e.target.value)} placeholder="jeandupont" required />
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.45 }}>
+                <FieldInput label="Email" type="email" icon={Mail} value={email} onChange={e => setEmail(e.target.value)} placeholder="votre@email.com" required />
+              </motion.div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <motion.div initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
+                  <FieldInput label="Mot de passe" type={showPassword ? 'text' : 'password'} icon={Lock}
+                    value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
+                    rightElement={<button type="button" onClick={() => setShowPassword(!showPassword)} className="p-2.5 text-white/20 hover:text-white/50 transition-colors shrink-0">{showPassword ? <EyeOff size={15} /> : <Eye size={15} />}</button>} />
+                </motion.div>
+                <motion.div initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
+                  <FieldInput label="Confirmer" type={showConfirm ? 'text' : 'password'} icon={Lock}
+                    value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" required
+                    error={confirmPassword && password !== confirmPassword ? 'Ne correspond pas' : ''}
+                    rightElement={<button type="button" onClick={() => setShowConfirm(!showConfirm)} className="p-2.5 text-white/20 hover:text-white/50 transition-colors shrink-0">{showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}</button>} />
+                </motion.div>
+              </div>
+
+              {/* Password rules */}
+              {password && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-wrap gap-x-3 gap-y-1 px-1">
+                  {PWD_RULES.map((rule, i) => (
+                    <span key={i} className={`text-[10px] font-medium flex items-center gap-1 ${rule.test(password) ? 'text-green-400' : 'text-white/20'}`}>
+                      {rule.test(password) ? <CheckCircle size={10} /> : <XCircle size={10} />}
+                      {rule.label}
+                    </span>
+                  ))}
+                </motion.div>
+              )}
+
+              <motion.div initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 }}>
+                <FieldInput label="Téléphone" icon={Phone} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+241 00 00 00 00" required />
+              </motion.div>
+
+              {/* Country */}
+              <motion.div initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 pl-1 flex items-center gap-1.5">
+                  <Globe size={10} /> Pays
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-0 rounded-xl bg-blue-500/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 blur-sm" />
+                  <select
+                    value={country} onChange={e => setCountry(e.target.value)}
+                    className="relative z-10 w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3.5 text-sm text-white/80 focus:border-blue-500/30 outline-none transition-colors appearance-none"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23666' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
+                  >
+                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                {country === 'Autre' && (
+                  <FieldInput label="" icon={Globe} value={customCountry} onChange={e => setCustomCountry(e.target.value)} placeholder="Nom du pays" required />
+                )}
+              </motion.div>
+
+              {/* Submit */}
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65 }}
+                whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                <button type="submit" disabled={loading}
+                  className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_30px_rgba(37,99,235,0.2)] hover:shadow-[0_0_40px_rgba(37,99,235,0.35)]">
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>S'inscrire <ArrowRight size={16} /></>
+                  )}
+                </button>
+              </motion.div>
+            </form>
+
+            {/* Footer */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+              className="text-center pt-4 border-t border-white/[0.05]">
+              <p className="text-white/30 text-xs">
+                Déjà un compte ?{' '}
+                <Link to="/login" className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">Se connecter</Link>
+              </p>
+            </motion.div>
+          </div>
+        </div>
+        <p className="text-center text-[9px] uppercase tracking-[0.3em] text-white/10 mt-6 font-bold">Sky Player Infrastructure</p>
       </motion.div>
     </div>
   );

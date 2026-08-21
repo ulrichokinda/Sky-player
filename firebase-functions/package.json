@@ -1,7 +1,7 @@
 {
-  "name": "skyplayer-joboost-cash-functions",
-  "version": "1.0.0",
-  "description": "Firebase Cloud Functions pour intégration Joboost Cash",
+  "name": "skyplayer-cloud-functions",
+  "version": "1.1.0",
+  "description": "Firebase Cloud Functions pour Sky Player Pro",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
