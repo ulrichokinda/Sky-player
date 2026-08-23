@@ -11,7 +11,8 @@
         </trust-anchors>
     </domain-config>
 
-    <!-- Flux IPTV : HTTP autorisé (serveurs providers non-HTTPS) -->
+    <!-- Flux IPTV : HTTP autorisé (la plupart des serveurs providers n'ont pas de HTTPS) -->
+    <!-- Le backend Sky-player (skyplayerapp.xyz) est déjà en HTTPS obligatoire ci-dessus -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />

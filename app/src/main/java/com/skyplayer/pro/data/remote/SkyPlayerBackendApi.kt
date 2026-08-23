@@ -7,6 +7,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.POST
 import retrofit2.http.Path
 
 /**
@@ -49,6 +50,15 @@ interface SkyPlayerBackendApi {
         @Path("mac") mac: String,
         @Header("X-Activation-API-Key") activationKey: String = BuildConfig.LICENSE_API_KEY
     ): Response<MacCheckResponse>
+
+    /**
+     * Heartbeat — informe le serveur de la chaîne en cours + timestamp.
+     */
+    @POST("api/activations/heartbeat")
+    suspend fun sendHeartbeat(
+        @Body body: HeartbeatRequest,
+        @Header("X-Activation-API-Key") activationKey: String = BuildConfig.LICENSE_API_KEY
+    ): Response<HeartbeatResponse>
 
     companion object {
         /** URL du backend déployé (injectée via BuildConfig) */
@@ -93,6 +103,24 @@ data class DeviceCheckResponse(
 /**
  * Réponse de GET /api/v1/playlist/{mac} — compat snake_case et camelCase.
  */
+/**
+ * Corps de POST /api/activations/heartbeat
+ */
+data class HeartbeatRequest(
+    val mac: String,
+    val system: String = "Android ${android.os.Build.VERSION.RELEASE}",
+    val version: String = "1.0.0-Pro",
+    val country: String? = null,
+    val channel: String? = null
+)
+
+/**
+ * Réponse de POST /api/activations/heartbeat
+ */
+data class HeartbeatResponse(
+    val success: Boolean = false
+)
+
 @Keep
 data class MacPlaylistResponse(
     val active: Boolean? = null,
@@ -109,12 +137,3 @@ data class MacPlaylistResponse(
     @SerializedName("expire") val expire: String? = null
 )
 
-/**
- * Réponse de GET /api/mac/check/{mac}
- */
-@Keep
-data class MacCheckResponse(
-    val active: Boolean,
-    val activation: Map<String, Any>? = null,
-    val error: String? = null
-)

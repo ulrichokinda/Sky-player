@@ -182,7 +182,7 @@ interface XtreamCodesApi {
                 }
                 reader.endArray()
             } catch (e: Exception) {
-                e.printStackTrace()
+                Timber.e(e, "Erreur parsing flux Xtream séries")
             } finally {
                 reader.close()
             }
@@ -199,7 +199,7 @@ interface XtreamCodesApi {
                     XtreamSeriesDetails::class.java
                 )
             } catch (e: Exception) {
-                e.printStackTrace()
+                Timber.e(e, "Erreur parsing détails série Xtream")
                 null
             }
         }
