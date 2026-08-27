@@ -78,6 +78,7 @@ setInterval(() => {
 // ─── Rate Limiter (in-memory) ───────────────────────────────────
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const RATE_WINDOW = 60_000;
+const XTREAM_TOKEN_SECRET = process.env.XTREAM_TOKEN_SECRET || crypto.randomBytes(32).toString('hex');
 const RATE_MAX = 100;
 function rateLimit(req: express.Request, res: express.Response, next: express.NextFunction) {
   // Exempt localhost from rate limiting (dev/preview)
