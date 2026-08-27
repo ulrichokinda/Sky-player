@@ -164,7 +164,9 @@ class SettingsViewModel @Inject constructor(
                         ?.filter { it.name.startsWith("cache") || it.name.endsWith(".tmp") }
                         ?.forEach { it.deleteRecursively() }
 
-                    database.channelDao().deleteAllChannels()
+                    // NE PAS supprimer les channels ici — c est un vidage cache, pas un reset
+                    // Les channels sont les playlists de l utilisateur
+                    Timber.d("Cache vidé sans supprimer les playlists")
                 }
 
                 Timber.i("🗑️ Cache vidé")

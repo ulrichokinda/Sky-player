@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,6 +72,8 @@ import com.skyplayer.pro.ui.theme.SuccessGreen
 import com.skyplayer.pro.ui.viewmodel.LicenseViewModel
 import com.skyplayer.pro.ui.viewmodel.ParentalViewModel
 import com.skyplayer.pro.ui.viewmodel.SettingsViewModel
+import com.skyplayer.pro.ui.viewmodel.toPlayerLabel
+import com.skyplayer.pro.ui.viewmodel.toAspectRatioLabel
 import com.skyplayer.pro.ui.viewmodel.StreamingPreferencesViewModel
 
 /**
@@ -303,6 +307,65 @@ fun SettingsScreen(
                 }
             }
 
+            // Section: Lecteur & Affichage
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SettingsSectionTitle("Lecteur & Affichage")
+                SettingsCard {
+                    Column {
+                        SettingsItem(
+                            icon = Icons.Default.Smartphone,
+                            title = "Lecteur vidéo",
+                            subtitle = settingsUiState.selectedPlayer.toPlayerLabel(),
+                            onClick = {
+                                val next = when (settingsUiState.selectedPlayer) {
+                                    "exo" -> "vlc"
+                                    "vlc" -> "ijk"
+                                    else -> "exo"
+                                }
+                                settingsViewModel.setPlayer(next)
+                            }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsItem(
+                            icon = Icons.Default.Videocam,
+                            title = "Ratio d'aspect",
+                            subtitle = settingsUiState.aspectRatio.toAspectRatioLabel(),
+                            onClick = {
+                                val next = when (settingsUiState.aspectRatio) {
+                                    "16:9" -> "4:3"
+                                    "4:3" -> "21:9"
+                                    "21:9" -> "auto"
+                                    else -> "16:9"
+                                }
+                                settingsViewModel.setAspectRatio(next)
+                            }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsItem(
+                            icon = Icons.Default.Language,
+                            title = "Langue",
+                            subtitle = when (settingsUiState.selectedLanguage) {
+                                "fr" -> "Français"
+                                "en" -> "English"
+                                "ar" -> "العربية"
+                                "sw" -> "Kiswahili"
+                                else -> settingsUiState.selectedLanguage
+                            },
+                            onClick = {
+                                val next = when (settingsUiState.selectedLanguage) {
+                                    "fr" -> "en"
+                                    "en" -> "ar"
+                                    "ar" -> "sw"
+                                    else -> "fr"
+                                }
+                                settingsViewModel.setLanguage(next)
+                            }
+                        )
+                    }
+                }
+            }
+
             // Section: Données
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -352,11 +415,16 @@ fun SettingsScreen(
                     Column {
                         // ID Appareil
                         val deviceId = uiState.deviceId
+                        val maskedId = if (deviceId.length > 8) {
+                            deviceId.take(4) + "*".repeat(deviceId.length - 8) + deviceId.takeLast(4)
+                        } else {
+                            deviceId
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable(onClick = {
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(deviceId))
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(maskedId))
                                 })
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -376,7 +444,7 @@ fun SettingsScreen(
                                     )
                                 )
                                 Text(
-                                    text = deviceId,
+                                    text = maskedId,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                                     ),
