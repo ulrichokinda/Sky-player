@@ -325,7 +325,7 @@ class NetworkShareManager @Inject constructor(
                     Timber.i("✅ Service résolu (callback) : $host:${resolvedInfo.port}")
                     _discoveredServices.value += resolvedInfo
                     // Une fois résolu, on peut désinscrire si on n'a besoin que d'une résolution ponctuelle
-                    try { nsdManager.unregisterServiceInfoCallback(this) } catch (e: Exception) {}
+                    try { nsdManager.unregisterServiceInfoCallback(this) } catch (e: Exception) { Timber.d("unregisterServiceInfoCallback: ${e.message}") }
                 }
 
                 override fun onServiceLost() {

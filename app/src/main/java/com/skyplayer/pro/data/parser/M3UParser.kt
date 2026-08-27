@@ -101,6 +101,7 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
             val bufferedStream = BufferedInputStream(inputStream)
 
             // Détection GZIP (Magic bytes: 0x1f 0x8b)
+            // Détection GZIP (Magic bytes: 0x1f 0x8b)
             val finalStream = if (isGzipped(bufferedStream)) {
                 Timber.d("Compression GZIP détectée pour $sourceUrl")
                 GZIPInputStream(bufferedStream)
@@ -108,7 +109,31 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
                 bufferedStream
             }
 
-            val reader = BufferedReader(InputStreamReader(finalStream, Charsets.UTF_8))
+            // Content sniffing : lire les premiers octets pour détecter du HTML/JSON/XML
+            // avant de tenter le parsing M3U — évite les erreurs cryptiques
+            val sniffer = BufferedInputStream(finalStream, 4096)
+            val isHtmlContent = sniffHtml(sniffer)
+
+            if (isHtmlContent) {
+                // Lire un extrait pour le message d'erreur
+                val preview = readPreview(sniffer)
+                val hint = when {
+                    preview.contains("login", ignoreCase = true) || preview.contains("connect", ignoreCase = true) ->
+                        "Le serveur renvoie une page de connexion. L'URL nécessite peut-être une authentification."
+                    preview.contains("captcha", ignoreCase = true) ->
+                        "Le serveur affiche un captcha. Réessayez plus tard."
+                    preview.contains("cloudflare", ignoreCase = true) || preview.contains("cf-", ignoreCase = true) ->
+                        "Le serveur est protégé par Cloudflare. Essayez une autre URL ou contactez le fournisseur."
+                    preview.contains("expired", ignoreCase = true) || preview.contains("expiré", ignoreCase = true) ->
+                        "L'abonnement ou le lien semble expiré."
+                    else ->
+                        "Le serveur renvoie une page web (HTML) au lieu d'une playlist M3U. Vérifiez l'URL ou contactez votre fournisseur IPTV."
+                }
+                Timber.e("❌ Contenu HTML détecté au lieu de M3U depuis $sourceUrl")
+                throw Exception(hint)
+            }
+
+            val reader = BufferedReader(InputStreamReader(sniffer, Charsets.UTF_8))
             val channels = mutableListOf<Channel>()
             var extInfLine: String? = null
             var lineNumber = 0
@@ -198,6 +223,57 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
     private fun extractEpgUrl(header: String): String? {
         val epgRegex = "(?:url-tvg|x-tvg-url)=\"([^\"]+)\"".toRegex(RegexOption.IGNORE_CASE)
         return epgRegex.find(header)?.groupValues?.get(1)
+    }
+
+    /**
+     * Sniff les premiers octets du flux pour détecter du HTML.
+     * Ne consomme pas le flux (mark/reset).
+     * @return true si le contenu est du HTML
+     */
+    private fun sniffHtml(stream: BufferedInputStream): Boolean {
+        val bufferSize = 512
+        stream.mark(bufferSize)
+        val bytes = ByteArray(bufferSize)
+        var totalRead = 0
+        while (totalRead < bufferSize) {
+            val read = stream.read(bytes, totalRead, bufferSize - totalRead)
+            if (read == -1) break
+            totalRead += read
+        }
+        stream.reset()
+
+        if (totalRead == 0) return false
+
+        val head = String(bytes, 0, totalRead, Charsets.UTF_8).trimStart()
+            .lowercase()
+            .replace(Regex("\\s+"), " ")
+        return head.startsWith("<!doctype") ||
+               head.startsWith("<html") ||
+               head.startsWith("<head") ||
+               head.startsWith("<?xml") && head.contains("<html") ||
+               head.contains("<html") ||
+               head.startsWith("{")  // JSON (Xtream API response)
+    }
+
+    /**
+     * Lit un extrait du stream pour le message d'erreur (apres sniffHtml).
+     * @return les 500 premiers caracteres lisibles
+     */
+    private fun readPreview(stream: BufferedInputStream): String {
+        val bufferSize = 1024
+        stream.mark(bufferSize)
+        val bytes = ByteArray(bufferSize)
+        var totalRead = 0
+        while (totalRead < bufferSize) {
+            val read = stream.read(bytes, totalRead, bufferSize - totalRead)
+            if (read == -1) break
+            totalRead += read
+        }
+        stream.reset()
+
+        return String(bytes, 0, totalRead, Charsets.ISO_8859_1)
+            .replace(Regex("[^ -~\n\r\t]"), " ")
+            .take(500)
     }
 
     /**

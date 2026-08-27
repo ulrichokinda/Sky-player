@@ -162,9 +162,19 @@ class PlaylistRepository @Inject constructor(
             val responseBody = response.body
                 ?: throw Exception("Le serveur n'a retourné aucun contenu")
 
+            // Validation Content-Type avant parsing — détecte les erreurs courantes
+            val contentType = response.header("Content-Type", "").orEmpty().lowercase()
+            if (contentType.contains("text/html") || contentType.contains("application/xhtml")) {
+                val msg = "Le serveur renvoie une page web (HTML) au lieu d'une playlist M3U."
+                Timber.e("❌ Content-Type HTML détecté:  pour ")
+                throw Exception(msg)
+            }
+
             // Téléchargement + parsing en UNE passe : le parser consomme le stream au fur et
             // à mesure (économie de RAM sur les grosses playlists — évite l'OOM sur box TV).
             val contentLength = responseBody.contentLength()
+            Timber.i("📥 Content-Type: , Content-Length: ")
+
             val bufferedInputStream = java.io.BufferedInputStream(responseBody.byteStream())
 
             emit(PlaylistLoadProgress.Loading("Parsing de la playlist...", if (contentLength > 0) 0f else null))
@@ -177,15 +187,19 @@ class PlaylistRepository @Inject constructor(
                     onEpgUrlFound = { epgUrl = it }
                 )
             } catch (e: Exception) {
+                // Propager les erreurs détaillées du parser (content sniffing, etc.)
                 Timber.e(e, "❌ Erreur parsing M3U")
-                throw Exception("Format de fichier invalide : Impossible de lire le contenu de la playlist.", e)
+                if (e.message?.contains("serveur") == true || e.message?.contains("HTML") == true || e.message?.contains("Cloudflare") == true) {
+                    throw e // Messages déjà explicites du parser
+                }
+                throw Exception("Format de fichier invalide : le contenu n'est pas une playlist M3U valide. URL: ", e)
             } finally {
                 // Libérer la connexion du pool OkHttp dès que le corps est consommé
                 response.close()
             }
 
             if (channels.isEmpty()) {
-                throw Exception("Aucune chaîne trouvée dans la playlist")
+                throw Exception("Aucune chaîne trouvée dans la playlist. Le fichier est peut-être vide, expiré ou au mauvais format. Vérifiez l'URL avec un navigateur.")
             } else {
                 emit(PlaylistLoadProgress.Loading("Sauvegarde des chaînes..."))
                 // Les IDs portent déjà le préfixe playlistId (pas de double préfixe)

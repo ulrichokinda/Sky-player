@@ -62,11 +62,17 @@ class LicenseManager @Inject constructor(
      * Format: XX:XX:XX:XX:XX:XX:XX:XX (8 segments hexadécimaux)
      * Cet ID est persistant même après réinstallation grâce au stockage chiffré
      */
+    /** Cache mémoire — évite un déchiffrement AES à chaque appel de [getDeviceId] */
+    @Volatile
+    private var cachedDeviceId: String? = null
+
     fun getDeviceId(): String {
+        cachedDeviceId?.let { return it }
         val existingId = encryptedPrefs.getString(KEY_DEVICE_ID, null)
-        
+
         return if (existingId != null) {
             Timber.d("📱 Device ID existant: $existingId")
+            cachedDeviceId = existingId
             existingId
         } else {
             // Générer un nouvel ID unique
@@ -78,6 +84,7 @@ class LicenseManager @Inject constructor(
             encryptedPrefs.edit().putLong(KEY_INSTALL_DATE, installTime).apply()
             
             Timber.i("🆕 Nouveau Device ID généré: $newId")
+            cachedDeviceId = newId
             Timber.i("📅 Date d'installation: ${java.util.Date(installTime)}")
             
             newId

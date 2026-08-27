@@ -114,26 +114,30 @@ class DashboardViewModel @Inject constructor(
     // ═══════════════════════════════════════════════════════════════
 
     init {
-        val deviceId = licenseManager.getDeviceId()
-        _deviceId.value = deviceId
-        Timber.i("📱 DashboardViewModel init - Device ID: $deviceId")
-
-        // 1. Vérification initiale du statut
+        // getDeviceId() fait de l'I/O (EncryptedSharedPreferences + fichiers système) :
+        // on le sort du thread principal pour éviter tout jank/ANR au premier lancement.
         viewModelScope.launch {
+            val deviceId = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                licenseManager.getDeviceId()
+            }
+            _deviceId.value = deviceId
+            Timber.i("📱 DashboardViewModel init - Device ID: $deviceId")
+
+            // 1. Vérification initiale du statut
             checkDeviceStatus(deviceId)
-            
-            // Vérification périodique
-            while (true) {
-                kotlinx.coroutines.delay(60_000)
-                Timber.i("🔄 Actualisation périodique du statut...")
-                if (!_isChecking.value && !_isSyncing.value && _macPlaylistStatus.value is MacPlaylistStatus.None) {
-                    checkDeviceStatus(deviceId)
+
+            // 2. Vérification périodique du statut
+            launch {
+                while (true) {
+                    kotlinx.coroutines.delay(60_000)
+                    Timber.i("🔄 Actualisation périodique du statut...")
+                    if (!_isChecking.value && !_isSyncing.value && _macPlaylistStatus.value is MacPlaylistStatus.None) {
+                        checkDeviceStatus(deviceId)
+                    }
                 }
             }
-        }
-        
-        // 2. Écoute Firestore en temps réel (source de vérité : backend Sky-player)
-        viewModelScope.launch {
+
+            // 3. Écoute Firestore en temps réel (source de vérité : backend Sky-player)
             licenseRepository.observeActivation(deviceId).collect { activation ->
                 handleFirestoreActivation(activation)
             }

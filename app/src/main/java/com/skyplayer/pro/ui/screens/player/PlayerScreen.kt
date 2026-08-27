@@ -69,6 +69,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import timber.log.Timber
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -481,7 +482,7 @@ private fun enterPipMode(activity: Activity?) {
             .build()
         activity?.enterPictureInPictureMode(params)
     } catch (e: Exception) {
-        e.printStackTrace()
+        Timber.e(e, "Erreur entrée mode PiP")
     }
 }
 
