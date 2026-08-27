@@ -29,7 +29,7 @@ class LicenseSecurityManager @Inject constructor(
     companion object {
         private const val TRIAL_DAYS = LicenseManager.TRIAL_DAYS.toLong()
         private const val DAY_IN_MILLIS = 24 * 60 * 60 * 1000L
-        private const val MONITOR_INTERVAL_MS = 60_000L
+        private const val MONITOR_INTERVAL_MS = 300_000L // 5 minutes (reduit les reads Firestore)
     }
 
     /**
