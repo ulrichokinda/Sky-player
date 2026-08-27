@@ -263,6 +263,32 @@ fun rememberScrollSyncedCategory(
     return category
 }
 
+/**
+ * Version pour LazyVerticalGrid : observe le scroll d une grille et retourne
+ * la categorie du premier element visible. Se re-evalue quand les donnees changent.
+ */
+@Composable
+fun rememberGridScrollSyncedCategory(
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState,
+    categories: List<com.skyplayer.pro.data.organizer.ChannelCategory>,
+    entries: List<GridSectionEntry>,
+    selectedCategory: String?
+): MutableState<String?> {
+    val category = remember { mutableStateOf<String?>(null) }
+    val currentEntries by rememberUpdatedState(entries)
+
+    LaunchedEffect(gridState, currentEntries) {
+        snapshotFlow { gridState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { index ->
+                val entry = currentEntries.getOrNull(index)
+                category.value = entry?.category
+            }
+    }
+    return category
+}
+
+
 @Composable
 private fun CategoryItem(
     name: String,

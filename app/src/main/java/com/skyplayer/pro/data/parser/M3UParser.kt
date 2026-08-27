@@ -98,6 +98,7 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
         onEpgUrlFound: (String) -> Unit = {}
     ): List<Channel> {
         return withContext(Dispatchers.IO) {
+            Timber.d("parseFromInputStream demarre - source: ${sourceUrl ?: "inconnue"}")
             val bufferedStream = BufferedInputStream(inputStream)
 
             // Détection GZIP (Magic bytes: 0x1f 0x8b)
@@ -224,14 +225,14 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
         val epgRegex = "(?:url-tvg|x-tvg-url)=\"([^\"]+)\"".toRegex(RegexOption.IGNORE_CASE)
         return epgRegex.find(header)?.groupValues?.get(1)
     }
-
     /**
-     * Sniff les premiers octets du flux pour détecter du HTML.
+     * Sniff les premiers octets du flux pour detecter du contenu non-M3U.
+     * Detecte HTML, XML, JSON, binaire et pages de protection.
      * Ne consomme pas le flux (mark/reset).
-     * @return true si le contenu est du HTML
+     * @return true si le contenu n est PAS du M3U valide
      */
     private fun sniffHtml(stream: BufferedInputStream): Boolean {
-        val bufferSize = 512
+        val bufferSize = 1024
         stream.mark(bufferSize)
         val bytes = ByteArray(bufferSize)
         var totalRead = 0
@@ -242,25 +243,72 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
         }
         stream.reset()
 
-        if (totalRead == 0) return false
+        if (totalRead == 0) return true  // Vide = pas M3U
 
         val head = String(bytes, 0, totalRead, Charsets.UTF_8).trimStart()
             .lowercase()
             .replace(Regex("\\s+"), " ")
-        return head.startsWith("<!doctype") ||
-               head.startsWith("<html") ||
-               head.startsWith("<head") ||
-               head.startsWith("<?xml") && head.contains("<html") ||
-               head.contains("<html") ||
-               head.startsWith("{")  // JSON (Xtream API response)
-    }
+            .take(600)
 
+        // Detection HTML
+        if (head.startsWith("<!doctype") ||
+            head.startsWith("<html") ||
+            head.startsWith("<head") ||
+            head.contains("<html") ||
+            head.startsWith("<body")) {
+            Timber.e("Content sniffing: HTML detecte")
+            return true
+        }
+
+        // Detection XML (API reponses, erreurs serveur)
+        if (head.startsWith("<?xml") ||
+            (head.startsWith("<") && (head.contains("<response") || head.contains("<error") || head.contains("<result")))) {
+            Timber.e("Content sniffing: XML/API reponse detectee")
+            return true
+        }
+
+        // Detection JSON (API Xtream, erreurs)
+        if (head.startsWith("{") || head.startsWith("[")) {
+            if (!head.contains("#extm3u") && !head.contains("#extinf")) {
+                Timber.e("Content sniffing: JSON detecte")
+                return true
+            }
+        }
+
+        // Detection binaire (bytes non-printable > 30% du buffer)
+        var nonPrintable = 0
+        for (i in 0 until minOf(totalRead, 512)) {
+            val b = bytes[i].toInt() and 0xFF
+            if (b < 0x20 && b != 0x0A && b != 0x0D && b != 0x09) nonPrintable++
+        }
+        if (totalRead > 0 && nonPrintable * 100 / totalRead > 30) {
+            Timber.e("Content sniffing: contenu binaire detecte")
+            return true
+        }
+
+        // Detection pages de login/captcha/erreur courante
+        val suspiciousPatterns = listOf(
+            "sign in", "log in", "login", "password", "authenticate",
+            "access denied", "forbidden", "unauthorized", "cloudflare",
+            "checking your browser", "please wait", "just a moment",
+            "verifying", "challenge", "captcha", "rate limit",
+            "too many requests", "service unavailable", "maintenance"
+        )
+        for (pattern in suspiciousPatterns) {
+            if (head.contains(pattern)) {
+                Timber.e("Content sniffing: page de protection detectee (mot-cle: $pattern)")
+                return true
+            }
+        }
+
+        return false
+    }
     /**
-     * Lit un extrait du stream pour le message d'erreur (apres sniffHtml).
-     * @return les 500 premiers caracteres lisibles
+     * Lit un extrait du stream pour le message d erreur (apres sniffHtml).
+     * @return les 800 premiers caracteres lisibles
      */
     private fun readPreview(stream: BufferedInputStream): String {
-        val bufferSize = 1024
+        val bufferSize = 2048
         stream.mark(bufferSize)
         val bytes = ByteArray(bufferSize)
         var totalRead = 0
@@ -273,7 +321,7 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
 
         return String(bytes, 0, totalRead, Charsets.ISO_8859_1)
             .replace(Regex("[^ -~\n\r\t]"), " ")
-            .take(500)
+            .take(800)
     }
 
     /**

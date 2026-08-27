@@ -73,7 +73,7 @@ import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
 import com.skyplayer.pro.ui.components.TrustAction
 import com.skyplayer.pro.ui.components.ImmersiveSeriesCard
 import com.skyplayer.pro.ui.components.TrustStateView
-import com.skyplayer.pro.ui.components.rememberVisibleIndexCategory
+import com.skyplayer.pro.ui.components.rememberGridScrollSyncedCategory
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.ui.res.stringResource
 import com.skyplayer.pro.R
@@ -119,9 +119,11 @@ fun SeriesScreen(
     // Les en-têtes de section sont insérés dans la grille (pleine largeur).
     val gridEntries = remember(series) { series.withSectionHeaders() }
     val gridState = rememberLazyGridState()
-    val scrollVisibleCategory = rememberVisibleIndexCategory(
-        firstVisibleIndexProvider = { gridState.firstVisibleItemIndex },
-        itemCategory = { index -> gridEntries.getOrNull(index)?.category }
+    val scrollVisibleCategory = rememberGridScrollSyncedCategory(
+        gridState = gridState,
+        categories = categories,
+        entries = gridEntries,
+        selectedCategory = selectedCategory
     )
     val sidebarHighlight = scrollVisibleCategory.value ?: selectedCategory
 

@@ -78,7 +78,7 @@ import com.skyplayer.pro.ui.components.TrustAction
 import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
 import com.skyplayer.pro.ui.components.TrustStateView
 import com.skyplayer.pro.ui.components.ImmersiveMovieCard
-import com.skyplayer.pro.ui.components.rememberVisibleIndexCategory
+import com.skyplayer.pro.ui.components.rememberGridScrollSyncedCategory
 import com.skyplayer.pro.ui.theme.PureBlack
 import androidx.compose.ui.res.stringResource
 import com.skyplayer.pro.R
@@ -118,9 +118,11 @@ fun VODScreen(
     // Les en-têtes de section sont insérés dans la grille (pleine largeur).
     val gridEntries = remember(movies) { movies.withSectionHeaders() }
     val gridState = rememberLazyGridState()
-    val scrollVisibleCategory = rememberVisibleIndexCategory(
-        firstVisibleIndexProvider = { gridState.firstVisibleItemIndex },
-        itemCategory = { index -> gridEntries.getOrNull(index)?.category }
+    val scrollVisibleCategory = rememberGridScrollSyncedCategory(
+        gridState = gridState,
+        categories = categories,
+        entries = gridEntries,
+        selectedCategory = selectedCategory
     )
     val sidebarHighlight = scrollVisibleCategory.value ?: selectedCategory
 

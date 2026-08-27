@@ -192,7 +192,7 @@ class PlaylistRepository @Inject constructor(
                 if (e.message?.contains("serveur") == true || e.message?.contains("HTML") == true || e.message?.contains("Cloudflare") == true) {
                     throw e // Messages déjà explicites du parser
                 }
-                throw Exception("Format de fichier invalide : le contenu n'est pas une playlist M3U valide. URL: ", e)
+                throw Exception("Le contenu recu n'est pas une playlist M3U valide. Cause: ${e.message ?: "inconnue"}. Verifiez que l'URL pointe vers un fichier .m3u/.m3u8 et non vers une page web ou une API JSON.", e)
             } finally {
                 // Libérer la connexion du pool OkHttp dès que le corps est consommé
                 response.close()
