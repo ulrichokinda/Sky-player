@@ -89,6 +89,7 @@ import com.skyplayer.pro.ui.components.SectionTopBar
 import com.skyplayer.pro.ui.components.HorizontalCategoryTabs
 import com.skyplayer.pro.ui.components.TrustAction
 import com.skyplayer.pro.ui.components.TrustStateView
+import com.skyplayer.pro.ui.components.rememberScrollSyncedCategory
 import com.skyplayer.pro.ui.components.rememberVisibleIndexCategory
 import com.skyplayer.pro.ui.theme.CardBlack
 import com.skyplayer.pro.ui.theme.PremiumEmerald
@@ -144,9 +145,11 @@ fun LiveTVScreen(
     // En mode TOUT, la liste traverse toutes les catégories : le premier élément
     // visible détermine la catégorie surlignée dans le sidebar (tactile OU D-pad).
     val contentListState = rememberLazyListState()
-    val scrollVisibleCategory = rememberVisibleIndexCategory(
-        firstVisibleIndexProvider = { contentListState.firstVisibleItemIndex },
-        itemCategory = { index -> channels.getOrNull(index)?.category }
+    val scrollVisibleCategory = rememberScrollSyncedCategory(
+        listState = contentListState,
+        categories = categories,
+        channels = channels,
+        selectedCategory = selectedCategory
     )
     val sidebarHighlight = scrollVisibleCategory.value ?: selectedCategory
 

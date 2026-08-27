@@ -36,9 +36,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import android.app.PictureInPictureParams
 import com.skyplayer.pro.data.encrypted.EncryptedPrefs
+import com.skyplayer.pro.data.manager.ThemeManager
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Activité principale de l'application
@@ -57,6 +59,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var encryptedPrefs: EncryptedPrefs
+
+    @Inject
+    lateinit var themeManager: ThemeManager
 
     // État de la PiP pour les composables
     var isPiPActive by mutableStateOf(false)
@@ -81,13 +86,8 @@ class MainActivity : ComponentActivity() {
             // Marquer le content comme prêt au premier frame — élimine l'écran blanc TV
             isContentReady = true
 
-            // Écouter les changements de thème
-            var themeMode by remember { mutableStateOf(encryptedPrefs.getString("theme_mode", "dark") ?: "dark") }
-
-            LaunchedEffect(Unit) {
-                // Polling simple pour les changements de thème (alternatif: Flow)
-                // Dans un projet plus complexe, utiliser un StateFlow depuis ViewModel
-            }
+            // Écouter les changements de thème via le ThemeManager réactif
+            val themeMode by themeManager.themeMode.collectAsStateWithLifecycle()
 
             SkyPlayerProTheme(themeMode = themeMode) {
                 Surface(

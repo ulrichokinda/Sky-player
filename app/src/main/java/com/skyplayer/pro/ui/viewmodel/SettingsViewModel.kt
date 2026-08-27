@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.skyplayer.pro.data.encrypted.EncryptedPrefs
 import com.skyplayer.pro.data.local.AppDatabase
+import com.skyplayer.pro.data.manager.ThemeManager
 import com.skyplayer.pro.data.repository.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -30,6 +31,7 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val encryptedPrefs: EncryptedPrefs,
     private val playlistRepository: PlaylistRepository,
+    private val themeManager: ThemeManager,
     private val database: AppDatabase
 ) : ViewModel() {
 
@@ -249,10 +251,11 @@ data class SettingsUiState(
  */
 fun String.toBufferLabel(): String {
     val seconds = this.toIntOrNull() ?: 60
-    return when (seconds) {
-        30 -> "30s (Réseau rapide)"
-        60 -> "60s (Recommandé)"
-        120 -> "120s (Réseau lent)"
+    return when {
+        seconds <= 15 -> "${seconds}s (Très faible latence)"
+        seconds <= 30 -> "${seconds}s (Réseau rapide)"
+        seconds <= 60 -> "${seconds}s (Recommandé)"
+        seconds <= 90 -> "${seconds}s (Réseau lent)"
         else -> "${seconds}s"
     }
 }

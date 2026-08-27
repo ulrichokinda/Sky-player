@@ -237,6 +237,32 @@ fun rememberVisibleIndexCategory(
     return category
 }
 
+/**
+ * Version amelioree : observe le scroll d'une LazyColumn et retourne
+ * la categorie du premier element visible. Plus fiable que la version
+ * precedente car elle observe directement le LazyListState.
+ */
+@Composable
+fun rememberScrollSyncedCategory(
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    categories: List<com.skyplayer.pro.data.organizer.ChannelCategory>,
+    channels: List<com.skyplayer.pro.data.model.Channel>,
+    selectedCategory: String?
+): MutableState<String?> {
+    val category = remember { mutableStateOf<String?>(null) }
+    val currentChannels by rememberUpdatedState(channels)
+
+    LaunchedEffect(listState, currentChannels) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { index ->
+                val channel = currentChannels.getOrNull(index)
+                category.value = channel?.category
+            }
+    }
+    return category
+}
+
 @Composable
 private fun CategoryItem(
     name: String,

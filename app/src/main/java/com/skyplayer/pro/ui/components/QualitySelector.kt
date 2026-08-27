@@ -235,7 +235,7 @@ fun StreamingAdvancedSettings(
             Slider(
                 value = bufferDuration.toFloat(),
                 onValueChange = { onBufferDurationChanged(it.toInt()) },
-                valueRange = 10f..120f,
+                valueRange = 10f..90f,
                 steps = 10
             )
 
