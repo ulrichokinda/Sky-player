@@ -1,6 +1,7 @@
 package com.skyplayer.pro.data.security
 
 import com.skyplayer.pro.data.encrypted.EncryptedPrefs
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -79,15 +80,15 @@ class ParentalControlManager @Inject constructor(
      * Définit le code PIN
      */
     fun setPin(pin: String) {
-        encryptedPrefs.saveString(KEY_PARENTAL_PIN, pin)
+        encryptedPrefs.saveString(KEY_PARENTAL_PIN, hashPin(pin))
     }
 
     /**
      * Vérifie si le PIN saisi est correct
      */
     fun checkPin(pin: String): Boolean {
-        val savedPin = encryptedPrefs.getString(KEY_PARENTAL_PIN)
-        return savedPin == pin
+        val savedHash = encryptedPrefs.getString(KEY_PARENTAL_PIN) ?: return false
+        return savedHash == hashPin(pin)
     }
 
     /**
@@ -117,5 +118,10 @@ class ParentalControlManager @Inject constructor(
             locked.add(categoryName)
         }
         encryptedPrefs.saveString(KEY_LOCKED_CATEGORIES, locked.joinToString(","))
+    }
+
+    private fun hashPin(pin: String): String {
+        val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(pin.toByteArray())
+        return bytes.joinToString("") { "%02x".format(it) }
     }
 }

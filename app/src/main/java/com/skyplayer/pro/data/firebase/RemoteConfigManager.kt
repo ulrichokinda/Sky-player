@@ -59,7 +59,7 @@ class RemoteConfigManager @Inject constructor(
      */
     fun startListening(deviceId: String) {
         if (isListening && currentDeviceId == deviceId) {
-            Timber.d("🔊 Écoute déjà active pour $deviceId")
+            Timber.d("Listener already active")
             return
         }
 
@@ -104,7 +104,7 @@ class RemoteConfigManager @Inject constructor(
                 processActivation(activation, deviceId)
             }
 
-        Timber.i("🎧 Écoute Firestore démarrée: activations + devices/$safeMac")
+        Timber.i("Firestore listener started")
     }
 
     /**
@@ -112,7 +112,7 @@ class RemoteConfigManager @Inject constructor(
      */
     private fun processActivation(activation: FirestoreActivation?, deviceId: String) {
         if (activation == null) {
-            Timber.d("ℹ️ Aucune activation Firestore pour $deviceId")
+            Timber.d("No Firestore activation found")
             return
         }
 

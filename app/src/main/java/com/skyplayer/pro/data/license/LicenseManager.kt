@@ -133,7 +133,7 @@ class LicenseManager @Inject constructor(
         }
 
         val result = macBuilder.toString()
-        Timber.i("🔐 Device ID généré — MAC physique: ${physicalMac.take(5)}*** ANDROID_ID: ${androidId.take(8)}*** → $result")
+        Timber.i("Device ID genere (hash: ${result.take(8)}...)")
         return result
     }
 
@@ -170,7 +170,7 @@ class LicenseManager @Inject constructor(
                 if (hardwareAddress.size < 6) continue
                 val mac = hardwareAddress.joinToString(":") { "%02X".format(it) }
                 if (mac != "02:00:00:00:00:00" && mac != "00:00:00:00:00:00") {
-                    Timber.d("📡 MAC physique via NetworkInterface (${iface.name}): $mac")
+                    Timber.d("MAC physique via NetworkInterface")
                     return mac
                 }
             }

@@ -297,6 +297,8 @@ class DeviceIdentifier private constructor(private val context: Context) {
      * si l'utilisateur choisit "Conserver les données de l'application"
      */
     private fun writeToExternalBackup(deviceId: String) {
+        // DESACTIVE: XOR n est pas un chiffrement
+        return
         try {
             // Utiliser le répertoire Documents de l'app (persistent)
             val backupDir = File(context.getExternalFilesDir(null), BACKUP_SUBDIR)
@@ -332,7 +334,9 @@ class DeviceIdentifier private constructor(private val context: Context) {
      * Lit le backup depuis le stockage externe
      */
     private fun readFromExternalBackup(): String? {
-        return try {
+        // DESACTIVE: XOR n est pas un chiffrement
+        return null
+        try {
             val backupDir = File(context.getExternalFilesDir(null), BACKUP_SUBDIR)
             val backupFile = File(backupDir, BACKUP_FILENAME)
 

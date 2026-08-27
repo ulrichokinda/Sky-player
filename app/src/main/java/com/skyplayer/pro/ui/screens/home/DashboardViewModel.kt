@@ -121,7 +121,7 @@ class DashboardViewModel @Inject constructor(
                 licenseManager.getDeviceId()
             }
             _deviceId.value = deviceId
-            Timber.i("📱 DashboardViewModel init - Device ID: $deviceId")
+            Timber.i("DashboardViewModel init")
 
             // 1. Vérification initiale du statut
             checkDeviceStatus(deviceId)

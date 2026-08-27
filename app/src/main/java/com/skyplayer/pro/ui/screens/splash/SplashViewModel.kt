@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.os.Build
+import java.io.File
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -31,17 +33,26 @@ class SplashViewModel @Inject constructor(
     private val _navigationEvent = MutableStateFlow<SplashNavigation?>(null)
     val navigationEvent: StateFlow<SplashNavigation?> = _navigationEvent.asStateFlow()
 
+        private val _isCompromised = MutableStateFlow(false)
+    val isCompromised: StateFlow<Boolean> = _isCompromised.asStateFlow()
     private val splashDelayMs = 2500L
 
     init {
         viewModelScope.launch {
-            Timber.i("SplashScreen - Démarrage temporisation")
+            _isCompromised.value = checkDeviceIntegrity()
+            Timber.i("SplashScreen - Demarrage temporisation")
             delay(splashDelayMs)
 
             val destination = resolveDestination()
             _navigationEvent.value = destination
             Timber.i("Navigation splash → %s", destination::class.simpleName)
         }
+    }
+
+        private fun checkDeviceIntegrity(): Boolean {
+        if (Build.TAGS?.contains("test-keys") == true) return true
+        val emu = Build.FINGERPRINT.startsWith("generic") || Build.MODEL.contains("google_sdk") || Build.MODEL.contains("Emulator") || Build.PRODUCT.contains("emulator") || Build.HARDWARE.contains("goldfish") || Build.HARDWARE.contains("ranchu")
+        return emu
     }
 
     private suspend fun resolveDestination(): SplashNavigation {

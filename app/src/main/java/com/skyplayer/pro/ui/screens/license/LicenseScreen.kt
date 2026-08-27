@@ -290,7 +290,7 @@ private fun DeviceIdCard(
                         onClick = {
                             clipboardManager.setText(AnnotatedString(deviceId))
                             copied = true
-                            Timber.i("📋 ID copié: $deviceId")
+                            Timber.i("ID copied to clipboard")
                         }
                     ) {
                         Icon(

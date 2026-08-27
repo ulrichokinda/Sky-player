@@ -73,7 +73,7 @@ class DeviceCheckService @Inject constructor(
                 androidVersion = android.os.Build.VERSION.RELEASE
             )
 
-            Timber.i("🔐 DeviceCheck - MAC: ${macAddress.take(8)}...")
+            Timber.i("DeviceCheck in progress")
 
             val response = backendApi.checkDevice(body)
 

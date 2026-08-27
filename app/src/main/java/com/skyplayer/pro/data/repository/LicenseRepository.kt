@@ -72,7 +72,7 @@ class LicenseRepository @Inject constructor(
                 if (response.isSuccessful) {
                     val data = response.body()
                     if (data != null) {
-                        Timber.i("✅ Backend: MAC $mac active=${data.active}")
+                        Timber.i("Backend access check")
                         Result.success(data)
                     } else {
                         Result.failure(Exception("Réponse vide du backend"))
@@ -179,11 +179,11 @@ class LicenseRepository @Inject constructor(
             } else {
                 val doc = snapshot.documents.first()
                 val activation = doc.toObject(FirestoreActivation::class.java)
-                Timber.i("📄 Firestore activation found for $macAddress")
+                Timber.i("Firestore activation found")
                 Result.success(activation)
             }
         } catch (e: Exception) {
-            Timber.e(e, "❌ Error getting Firestore activation for $macAddress")
+            Timber.e(e, "Error getting Firestore activation")
             Result.failure(e)
         }
     }
@@ -192,7 +192,7 @@ class LicenseRepository @Inject constructor(
      * Écoute en temps réel les changements d'activation Firestore
      */
     fun observeActivation(macAddress: String): Flow<FirestoreActivation?> = callbackFlow {
-        Timber.i("👂 Listening for Firestore activations for $macAddress")
+        Timber.i("Listening for Firestore activations")
 
         currentListener = firestore.collection("activations")
             .whereEqualTo("target_mac", macAddress)
@@ -209,7 +209,7 @@ class LicenseRepository @Inject constructor(
                     Timber.i("🔄 Firestore activation update: $activation")
                     trySend(activation)
                 } else {
-                    Timber.d("ℹ️ No Firestore activation found for $macAddress")
+                    Timber.d("No Firestore activation found")
                     trySend(null)
                 }
             }
