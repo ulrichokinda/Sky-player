@@ -52,7 +52,8 @@ class SplashViewModel @Inject constructor(
         private fun checkDeviceIntegrity(): Boolean {
         if (Build.TAGS?.contains("test-keys") == true) return true
         val emu = Build.FINGERPRINT.startsWith("generic") || Build.MODEL.contains("google_sdk") || Build.MODEL.contains("Emulator") || Build.PRODUCT.contains("emulator") || Build.HARDWARE.contains("goldfish") || Build.HARDWARE.contains("ranchu")
-        return emu
+        val debugged = try { android.os.Debug.isDebuggerConnected() } catch (_: Exception) { false }
+        return emu || debugged
     }
 
     private suspend fun resolveDestination(): SplashNavigation {

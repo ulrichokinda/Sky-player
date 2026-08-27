@@ -518,4 +518,9 @@ class DashboardViewModel @Inject constructor(
         data class Found(val info: MacPlaylistInfo) : MacPlaylistStatus()
         object None : MacPlaylistStatus()
     }
+
+    private fun maskDeviceId(id: String): String {
+        if (id.length <= 8) return id
+        return id.take(4) + "****" + id.takeLast(4)
+    }
 }
