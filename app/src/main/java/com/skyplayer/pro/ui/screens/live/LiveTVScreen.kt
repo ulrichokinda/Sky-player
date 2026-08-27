@@ -290,8 +290,14 @@ fun LiveTVScreen(
                     categories = categories.map { it.name },
                     selectedCategory = selectedCategory,
                     onCategorySelected = { category ->
-                        val categoryObj = categories.find { it.name == category }
-                        categoryObj?.let { onCategoryClick(it) }
+                        if (category == "ALL") {
+                            // TOUT : afficher toutes les categories
+                            val allCategory = com.skyplayer.pro.data.organizer.ChannelCategory("ALL", emptyList())
+                            onCategoryClick(allCategory)
+                        } else {
+                            val categoryObj = categories.find { it.name == category }
+                            categoryObj?.let { onCategoryClick(it) }
+                        }
                     }
                 )
                 Spacer(modifier = Modifier.height(8.dp))

@@ -186,13 +186,17 @@ fun SeriesScreen(
                     categories = categories.map { it.name },
                     selectedCategory = selectedCategory,
                     onCategorySelected = { category ->
-                        val categoryObj = categories.find { it.name == category }
-                        categoryObj?.let {
-                            if (parentalViewModel.manager.isSensitiveCategory(it.name)) {
-                                pendingCategoryName = it.name
-                                showPinDialog = true
-                            } else {
-                                viewModel.selectCategory(it.name)
+                        if (category == "ALL") {
+                            viewModel.selectCategory("ALL")
+                        } else {
+                            val categoryObj = categories.find { it.name == category }
+                            categoryObj?.let {
+                                if (parentalViewModel.manager.isSensitiveCategory(it.name)) {
+                                    pendingCategoryName = it.name
+                                    showPinDialog = true
+                                } else {
+                                    viewModel.selectCategory(it.name)
+                                }
                             }
                         }
                     }

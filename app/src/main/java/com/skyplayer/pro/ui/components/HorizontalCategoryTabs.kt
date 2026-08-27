@@ -36,6 +36,9 @@ fun HorizontalCategoryTabs(
     onCategorySelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Ajouter "TOUT" en premier + les categories filtrees
+    val allCategories = listOf("TOUT") + categories
+
     LazyRow(
         modifier = modifier
             .fillMaxWidth()
@@ -43,20 +46,23 @@ fun HorizontalCategoryTabs(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 4.dp)
     ) {
-        items(categories) { category ->
+        items(allCategories) { category ->
+            // TOUT est selectionne quand selectedCategory est null (mode ALL)
+            val isSelected = if (category == "TOUT") selectedCategory == null
+                             else category == selectedCategory
             FilterChip(
-                selected = category == selectedCategory,
-                onClick = { onCategorySelected(category) },
+                selected = isSelected,
+                onClick = { onCategorySelected(if (category == "TOUT") "ALL" else category) },
                 label = {
                     Text(
                         text = category,
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = if (category == selectedCategory) 
+                            fontWeight = if (isSelected) 
                                 FontWeight.SemiBold 
                             else 
                                 FontWeight.Normal
                         ),
-                        color = if (category == selectedCategory)
+                        color = if (isSelected)
                             PureBlack
                         else
                             Color.White.copy(alpha = 0.7f)
@@ -70,12 +76,12 @@ fun HorizontalCategoryTabs(
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
-                    selected = category == selectedCategory,
-                    borderColor = if (category == selectedCategory)
+                    selected = isSelected,
+                    borderColor = if (isSelected)
                         PremiumEmerald
                     else
                         Color.White.copy(alpha = 0.2f),
-                    borderWidth = if (category == selectedCategory) 2.dp else 1.dp
+                    borderWidth = if (isSelected) 2.dp else 1.dp
                 ),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.height(40.dp)
