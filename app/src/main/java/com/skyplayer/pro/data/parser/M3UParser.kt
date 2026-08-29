@@ -233,10 +233,16 @@ class M3UParser(private val okHttpClient: OkHttpClient) {
      */
     private fun sniffHtml(stream: BufferedInputStream): Boolean {
         val bufferSize = 1024
-        stream.mark(bufferSize)
+        stream.mark(bufferSize + 64) // marge pour GZIP header expansion
         val bytes = ByteArray(bufferSize)
         var totalRead = 0
+        val deadline = System.currentTimeMillis() + 15_000L // 15s max pour sniff
         while (totalRead < bufferSize) {
+            if (System.currentTimeMillis() > deadline) {
+                Timber.e("Content sniffing: timeout lecture (serveur trop lent?)")
+                stream.reset()
+                return true // Timeout = probablement pas M3U valide
+            }
             val read = stream.read(bytes, totalRead, bufferSize - totalRead)
             if (read == -1) break
             totalRead += read

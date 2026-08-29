@@ -83,6 +83,10 @@ class PlaylistRepository @Inject constructor(
         private const val XTREAM_CREDS_PREFS = "xtream_credentials_vault"
         /** Garde-fou global : un serveur zombie ne doit pas bloquer un refresh indéfiniment */
         private const val REFRESH_TIMEOUT_MS = 10 * 60 * 1000L
+        /** Timeout pour l'ajout d'une playlist (download + parse + save) - max 5 min */
+        private const val ADD_PLAYLIST_TIMEOUT_MS = 5 * 60 * 1000L
+        /** Taille maximale d'un fichier M3U accepte (50 Mo) */
+        private const val MAX_M3U_SIZE_BYTES = 50L * 1024 * 1024
     }
 
     private val secureXtreamPrefs: SharedPreferences by lazy {
@@ -117,6 +121,9 @@ class PlaylistRepository @Inject constructor(
 
     // Ajouter une playlist M3U
     fun addM3UPlaylist(name: String, url: String): Flow<PlaylistLoadProgress> = flow {
+        // Garde-fou global : meme si OkHttp a ses propres timeouts, le flow complet
+        // (download + sniff + parse + Room) ne doit pas depasser 5 minutes.
+        kotlinx.coroutines.withTimeout(ADD_PLAYLIST_TIMEOUT_MS) {
         val cleanUrl = url.trim()
         emit(PlaylistLoadProgress.Loading("Vérification de l'URL..."))
         try {
@@ -161,6 +168,13 @@ class PlaylistRepository @Inject constructor(
             }
             val responseBody = response.body
                 ?: throw Exception("Le serveur n'a retourné aucun contenu")
+
+            // Valider la taille avant de parser - un fichier > 50 Mo n'est probablement pas du M3U
+            val totalBytes = responseBody.contentLength()
+            if (totalBytes > MAX_M3U_SIZE_BYTES) {
+                response.close()
+                throw Exception("Le fichier est trop volumineux (" + (totalBytes / (1024*1024)) + " Mo). Maximum autorise : 50 Mo.")
+            }
 
             // Validation Content-Type avant parsing — détecte les erreurs courantes
             val contentType = response.header("Content-Type", "").orEmpty().lowercase()
@@ -235,6 +249,7 @@ class PlaylistRepository @Inject constructor(
             Timber.e(e, "❌ Échec addM3UPlaylist pour $name")
             emit(PlaylistLoadProgress.Error(e))
         }
+        } // fin withTimeout - meme en cas de timeout, l'erreur est catchee par le catch ci-dessous
         // CRITIQUE : tout le corps (réseau OkHttp bloquant, parsing, Room) doit tourner sur
         // Dispatchers.IO. Sans flowOn, les collecteurs (viewModelScope.launch = Main) exécutent
         // le flow sur le thread principal → NetworkOnMainThreadException + ANR « app ne répond pas ».

@@ -252,7 +252,10 @@ fun rememberScrollSyncedCategory(
     val category = remember { mutableStateOf<String?>(null) }
     val currentChannels by rememberUpdatedState(channels)
 
-    LaunchedEffect(listState, currentChannels) {
+    // Le LaunchedEffect re-lance quand categories ou channels changent (ajout/suppression
+    // de playlist, refresh). Sans categories comme key, le snapshotFlow ne redémarre pas
+    // quand la liste change mais firstVisibleItemIndex reste identique.
+    LaunchedEffect(listState, categories, currentChannels) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
             .collect { index ->
@@ -277,7 +280,7 @@ fun rememberGridScrollSyncedCategory(
     val category = remember { mutableStateOf<String?>(null) }
     val currentEntries by rememberUpdatedState(entries)
 
-    LaunchedEffect(gridState, currentEntries) {
+    LaunchedEffect(gridState, categories, currentEntries) {
         snapshotFlow { gridState.firstVisibleItemIndex }
             .distinctUntilChanged()
             .collect { index ->
